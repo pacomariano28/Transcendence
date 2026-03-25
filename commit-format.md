@@ -14,15 +14,12 @@ We follow a simple, consistent commit title format (inspired by Conventional Com
 ## Allowed Types
 - **Feature**: new functionality
 - **Fix**: bug fix
+- **Remove**: remove content
 - **Setup**: project setup / template / initial structure
 - **Docs**: documentation only
 - **Refactor**: code change that doesn’t change behavior
 - **Test**: add/update tests
-- **Chore**: maintenance tasks (tooling, scripts, minor housekeeping)
-- **Perf**: performance improvement
-- **CI**: CI/pipeline changes
-- **Build**: build system changes
-- **Revert**: revert a previous commit
+
 
 ## Examples
 - `Feature: add matchmaking queue`
