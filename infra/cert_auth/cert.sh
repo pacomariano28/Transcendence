@@ -18,6 +18,8 @@ openssl req -new -key dev.key -out dev.csr -subj "/CN=localhost"
 
 openssl x509 -req -in dev.csr -CA MyLocalCA.pem -CAkey MyLocalCA.key -CAcreateserial -out dev.crt -days 825 -sha256 -extfile localhost.ext
 
+mkdir ../certs
+
 mv dev.key ../certs
 
 mv dev.crt ../certs
