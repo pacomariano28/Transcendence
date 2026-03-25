@@ -1,0 +1,45 @@
+services:
+  nginx:
+    volumes:
+      - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../infra/nginx/conf.d:/etc/nginx/conf.d
+
+  api-gateway:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+    command: npm run dev
+    volumes:
+      - ./backend/services/api-gateway/src:/app/src
+      - ./backend/services/api-gateway/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    ports:
+      - "4000:4000"
+
+  frontend:
+    environment:
+      NODE_ENV: development
+    command: npm run dev
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+
+  nginx-reload:
+    image: alpine:latest
+    volumes:
+      - ../infra/nginx:/nginx:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: |
+      sh -c "apk add --no-cache inotify-tools docker-cli && \
+      inotifywait -r -m -e modify /nginx | while read -r path action file; do \
+        echo 'Recargando nginx...'; \
+        docker exec songuess-nginx nginx -s reload; \
+      done"
+    depends_on:
+      - nginx
+    networks:
+      - songuess-net
