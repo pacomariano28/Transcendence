@@ -141,3 +141,10 @@ vite.config.ts.timestamp-*
 # TLS secret files
 *.crt
 *.key
+*.csr
+*.ext
+*.pem
+*.srl
+
+# Backup files
+*.~
