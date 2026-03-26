@@ -1,6 +1,10 @@
+// necesitamos acceder a la variable de entorno que no tenemos inyectada por el docker-compose, dotenv nos ayuda a acceder a ellas a traves del .env de este servicio
+import "dotenv/config";
 import express from "express";
 import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
+
+
 
 const app = express();
 
