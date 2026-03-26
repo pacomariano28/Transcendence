@@ -141,8 +141,6 @@ vite.config.ts.timestamp-*
 # TLS secret files
 *.crt
 *.key
-<<<<<<< HEAD
-=======
 *.csr
 *.ext
 *.pem
@@ -152,4 +150,3 @@ vite.config.ts.timestamp-*
 *~
 *.swp
 *.un~
->>>>>>> feature/nginx-tls
