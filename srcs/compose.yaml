@@ -58,6 +58,27 @@ services:
     networks:
       - songuess-net
 
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: songuess-auth-service
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      PORT: 4002
+      SERVICE_NAME: auth-service
+      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
+      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+    expose:
+      - "4002"
+    depends_on:
+      - postgres
+    networks:
+      - songuess-net
+
   # game-service:
   #   build:
   #     context: ./services/game-service
