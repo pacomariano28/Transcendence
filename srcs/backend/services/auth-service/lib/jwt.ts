@@ -23,6 +23,8 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not set");
 }
 
+
+
 // definimos que información va dentro del token, puede que pongamos más :MOD
 export type AccessTokenPayload = {
   sub: string; // user id
@@ -32,6 +34,8 @@ export type AccessTokenPayload = {
   username: string;
 };
 
+
+
 // firmar un payload con nuestro token 
 // payload es lo que va dentro del token. 
 export function signAccessToken(payload: AccessTokenPayload): string {
@@ -40,6 +44,8 @@ export function signAccessToken(payload: AccessTokenPayload): string {
     expiresIn: "15m"
   });
 }
+
+
 
 // verificar un payload con nuestro token
 export function verifyAccessToken(token: string): AccessTokenPayload {

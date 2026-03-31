@@ -23,19 +23,31 @@ app.get("/api/auth/health", async (_req: Request, res: Response): Promise<void> 
 
   try {
 
-    const { data } = await axios.get(`${AUTH_SERVICE_URL}/health`);
+    const { data } = await axios.get(`${AUTH_SERVICE_URL}/health`, {
+      timeout: 1000, // 1s
+    });
 
     res.status(200).json({ ok: true, auth: data});
 
-  }catch (err: any) {
+  } catch (err: unknown) {
+
+    if (axios.isAxiosError(err)) {
+      console.error("Error reaching auth service:", {
+        message: err.message,
+        code: err.code,
+        status: err.response?.status,
+      });
+    } else {
+      console.error("Unexpected error reaching auth service:", err);
+    }
 
     res.status(502).json({
       ok: false,
       error: "Failed to reach auth service",
-      detail: err?.message
-     });
-    }
-  });
+      detail: "Unable to contact auth service at this time."
+    });
+  }
+});
 
 app.listen(port, "0.0.0.0", (): void => {
   console.log(`API Gateway listening on port ${port}`);

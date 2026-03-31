@@ -1,5 +1,6 @@
-import { Router } from "express";
-import { signAccessToken } from "../../lib/jwt.js"
+import { Router , Request, Response} from "express";
+import { signAccessToken, verifyAccessToken } from "../../lib/jwt.js"
+import { requireAuth } from "../middlewares/requireAuth.js";
 
 export const authRouter = Router();
 
@@ -13,7 +14,7 @@ authRouter.get("/auth", (_req, res) => {
 })
 */
 
-authRouter.post("/register", (req, res) => {
+authRouter.post("/register", (req: Request, res: Response) => {
     const { email, username, password } = req.body ?? {};
 
     if (!email || !username || !password) {
@@ -26,7 +27,7 @@ authRouter.post("/register", (req, res) => {
         return;
     }
 
-    res.status(200).json({
+    res.status(201).json({
         ok: true,
         message: "User registered (stub)",
         user: {
@@ -38,7 +39,7 @@ authRouter.post("/register", (req, res) => {
 });
 
 
-authRouter.post("/login", (req, res) => {
+authRouter.post("/login", (req: Request, res: Response) => {
     const { email, password } = req.body ?? {};
 
     if (!email || !password) {
@@ -52,7 +53,7 @@ authRouter.post("/login", (req, res) => {
     }
 
     const token = signAccessToken({
-        sub: "stup-user-id",
+        sub: "stub-user-id",
         email,
         username: "stub"
     });
@@ -64,25 +65,19 @@ authRouter.post("/login", (req, res) => {
     });
 });
 
-authRouter.get("/me", (req, res) => {
-    const authHeader : string = req.header("authorization") ?? "";
-
-    const hasBearer : boolean = authHeader.toLowerCase().startsWith("bearer");
-
-    if (!hasBearer) {
-        res.status(401).json({
-            ok: false,
-            error: "Missing or invalid Authorization header."
-        });
-        return;
-    }
-
-    res.status(200).json({
-        ok: true,
-        user: {
-            id: "stub-user-id",
-            email: "sub@example.com",
-            username: "stub"
-        }
-    });
+authRouter.get("/me", requireAuth, (_req: Request, res: Response) => {
+  res.status(200).json({
+    ok: true,
+    user: res.locals.user
+  });
 });
+
+
+/**
+ * TESTING
+ * 
+ * curl -s -X POST http://localhost:4002/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"a@b.com","password":"123"}' | cat
+
+ */

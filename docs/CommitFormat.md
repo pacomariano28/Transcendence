@@ -26,7 +26,6 @@ We follow a simple, consistent commit title format (inspired by Conventional Com
 - `Fix(auth): handle expired token`
 - `Docs: update installation steps`
 - `Refactor(api): simplify session creation`
-- `CI: cache dependencies`
 
 ## Breaking changes
 If a change is backwards-incompatible, add in the body:
