@@ -1,5 +1,5 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
-import { AccessTokenPayload, verifyAccessToken } from "../../lib/jwt.js";
+import { AccessTokenPayload, verifyAccessToken } from "../lib/jwt.js";
 
 type AuthedUser = {
     id: string;
@@ -60,7 +60,22 @@ export const requireAuth: RequestHandler = (req: Request, res: Response, next: N
         // Request succesfully, next middleware call
         next();
 
-    } catch {
+    } catch (err){
+
+        const name = err instanceof Error ? err.name : ""
+
+        if (name === "TokenExpiredError") {
+            res.status(401).json({
+                ok: false,
+                error: "Token expired"
+            });
+        }
+
+        res.status(401).json({
+            ok: false,
+            error: "Invalid token"
+        });
+    }
 
         res.status(401).json({
             ok: false,
@@ -68,4 +83,3 @@ export const requireAuth: RequestHandler = (req: Request, res: Response, next: N
         });
 
     }
-}

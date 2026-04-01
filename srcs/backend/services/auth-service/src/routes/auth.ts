@@ -1,5 +1,5 @@
 import { Router , Request, Response} from "express";
-import { signAccessToken, verifyAccessToken } from "../../lib/jwt.js"
+import { signAccessToken, verifyAccessToken } from "../lib/jwt.js"
 import { requireAuth } from "../middlewares/requireAuth.js";
 
 export const authRouter = Router();

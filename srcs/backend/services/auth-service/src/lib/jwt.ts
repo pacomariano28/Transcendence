@@ -18,11 +18,6 @@ const JWT_SECRET: string = (() => {
   return secret;
 })(); // el último parentesis puede rellenarse con los parámetros que le queramos mandar a la función en el momento. Ej: const result = ((name: string) => `Hola ${name}`)("Paco");
 
-if (!JWT_SECRET) {
-  // Fallar rápido en dev/CI si no está configurado
-  throw new Error("JWT_SECRET is not set");
-}
-
 
 
 // definimos que información va dentro del token, puede que pongamos más :MOD
