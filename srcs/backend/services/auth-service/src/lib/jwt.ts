@@ -12,8 +12,13 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
  * 
  * La uso en este caso porque en este momento necesito esta función que nose si la necesitaré mas adelane. Si la necesitara pues ya la extraigo y hago una función normal. :MOD
  */
+
+/**
+ * This function is used to ehck if the JWT exists. If it doesn't exist, it throws an error. If it does exist, it returns the JWT secret.
+ */
 const JWT_SECRET: string = (() => {
   const secret = process.env.JWT_SECRET;
+
   if (!secret) throw new Error("JWT_SECRET is not set");
   return secret;
 })(); // el último parentesis puede rellenarse con los parámetros que le queramos mandar a la función en el momento. Ej: const result = ((name: string) => `Hola ${name}`)("Paco");

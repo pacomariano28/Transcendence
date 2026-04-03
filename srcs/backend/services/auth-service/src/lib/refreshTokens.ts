@@ -53,7 +53,7 @@ export function issueRefreshToken(userId: string): IssuedRefreshToken {
 // Consume the refreshToken and get userId
 export function consumeRefreshToken(refreshToken: string): { userId: string } {
 
-    // MOD: get the token from the map
+    // MOD: get the token from the map. We have to get it from the DB/Redis
     const rec = store.get(refreshToken);
 
     if (!rec) {

@@ -1,18 +1,10 @@
 import { Router , Request, Response} from "express";
-import { signAccessToken, verifyAccessToken } from "../lib/jwt.js"
+import { signAccessToken } from "../lib/jwt.js"
 import { requireAuth } from "../middlewares/requireAuth.js";
+import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
 
 export const authRouter = Router();
 
-/*
-authRouter.get("/auth", (_req, res) => {
-    res.status(200).json({
-        status: "ok",
-        service: "auth-service",
-        endpoint: "auth"
-    });
-})
-*/
 
 authRouter.post("/register", (req: Request, res: Response) => {
     const { email, username, password } = req.body ?? {};
@@ -58,12 +50,70 @@ authRouter.post("/login", (req: Request, res: Response) => {
         username: "stub"
     });
 
+    const issued = issueRefreshToken("stub-user-id");
+
     res.status(200).json({
         ok: true,
         message: "Login successful (stub)",
-        token
+        token,
+        refreshToken: issued.refreshToken
     });
 });
+
+
+authRouter.post("/refresh", (req: Request, res: Response) => {
+    const { refreshToken } = req.body ?? {};
+
+    if (!refreshToken) {
+        res.status(400).json({
+            ok: false,
+            message: "Missing refresh token",
+            required: ["refreshToken"]
+        });
+
+        return;
+    }
+
+    try {
+        // 
+        const { userId } = consumeRefreshToken(String(refreshToken));
+
+        // 1) Nuevo access token
+        // STUB: sin DB no podemos reconstruir email/username reales todavía
+        const token = signAccessToken({
+            sub: userId,
+            email: "stub@local",
+            username: "stub"
+        });
+
+        // 2) Nuevo refresh token (rotación)
+        const issued = issueRefreshToken(userId);
+
+        res.status(200).json({
+            ok: true,
+            token,
+            refreshToken: issued.refreshToken
+        });
+
+        return;
+
+    } catch (err) {
+        const code = err instanceof Error ? err.message : "";
+
+        if (code === "EXPIRED_REFRESH_TOKEN") {
+            res.status(401).json({ 
+                ok: false, 
+                error: "Refresh token expired" });
+            return;
+        }
+
+        res.status(401).json({ 
+            ok: false, 
+            error: "Invalid refresh token" });
+        return;
+    }
+})
+
 
 authRouter.get("/me", requireAuth, (_req: Request, res: Response) => {
   res.status(200).json({
