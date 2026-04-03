@@ -23,8 +23,8 @@ services:
       dockerfile: Dockerfile
     container_name: songuess-frontend
     restart: unless-stopped
-    env_file:
-      - ./.env
+    # env_file:
+    #   - ./.env
     ports:
       - "5173"
     # command: npm run build && npm run serve
@@ -65,8 +65,8 @@ services:
       target: production
     container_name: songuess-auth-service
     restart: unless-stopped
-    env_file:
-      - ./.env
+    # env_file:
+    #   - ./.env
     environment:
       PORT: 4002
       SERVICE_NAME: auth-service
@@ -138,10 +138,10 @@ services:
     image: postgres:17.9-alpine3.22
     container_name: songuess-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    # environment:
+    #   POSTGRES_USER: ${POSTGRES_USER}
+    #   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    #   POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432"
     volumes:
