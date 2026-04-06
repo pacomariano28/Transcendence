@@ -120,7 +120,7 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
             offset: offset,
         },
         headers: {
-            Authorization: `Bearer ${cachedToken}`
+            Authorization: `Bearer ${token}`
         }
     })
 
