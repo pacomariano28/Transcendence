@@ -19,45 +19,58 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 
 const MAX_LIMIT_FETCH = 10;
 
-let cachedToken: string | null = null;
+let tokenPromise: Promise<string> | null = null;
 let tokenExpirationTime: number = 0;
+let isFetching: boolean = false;
 
 /**
  * Retrieves an access token from Spotify using the Client Credentials flow.
  */
-async function getSpotifyToken(): Promise<string | null> {
+async function getSpotifyToken(): Promise<string> {
     const currentTime = Date.now();
 
     // Return cached token if exists and is not within 5 minutes of expiring
-    if (cachedToken && currentTime < tokenExpirationTime) {
-        return cachedToken;
+    if (tokenPromise && (isFetching || currentTime < tokenExpirationTime)) {
+        return tokenPromise;
     }
 
-    const response = await axios.post<AccessToken>(
-        'https://accounts.spotify.com/api/token',
-        new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: CLIENT_ID || '',
-            client_secret: CLIENT_SECRET || ''
-        }).toString(),
-        {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+    isFetching = true;
+
+    tokenPromise = (async () => {
+        try {
+            const response = await axios.post<AccessToken>(
+                'https://accounts.spotify.com/api/token',
+                new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: CLIENT_ID || '',
+                    client_secret: CLIENT_SECRET || ''
+                }).toString(),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }
+            );
+
+            if (response.status !== 200) {
+                throw new Error('Couldn\'t obtain an access token');
             }
+
+            const { access_token, expires_in } = response.data;
+
+            // Calculate expiration time in ms, minus a 300-second (5-minute) buffer
+            tokenExpirationTime = Date.now() + (expires_in - 300) * 1000;
+
+            return access_token;
+        } catch (error) {
+            tokenPromise = null;
+            tokenExpirationTime = 0;
+            isFetching = false;
+            throw error;
         }
-    );
+    })();
 
-    if (response.status != 200)
-        throw new Error('Couldn\'t obtain an access token');
-
-    const { access_token, expires_in } = response.data;
-
-    // Update cache
-    cachedToken = access_token;
-    // Calculate expiration time in ms, minus a 300-second (5-minute) buffer
-    tokenExpirationTime = currentTime + (expires_in - 300) * 1000;
-
-    return cachedToken;
+    return tokenPromise;
 }
 
 function stripBrackets(input: string, opening: string): string {
@@ -151,7 +164,7 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
         const identifier = `${normalizeString(rawTrackName)}-${normalizeString(rawArtistName)}`;
 
         if (!seenIdentifiers.has(identifier)) {
-            console.log(`${clearString(rawTrackName)} - ${clearString(rawArtistName)}`);
+            // console.log(`${clearString(rawTrackName)} - ${clearString(rawArtistName)}`);
             seenIdentifiers.add(identifier);
             uniqueTracks.push({
                 track: clearString(rawTrackName),
