@@ -21,7 +21,7 @@ export async function getTracks(req: Request, res: Response): Promise<void> {
         res.status(200).json(tracks);
     } catch (error: any) {
         // Global error handling for this endpoint
-        console.error(error.response?.data || error.message);
+        console.error(error.response?.data.error.message || error.message);
         const statusCode = error.response?.status || 500;
         res.status(statusCode).json({ error: 'Failed to fetch data from Spotify API' });
     }
