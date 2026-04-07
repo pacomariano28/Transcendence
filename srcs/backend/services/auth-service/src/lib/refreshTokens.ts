@@ -8,7 +8,6 @@ import crypto from "crypto";
 // Who owns it?
 // It expired?
 // When DB is implemented, maybe change this :MOD
-
 /**
  * type RefreshRecord = {
   tokenHash: string;
@@ -35,7 +34,19 @@ const store = new Map<string, RefreshRecord>();
 // 30 days
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-// creates a refresh Token
+/**
+ * @brief Issue a new refresh token for a given user ID.
+ *
+ * @description
+ * This function generates a new refresh token for the specified user ID. The refresh token is created as a random string using the crypto library and is associated with an expiration time. The token and its metadata are stored in a temporary in-memory store (which should be replaced with a persistent storage solution like a database or Redis in production).
+ * @param userId 
+ * @returns An object containing the issued refresh token and its expiration time.
+ *
+ * @example
+ * const { refreshToken, expiresAt } = issueRefreshToken("12345");
+ * console.log("Issued Refresh Token:", refreshToken);
+ * console.log("Expires At:", new Date(expiresAt).toISOString());
+ */
 export function issueRefreshToken(userId: string): IssuedRefreshToken {
   const refreshToken = crypto.randomBytes(48).toString("hex");
   const expiresAt = Date.now() + REFRESH_TTL_MS;
