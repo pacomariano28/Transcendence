@@ -8,3 +8,8 @@ Si es una función pura sin Express (ej: validar objeto, formatear) → lib/ o u
 
 AccesToken está firmado con JWT_SECRET y tiene payload
 RefreshToken es un string random que conseguimos con crypto.randomBytes
+
+vamos a ver si prettier y eslint nos sirve para controlar el formateo
+
+> npm install -D prettier eslint
+> npm install -D typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin

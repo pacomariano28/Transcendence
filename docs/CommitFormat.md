@@ -22,7 +22,7 @@ We follow a simple, consistent commit title format (inspired by Conventional Com
 
 
 ## Examples
-- `Feature: add matchmaking queue`
+- `Feature: add matchmaking queue`F
 - `Fix(auth): handle expired token`
 - `Docs: update installation steps`
 - `Refactor(api): simplify session creation`
