@@ -83,6 +83,7 @@ services:
     build:
       context: ./backend/services/content-service
       dockerfile: Dockerfile
+      target: production
     container_name: songuess-content-service
     restart: unless-stopped
     env_file:
