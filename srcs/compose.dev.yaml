@@ -3,6 +3,7 @@ services:
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ../infra/nginx/conf.d:/etc/nginx/conf.d
+      - ../infra/certs:/etc/nginx/certs
 
   api-gateway:
     build:
@@ -30,6 +31,19 @@ services:
     ports:
       - "4002:4002"
 
+  content-service:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+    command: npm run dev
+    volumes:
+      - ./backend/services/content-service/src:/app/src
+      - ./backend/services/content-service/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    ports:
+      - "4003:4003"
+
   frontend:
     environment:
       NODE_ENV: development
@@ -56,3 +70,7 @@ services:
       - nginx
     networks:
       - songuess-net
+
+  redis:
+    ports:
+      - "6379:6379"

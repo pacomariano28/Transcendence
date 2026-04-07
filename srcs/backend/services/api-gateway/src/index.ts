@@ -1,54 +1,24 @@
-import express, { Express, Request, Response } from "express";
-import axios from "axios";
+import express from 'express';
+import cors from 'cors';
+import searchRoutes from './routes/search.routes.js';
 
-const app: Express = express();
-const port: number = parseInt(process.env.PORT || "4000");
+// Initialize the Express application
+const app: any = express();
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:4002";
+// Define the port (use environment variable if it exists, otherwise 3000)
+const PORT: any = process.env.PORT || 3000;
 
-app.get("/api/health", (_req: Request, res: Response): void => {
+// // Global middlewares
+// // 1. Allow requests from other origins (CORS)
+app.use(cors());
+// // 2. Parse incoming request bodies as JSON automatically
+app.use(express.json());
 
-  const payload = {
-    ok: true,
-    service: "api-getway",
-    via: "/api",
-    timestamp: new Date().toISOString()
-  };
+// // Routes registration
+// // All endpoints in searchRoutes will be prefixed with /api/search
+app.use('/api/search', searchRoutes);
 
-  console.log("Hello:", payload);
-  res.status(200).json(payload);
-});
-
-app.get("/api/auth/health", async (_req: Request, res: Response): Promise<void> => {
-
-  try {
-
-    const { data } = await axios.get(`${AUTH_SERVICE_URL}/health`, {
-      timeout: 1000, // 1s
-    });
-
-    res.status(200).json({ ok: true, auth: data});
-
-  } catch (err: unknown) {
-
-    if (axios.isAxiosError(err)) {
-      console.error("Error reaching auth service:", {
-        message: err.message,
-        code: err.code,
-        status: err.response?.status,
-      });
-    } else {
-      console.error("Unexpected error reaching auth service:", err);
-    }
-
-    res.status(502).json({
-      ok: false,
-      error: "Failed to reach auth service",
-      detail: "Unable to contact auth service at this time."
-    });
-  }
-});
-
-app.listen(port, "0.0.0.0", (): void => {
-  console.log(`API Gateway listening on port ${port}`);
-});
+// Server start
+app.listen(PORT, () => {
+  console.log(`API Gateway listening on port ${PORT}`);
+})

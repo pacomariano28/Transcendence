@@ -1,0 +1,192 @@
+# ============================================================================
+# Created by https://dockerignore.com/
+# FRAMEWORK TEMPLATE for Express
+# Website: https://expressjs.com/
+# Repository: https://github.com/expressjs/express
+# ============================================================================
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TEMPLATE OVERVIEW & USAGE NOTES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# • TEMPLATE TYPE: Framework Template
+# • PURPOSE: Express framework specific ignore patterns
+# • DESIGN PHILOSOPHY: Self-contained with all necessary patterns including security
+# • COMBINATION GUIDANCE: Use standalone - no need to combine with other templates
+# • SECURITY CONSIDERATIONS: Includes security patterns for .env files and credentials
+# • BEST PRACTICES: Review before use, test with your specific Express setup
+# • OFFICIAL SOURCES: Express community patterns and best practices
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# SECURITY & SENSITIVE DATA PROTECTION (ALWAYS FIRST!)
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# CRITICAL: Prevent sensitive data from being included in Docker images
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# ENVIRONMENT VARIABLES & CONFIGURATION FILES
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# Environment files contain sensitive API keys, database credentials,
+# and other secrets that must not be included in Docker images
+
+.env
+.env.*
+.env.*.local
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# APPLICATION SECRETS & CREDENTIALS
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+# Application secrets, credentials, and sensitive configuration files
+**/config/credentials.*
+**/config/secrets.*
+**/keys/
+**/passwords/
+**/private/
+**/secrets/
+*.auth
+*.authz
+*.password
+*.secret
+*.secrets
+*.token
+*_tokens
+*password*
+apikeys.*
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Staging.json
+connectionstrings.config
+credentials
+database.ini
+database.yml
+dbconfig.xml
+secrets.json
+secrets.yaml
+secrets.yml
+tokens.*
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# DEPENDENCIES AND PACKAGE MANAGERS
+**/.npm/
+**/.npm/_logs/
+**/.pnpm-store/
+**/.pnpm/
+**/.yarn/
+**/bower_components/
+**/node_modules/
+.npmignore
+.npmrc
+.npmrc.*
+.yarn/install-state.gz
+.yarnrc
+.yarnrc.yml
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# BUILD ARTIFACTS AND OUTPUT
+**/.nyc_output/
+**/.out/
+**/.output/
+**/build/
+**/dist/
+**/public/build/
+.tsbuildinfo
+tsconfig.*.tsbuildinfo
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# CACHE AND TEMPORARY FILES
+**/.cache/
+**/.parcel-cache/
+**/.turbo/
+**/temp/
+**/tmp/
+*.cache
+*.temp
+*.tmp
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# LOGS AND DEBUG FILES
+**/logs/
+*.log
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# CONFIGURATION AND ENVIRONMENT
+.env.testing
+jsconfig.json
+vitest.config.*.timestamp-*
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# TESTING AND COVERAGE
+**/.jest-cache/
+**/__tests__/__snapshots__/
+**/coverage/
+**/test-results/
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# OTHER
+**/.babel-cache/
+**/.bzr/
+**/.cvs/
+**/.git/
+**/.hg/
+**/.next/
+**/.nuxt/
+**/.nx/
+**/.nx/cache/
+**/.pnp/
+**/.svn/
+**/jest-cache/
+**/pids/
+**/public/uploads/
+**/sessions/
+**/storage/
+**/typings/
+**/uploads/
+*.bak
+*.old
+*.orig
+*.pid.lock
+*.save
+*.seed
+*.swo
+*.swp
+*~
+._*
+.babelrc
+.babelrc.*
+.browserslistrc
+.DS_Store
+.DS_Store?
+.eslintcache
+.eslintignore
+.eslintrc
+.eslintrc.*
+.gitattributes
+.gitignore
+.gitmodules
+.jsbeautifyrc
+.jscsrc
+.jshintrc
+.pnp.cjs
+.pnp.js
+.pnp.loader.mjs
+.prettiercache
+.prettierignore
+.prettierrc
+.prettierrc.*
+.Spotlight-V100
+.stylelintcache
+.stylelintignore
+.stylelintrc
+.stylelintrc.*
+.Trashes
+access.log
+desktop.ini
+ehthumbs.db
+error.log
+express.log
+pnpm-workspace.yaml
+Thumbs.db
