@@ -70,3 +70,7 @@ services:
       - nginx
     networks:
       - songuess-net
+
+  redis:
+    ports:
+      - "6379:6379"

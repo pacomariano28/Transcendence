@@ -1,6 +1,5 @@
 import axios from 'axios';
-import express, { raw, Request, response, Response } from 'express';
-import { getTracks } from '../controllers/search.controller';
+import { getRedisClient } from '../lib/redis.js';
 
 interface AccessToken {
     access_token: string;
@@ -19,59 +18,117 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 
 const MAX_LIMIT_FETCH = 10;
 
-let tokenPromise: Promise<string> | null = null;
-let tokenExpirationTime: number = 0;
-let isFetching: boolean = false;
+let tokenFetchPromise: Promise<string | null> | null = null;
+
+async function fetchSpotifyToken(): Promise<string | null> {
+    const response = await axios.post<AccessToken>(
+        'https://accounts.spotify.com/api/token',
+        new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: CLIENT_ID || '',
+            client_secret: CLIENT_SECRET || ''
+        }).toString(),
+        {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }
+    )
+
+    if (response.status !== 200) {
+        throw new Error('Couldn\'t obtain an access token');
+    }
+    console.log("Spotify API access token was retrieved");
+
+    const { access_token, expires_in } = response.data;
+
+    // Calculate TTL in seconds (expires_in - 300 seconds for 5 min buffer)
+    const ttlSeconds = expires_in - 300;
+
+    const redis = getRedisClient();
+    await redis.setEx('spotify_token', ttlSeconds, access_token);
+
+    return access_token;
+}
+
+export async function getSpotifyToken(): Promise<string | null> {
+    const redis = getRedisClient();
+
+    const cachedToken = await redis.get('spotify_token');
+    if (cachedToken) {
+        console.log(cachedToken);
+        return cachedToken;
+    }
+
+    // Return the existing promise if a fetch is already in progress
+    if (tokenFetchPromise) {
+        return tokenFetchPromise;
+    }
+
+    try {
+        tokenFetchPromise = fetchSpotifyToken();
+        const newToken = await tokenFetchPromise;
+        return newToken;
+    } finally {
+        tokenFetchPromise = null; // Reset lock regardless of success or failure
+    }
+}
+
+// let tokenPromise: Promise<string> | null = null;
+// let tokenExpirationTime: number = 0;
+// let isFetching: boolean = false;
 
 /**
  * Retrieves an access token from Spotify using the Client Credentials flow.
  */
-async function getSpotifyToken(): Promise<string> {
-    const currentTime = Date.now();
+// async function getSpotifyToken(): Promise<string> {
+//     const currentTime = Date.now();
 
-    // Return cached token if exists and is not within 5 minutes of expiring
-    if (tokenPromise && (isFetching || currentTime < tokenExpirationTime)) {
-        return tokenPromise;
-    }
+//     // Return cached token if exists and is not within 5 minutes of expiring
+//     if (tokenPromise && (isFetching || currentTime < tokenExpirationTime)) {
+//         return tokenPromise;
+//     }
 
-    isFetching = true;
+//     isFetching = true;
 
-    tokenPromise = (async () => {
-        try {
-            const response = await axios.post<AccessToken>(
-                'https://accounts.spotify.com/api/token',
-                new URLSearchParams({
-                    grant_type: 'client_credentials',
-                    client_id: CLIENT_ID || '',
-                    client_secret: CLIENT_SECRET || ''
-                }).toString(),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                }
-            );
+//     tokenPromise = (async () => {
+//         try {
+//             const response = await axios.post<AccessToken>(
+//                 'https://accounts.spotify.com/api/token',
+//                 new URLSearchParams({
+//                     grant_type: 'client_credentials',
+//                     client_id: CLIENT_ID || '',
+//                     client_secret: CLIENT_SECRET || ''
+//                 }).toString(),
+//                 {
+//                     headers: {
+//                         'Content-Type': 'application/x-www-form-urlencoded'
+//                     }
+//                 }
+//             );
 
-            if (response.status !== 200) {
-                throw new Error('Couldn\'t obtain an access token');
-            }
+//             if (response.status !== 200) {
+//                 throw new Error('Couldn\'t obtain an access token');
+//             }
 
-            const { access_token, expires_in } = response.data;
+//             console.log("Spotify API access token was retrieved successfully");
 
-            // Calculate expiration time in ms, minus a 300-second (5-minute) buffer
-            tokenExpirationTime = Date.now() + (expires_in - 300) * 1000;
+//             const { access_token, expires_in } = response.data;
 
-            return access_token;
-        } catch (error) {
-            tokenPromise = null;
-            tokenExpirationTime = 0;
-            isFetching = false;
-            throw error;
-        }
-    })();
+//             // Calculate expiration time in ms, minus a 300-second (5-minute) buffer
+//             tokenExpirationTime = Date.now() + (expires_in - 300) * 1000;
 
-    return tokenPromise;
-}
+//             return access_token;
+//         } catch (error) {
+//             tokenPromise = null;
+//             tokenExpirationTime = 0;
+//             isFetching = false;
+//             throw error;
+//         }
+//     })();
+
+//     return tokenPromise;
+// }
 
 function stripBrackets(input: string, opening: string): string {
     let result: string = "";
@@ -136,6 +193,11 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
             Authorization: `Bearer ${token}`
         }
     })
+
+    if ((await response).status === 429) {
+        console.log('hey');
+        console.log((await response).headers);
+    }
 
     return response;
 }

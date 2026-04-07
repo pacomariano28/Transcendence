@@ -1,20 +1,25 @@
 {
+  "extends": "../../../../tsconfig.base.json",
+  "$schema": "https://www.schemastore.org/tsconfig",
+  "display": "Node LTS (24)",
+  "_version": "24.0.0",
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ES2020",
     "lib": [
-      "ES2020"
+      "es2024",
+      "ESNext.Array",
+      "ESNext.Collection",
+      "ESNext.Iterator",
+      "ESNext.Promise"
     ],
-    "moduleResolution": "bundler",
-    "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "module": "nodenext",
+    "target": "es2024",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "noImplicitAny": true
+    "moduleResolution": "node16",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "declaration": true
   },
   "include": [
     "src/**/*"
