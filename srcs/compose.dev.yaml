@@ -8,8 +8,6 @@ services:
   api-gateway:
     build:
       target: development
-    environment:
-      NODE_ENV: development
     command: npm run dev
     volumes:
       - ./backend/services/api-gateway/src:/app/src
@@ -18,18 +16,18 @@ services:
     ports:
       - "4000:4000"
 
-  auth-service:
-    build:
-      target: development
-    environment:
-      NODE_ENV: development
-    command: npm run dev
-    volumes:
-      - ./backend/services/auth-service/src:/app/src
-      - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-    ports:
-      - "4002:4002"
+  # auth-service:
+  #   build:
+  #     target: development
+  #   environment:
+  #     NODE_ENV: development
+  #   command: npm run dev
+  #   volumes:
+  #     - ./backend/services/auth-service/src:/app/src
+  #     - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
+  #     - /app/node_modules
+  #   ports:
+  #     - "4002:4002"
 
   content-service:
     build:
