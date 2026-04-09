@@ -33,12 +33,10 @@ export const requireAuth: RequestHandler = (
 
   // If there is no token, error and return
   if (!token) {
-    res.status(401).json({
+    return res.status(401).json({
       ok: false,
       error: "Missing token",
     });
-
-    return;
   }
 
   // Now that we have the token, we check if its correct
