@@ -1,5 +1,5 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
-import { AccessTokenPayload, verifyAccessToken } from "../../lib/jwt.js";
+import { AccessTokenPayload, verifyAccessToken } from "../lib/jwt.js";
 
 type AuthedUser = {
     id: string;

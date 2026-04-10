@@ -6,14 +6,14 @@ services:
     environment:
       NGINX_HOST: localhost
     depends_on:
-      - api-gateway
+      - frontend
     ports:
       - "8443:443"
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - ../infra/certs:/etc/nginx/certs:ro
-      - ./frontend:/usr/share/nginx/html:ro
+      - frontend_data:/usr/share/nginx/html:ro
     networks:
       - songuess-net
 
@@ -21,16 +21,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: production
     container_name: songuess-frontend
     restart: unless-stopped
     # env_file:
     #   - ./.env
     expose:
       - "5173"
-    # command: npm run build && npm run serve
-    command: npm run build
+    volumes:
+      - frontend_data:/app/dist
     depends_on:
-      - nginx
+      - api-gateway
     networks:
       - songuess-net
 
@@ -52,7 +53,7 @@ services:
     expose:
       - "4000"
     depends_on:
-      #   - game-service
+      # - game-service
       - auth-service
       - content-service
     networks:
@@ -148,5 +149,6 @@ networks:
     driver: bridge
 
 volumes:
+  frontend_data:
   postgres_data:
   redis_data:
