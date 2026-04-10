@@ -1,5 +1,6 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
-import { AccessTokenPayload, verifyAccessToken } from "../../lib/jwt.js";
+import { AccessTokenPayload, verifyAccessToken } from "../lib/jwt.js";
+import { logError } from "../lib/logger.js";
 
 type AuthedUser = {
     id: string;
@@ -56,11 +57,19 @@ export const requireAuth: RequestHandler = (req: Request, res: Response, next: N
         // Save the user in res.locals.
         // Locals is a shared object between middlewares and handlers that are in the same request
         res.locals.user = user;
-        
+
         // Request succesfully, next middleware call
         next();
 
-    } catch {
+    } catch (error: any) {
+        logError({
+            method: req.method,
+            path: req.originalUrl,
+            statusCode: 401,
+            errorName: error.name || "Error",
+            errorMessage: error.message || "Invalid or expired token",
+            stack: error.stack,
+        });
 
         res.status(401).json({
             ok: false,

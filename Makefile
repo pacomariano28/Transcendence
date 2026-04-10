@@ -2,7 +2,6 @@ COMPOSE= docker compose
 COMPOSE_FILE= ./srcs/compose.yaml
 DEV_FILE= ./srcs/compose.dev.yaml
 
-
 UP= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build
 
 DEV= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) up -d --build

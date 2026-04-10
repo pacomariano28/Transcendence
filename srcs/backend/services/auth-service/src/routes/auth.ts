@@ -1,5 +1,5 @@
-import { Router , Request, Response} from "express";
-import { signAccessToken, verifyAccessToken } from "../../lib/jwt.js"
+import { Router, Request, Response } from "express";
+import { signAccessToken, verifyAccessToken } from "../lib/jwt.js"
 import { requireAuth } from "../middlewares/requireAuth.js";
 
 export const authRouter = Router();
@@ -66,10 +66,10 @@ authRouter.post("/login", (req: Request, res: Response) => {
 });
 
 authRouter.get("/me", requireAuth, (_req: Request, res: Response) => {
-  res.status(200).json({
-    ok: true,
-    user: res.locals.user
-  });
+    res.status(200).json({
+        ok: true,
+        user: res.locals.user
+    });
 });
 
 

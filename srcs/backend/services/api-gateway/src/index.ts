@@ -1,63 +1,87 @@
-import express from 'express';
-import { Request, Response } from "express";
-import cors from 'cors';
-import rateLimit from 'express-rate-limit';
+import express, { ErrorRequestHandler, NextFunction, Request, Response } from "express";
+import { randomUUID } from "node:crypto";
+import { logError, logInfo } from "./lib/logger.js";
+import { globalLimiter } from './middlewares/rateLimit.middleware.js'
 import searchRoutes from './routes/search.routes.js';
+import healthRoutes from './routes/health.routes.js';
 
-// Initialize the Express application
-const app: any = express();
+const app = express();
 
-// Define the port (use environment variable if it exists, otherwise 3000)
-const PORT: any = process.env.PORT || 3000;
-const isProd = process.env.NODE_ENV === 'production';
+const PORT = Number(process.env.PORT || 3000);
+const isProd = process.env.NODE_ENV === "production";
 
-// console.log(`Check if is production: ${process.env.NODE_ENV${isProd}.`);
+// Trust first proxy hop (Nginx) for real client IP
+app.set("trust proxy", 1);
 
-// Tell Express to trust the reverse proxy (Nginx)
-// '1' means trust the first proxy hop to get the real client IP.
-app.set('trust proxy', 1);
+if (isProd) app.use(globalLimiter);
 
-// Allow requests from other origins (CORS)
-// app.use(cors());
-
-// 2. Rate Limiting Configuration
-// Only apply strict rate limits in production
-const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10);
-const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
-
-const limiter = rateLimit({
-  windowMs,
-  limit: maxRequests,
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-if (isProd) app.use(limiter);
-
-// // 2. Parse incoming request bodies as JSON automatically
 app.use(express.json());
 
-// // Routes registration
-// // All endpoints in searchRoutes will be prefixed with /api/search
-app.use('/api/search', searchRoutes);
+// Request id middleware for correlation across logs
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestId = req.header("x-request-id") || randomUUID();
+  res.locals.requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+  next();
+});
 
-app.use('/api/health', (req: Request, res: Response) => {
-  console.log("API Gateway is running");
-  const { q } = req.query;
-  if (!q || typeof q !== 'string') {
-    res.status(400).json({ error: "Missing or invalid 'term' query parameter " });
-    return;
-  }
+// Routes registration
+app.use("/api/search", searchRoutes);
+app.use("/", healthRoutes);
 
-  console.log(`Query is ${q}`);
-  res.status(200).json({
-    status: "active",
-    query: `${q}`,
+// 404 fallback
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    ok: false,
+    error: "Route not found",
+    requestId: res.locals.requestId ?? null,
   });
-})
+});
 
-// Server start
+
+// Centralized error logger + response
+const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  const requestId = res.locals.requestId ?? null;
+  const statusCode = Number((err as any)?.statusCode || (err as any)?.status || 500);
+  const message = (err as any)?.message || "Internal server error";
+
+  logError({
+    requestId,
+    method: req.method,
+    path: req.originalUrl,
+    statusCode,
+    errorName: (err as any)?.name || "Error",
+    errorMessage: message,
+    stack: (err as any)?.stack,
+  });
+
+  res.status(statusCode).json({
+    ok: false,
+    error: statusCode >= 500 ? "Internal server error" : message,
+    requestId,
+  });
+};
+
+app.use(globalErrorHandler);
+
 app.listen(PORT, () => {
-  console.log(`API Gateway listening on port ${PORT}`);
-})
+  logInfo(`Listening on port ${PORT}`);
+});
+
+
+// Process-level safety net logs
+process.on("unhandledRejection", (reason) => {
+  logError({
+    event: "unhandledRejection",
+    errorMessage: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  logError({
+    event: "uncaughtException",
+    errorMessage: error.message,
+    stack: error.stack,
+  });
+});

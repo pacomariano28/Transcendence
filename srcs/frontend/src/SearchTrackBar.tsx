@@ -46,7 +46,7 @@ const SearchBar: React.FC = () => {
         // Implementación de debounce para esperar a que el usuario termine de escribir (300ms)
         const delayDebounceFn = setTimeout(() => {
             fetchResults();
-        }, 400);
+        }, 600);
 
         // Limpieza del timeout si el componente se desmonta o el término cambia
         return () => clearTimeout(delayDebounceFn);

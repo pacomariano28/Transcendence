@@ -10,7 +10,7 @@ export const HealthCheckButton = () => {
 
         try {
             // Make sure your API Gateway is running on port 4000
-            const response = await fetch('/api/health?q=healthy');
+            const response = await fetch('/ready');
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
