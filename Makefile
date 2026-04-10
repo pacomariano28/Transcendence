@@ -7,6 +7,8 @@ UP= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build
 
 DEV= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) up -d --build
 
+STOP= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) stop
+
 DOWN= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) down -v
 
 LOGS= $(COMPOSE) -f $(COMPOSE_FILE) logs -f
@@ -18,6 +20,9 @@ up:
 
 dev:
 	$(DEV)
+
+stop:
+	$(STOP)
 
 down: 
 	$(DOWN)
