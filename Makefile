@@ -7,6 +7,8 @@ UP= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build
 
 DEV= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) up -d --build
 
+START= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) start
+
 STOP= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) stop
 
 DOWN= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) down -v
@@ -20,6 +22,9 @@ up:
 
 dev:
 	$(DEV)
+
+start:
+	$(START)
 
 stop:
 	$(STOP)
@@ -35,9 +40,5 @@ re: fclean dev
 
 logs:
 	$(LOGS)
-
-env:
-	echo -n "IP_ADDR=" > srcs/.env
-	echo "$$(ip -4 -brief addr | awk '/wlp4s0/ {if (NR!=1) { print substr($$3, 0, length($$3) - 3) }}')" >> srcs/.env
 
 .PHONY: all up dev down fclean re logs env
