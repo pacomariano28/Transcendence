@@ -1,57 +1,110 @@
 services:
   nginx:
+    image: nginx:1.28.2-alpine3.23
+    container_name: songuess-nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    ports:
+      - "8443:443"
+    networks:
+      - songuess-net
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ../infra/nginx/conf.d:/etc/nginx/conf.d
       - ../infra/certs:/etc/nginx/certs
 
-  api-gateway:
-    build:
-      target: development
-    environment:
-      NODE_ENV: development
-    volumes:
-      - ./backend/services/api-gateway/src:/app/src
-      - ./backend/services/api-gateway/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-    ports:
-      - "4000:4000"
-
-  auth-service:
-    build:
-      target: development
-    environment:
-      NODE_ENV: development
-    volumes:
-      - ./backend/services/auth-service/src:/app/src
-      - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-    ports:
-      - "4002:4002"
-
-  content-service:
-    build:
-      target: development
-    environment:
-      NODE_ENV: development
-    volumes:
-      - ./backend/services/content-service/src:/app/src
-      - ./backend/services/content-service/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-    ports:
-      - "4003:4003"
-
   frontend:
     build:
+      context: ./frontend
+      dockerfile: Dockerfile
       target: development
     environment:
       NODE_ENV: development
+    container_name: songuess-frontend
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    ports:
+      - "5173:5173"
+    networks:
+      - songuess-net
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
       - /app/node_modules
+
+  api-gateway:
+    build:
+      context: ./backend/services/api-gateway
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+    env_file:
+      - ./backend/services/api-gateway/.env
+    container_name: songuess-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - content-service
+      # - game-service
     ports:
-      - "5173:5173"
+      - "4000:4000"
+    networks:
+      - songuess-net
+    volumes:
+      - ./backend/services/api-gateway/src:/app/src
+      - ./backend/services/api-gateway/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      SERVICE_NAME: auth-service
+      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
+      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+    env_file:
+      - ./backend/services/auth-service/.env
+    container_name: songuess-auth-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "4002:4002"
+    networks:
+      - songuess-net
+    volumes:
+      - ./backend/services/auth-service/src:/app/src
+      - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+
+  content-service:
+    build:
+      context: ./backend/services/content-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+    env_file:
+      - ./backend/services/content-service/.env
+    container_name: songuess-content-service
+    restart: unless-stopped
+    depends_on:
+      - redis
+    ports:
+      - "4003:4003"
+    networks:
+      - songuess-net
+    volumes:
+      - ./backend/services/content-service/src:/app/src
+      - ./backend/services/content-service/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
 
   nginx-reload:
     image: alpine:latest
@@ -69,6 +122,36 @@ services:
     networks:
       - songuess-net
 
+  postgres:
+    image: postgres:17.9-alpine3.22
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+    container_name: songuess-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    networks:
+      - songuess-net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   redis:
+    image: redis:8.4.2-alpine3.22
+    container_name: songuess-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    networks:
+      - songuess-net
+    volumes:
+      - redis_data:/data
+
+networks:
+  songuess-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
