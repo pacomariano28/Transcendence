@@ -1,5 +1,4 @@
 {
-  "extends": "../../../../tsconfig.base.json",
   "$schema": "https://www.schemastore.org/tsconfig",
   "display": "Node LTS (24)",
   "_version": "24.0.0",
@@ -13,19 +12,20 @@
     ],
     "module": "nodenext",
     "target": "es2024",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "moduleResolution": "node16",
     "rootDir": "./src",
     "outDir": "./dist",
-    "declaration": true
+    "declaration": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
