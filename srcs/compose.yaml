@@ -96,7 +96,7 @@ services:
 
   # game-service:
   #   build:
-  #     context: ./services/game-service
+  #     context: ./backend/services/game-service
   #     dockerfile: Dockerfile
   #     target: production
   #   environment:

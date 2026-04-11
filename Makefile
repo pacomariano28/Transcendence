@@ -16,9 +16,6 @@ start:
 stop:
 	$(COMPOSE) -f $(COMPOSE_FILE) stop
 
-fclean: down
-	docker system prune -af
-
 recreate-nginx:
 	$(RECREATE) nginx
 
@@ -43,9 +40,14 @@ recreate-postgres:
 recreate-redis:
 	$(RECREATE) redis
 
+fclean: down
+	docker system prune -af
+
 re: fclean all
 
 logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
 
-.PHONY: all up down fclean re logs
+.PHONY: all up down start stop recreate-nginx recreate-frontend \
+	recreate-api-gateway recreate-auth recreate-content recreate-game \
+	recreate-postgres recreate-redis fclean re logs \

@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 
 import { searchTracks } from "../services/spotify.service.js"
+import { logError, logInfo } from "../lib/logger.js";
 
 export async function getTracks(req: Request, res: Response): Promise<void> {
     try {
         // Extract the seach term from the query string
         const { term } = req.query;
-        console.log(`Term is ${term}`);
+        logInfo(`Search request received`);
 
         // Input validation
         if (!term || typeof term !== 'string') {
@@ -21,7 +22,14 @@ export async function getTracks(req: Request, res: Response): Promise<void> {
         res.status(200).json(tracks);
     } catch (error: any) {
         // Global error handling for this endpoint
-        console.error(error.response?.data.error.message || error.message);
+        logError({
+            method: req.method,
+            path: req.originalUrl,
+            statusCode: error.response?.status || 500,
+            errorName: error.name || "Error",
+            errorMessage: error.response?.data?.error?.message || error.message,
+            stack: error.stack,
+        });
         const statusCode = error.response?.status || 500;
         res.status(statusCode).json({ error: 'Failed to fetch data from Spotify API' });
     }

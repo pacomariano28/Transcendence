@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
+import { logError, logInfo } from './logger.js';
 
 let redisClient: RedisClientType | null = null;
 
@@ -7,16 +8,17 @@ export const initRedis = async (): Promise<void> => {
 
     redisClient = createClient({ url: redisUrl });
 
-    redisClient.on('connect', () => console.log('[Redis] Connecting...'));
-    redisClient.on('ready', () => console.log('[Redis] Connected and ready'));
-    redisClient.on('error', (err) => console.error('[Redis] Connection error:', err));
-    redisClient.on('reconnecting', () => console.log('[Redis] Reconnecting...'));
-    redisClient.on('end', () => console.log('[Redis] Connection closed'));
+    redisClient.on('connect', () => logInfo('Redis connecting'));
+    redisClient.on('ready', () => logInfo('Redis connected and ready'));
+    redisClient.on('error', (err) => logError({ event: 'redis-error', errorName: err.name, errorMessage: err.message, stack: err.stack }));
+    redisClient.on('reconnecting', () => logInfo('Redis reconnecting'));
+    redisClient.on('end', () => logInfo('Redis connection closed'));
 
     try {
         await redisClient.connect();
     } catch (error) {
-        console.error('[Redis] Initialization failed:', error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        logError({ event: 'redis-init', errorName: err.name, errorMessage: err.message, stack: err.stack });
         throw error;
     }
 };
