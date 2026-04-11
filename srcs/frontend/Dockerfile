@@ -1,11 +1,25 @@
-FROM node:24-alpine3.22
+FROM node:24-alpine3.22 AS builder
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
+RUN npm ci
+COPY --chown=node:node . .
+USER node
+RUN npm run build
 
-COPY . .
-
+FROM node:24-alpine3.22 AS production
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+USER node
 EXPOSE 5173
+# CMD ["npm", "run", "build"]
 
-CMD ["npm", "start"]
+FROM node:24-alpine3.22 AS development
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY --chown=node:node . .
+USER node
+EXPOSE 5173
+CMD ["npm", "run", "dev"]
