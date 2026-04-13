@@ -1,12 +1,8 @@
 import { Router, Request, Response } from "express";
 import { signAccessToken } from "../lib/jwt.js";
 import { requireAuth } from "../middlewares/requireAuth.js";
-import {
-  issueRefreshToken,
-  consumeRefreshToken,
-} from "../lib/refreshTokens.js";
+import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
 import { refreshBodySchema, registerBodySchema, loginBodySchema } from "../schemas/auth.schemas.js";
-
 
 export const authRouter = Router();
 
@@ -43,11 +39,11 @@ authRouter.post("/login", (req: Request, res: Response) => {
       ok: false,
       error: "VALIDATION_ERROR: Invalid request body for login",
       issues: parsed.error.issues,
-    })
+    });
   }
 
   // :MOD
-  const { email, password} = parsed.data;
+  const { email, password } = parsed.data;
 
   const token = signAccessToken({
     sub: "stub-user-id",
@@ -74,6 +70,7 @@ authRouter.post("/login", (req: Request, res: Response) => {
  * @return on failure { ok, error, required? }
  */
 authRouter.post("/refresh", (req: Request, res: Response) => {
+  console.log(`refresh ${req.body.json}`);
   const parsed = refreshBodySchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -105,7 +102,6 @@ authRouter.post("/refresh", (req: Request, res: Response) => {
       token,
       refreshToken: issued.refreshToken,
     });
-
   } catch (err) {
     const code = err instanceof Error ? err.message : "";
 

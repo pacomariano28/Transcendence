@@ -3,7 +3,6 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
  * type JwtPayload es un tipo de TypeScript que describe el objeto típico que devuelve verify cuando el token contiene un payload JSON (claims).
  */
 
-
 /**
  * Función IIFE
  *
@@ -37,7 +36,6 @@ const JWT_SECRET: string = (() => {
   return secret;
 })(); // el último parentesis puede rellenarse con los parámetros que le queramos mandar a la función en el momento. Ej: const result = ((name: string) => `Hola ${name}`)("Paco");
 
-
 // definimos que información va dentro del token, puede que pongamos más :MOD
 export type AccessTokenPayload = {
   sub: string; // user id
@@ -46,7 +44,6 @@ export type AccessTokenPayload = {
   email: string;
   username: string;
 };
-
 
 /**
  * @brief Issue a JWT access token for the given user ID.
@@ -66,13 +63,12 @@ export function signAccessToken(payload: AccessTokenPayload): string {
   });
 }
 
-
 /**
  * @brief Verify a JWT access token and extract its payload.
  *
  * @description
  * This function takes a JWT access token as input, verifies its authenticity using the predefined secret, and extracts the payload if the token is valid. If the token is invalid or the payload does not conform to the expected structure, an error is thrown.
- * @param token - The JWT access token to be verified. 
+ * @param token - The JWT access token to be verified.
  * @returns The verified access token payload.
  * @throws Will throw an error if the token is invalid or if the payload does not contain the expected fields (sub, email, username).
  *

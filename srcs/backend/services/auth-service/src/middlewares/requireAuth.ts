@@ -1,5 +1,6 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
 import { AccessTokenPayload, verifyAccessToken } from "../lib/jwt.js";
+import { logError } from "../lib/logger.js";
 
 type AuthedUser = {
   id: string;
@@ -7,11 +8,7 @@ type AuthedUser = {
   username: string;
 };
 
-export const requireAuth: RequestHandler = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
+export const requireAuth: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
   // We look if the header has "authorization"
   const authHeader: string = req.header("authorization") ?? "";
 
@@ -57,24 +54,22 @@ export const requireAuth: RequestHandler = (
 
     // Request succesfully, next middleware call
     next();
-  } catch (err) {
-    const name = err instanceof Error ? err.name : "";
+  } catch (error: any) {
+    const name = error instanceof Error ? error.name : "";
+    const tokenErr: string = name === "TokenExpiredError" ? "Token expired" : "Invalid token";
 
-    if (name === "TokenExpiredError") {
-      res.status(401).json({
-        ok: false,
-        error: "Token expired",
-      });
-    }
+    logError({
+      method: req.method,
+      path: req.originalUrl,
+      statusCode: 401,
+      errorName: error.name || "Error",
+      errorMessage: error.message || "Invalid or expired token",
+      stack: error.stack,
+    });
 
     res.status(401).json({
       ok: false,
-      error: "Invalid token",
+      error: tokenErr,
     });
   }
-
-  res.status(401).json({
-    ok: false,
-    error: "Invalid or expired token",
-  });
 };

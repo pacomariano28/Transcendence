@@ -1,34 +1,53 @@
 COMPOSE= docker compose
-COMPOSE_FILE= ./srcs/compose.yaml
-DEV_FILE= ./srcs/compose.dev.yaml
-
-
-UP= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build
-
-DEV= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) up -d --build
-
-DOWN= $(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) down -v
-
-LOGS= $(COMPOSE) -f $(COMPOSE_FILE) logs -f
+COMPOSE_FILE= ./srcs/compose.dev.yaml
+RECREATE= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build --force-recreate
 
 all: up
 
 up:
-	$(UP)
-
-dev:
-	$(DEV)
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d --build
 
 down: 
-	$(DOWN)
+	$(COMPOSE) -f $(COMPOSE_FILE) down -v
+
+start:
+	$(COMPOSE) -f $(COMPOSE_FILE) start
+
+stop:
+	$(COMPOSE) -f $(COMPOSE_FILE) stop
+
+recreate-nginx:
+	$(RECREATE) nginx
+
+recreate-frontend:
+	$(RECREATE) frontend
+
+recreate-api-gateway:
+	$(RECREATE) api-gateway
+
+recreate-auth:
+	$(RECREATE) auth-service
+
+recreate-content:
+	$(RECREATE) content-service
+
+recreate-game:
+	$(RECREATE) game-service
+
+recreate-postgres:
+	$(RECREATE) postgres
+
+recreate-redis:
+	$(RECREATE) redis
 
 fclean: down
-#	$(COMPOSE) -f $(COMPOSE_FILE) -f $(DEV_FILE) rm --volumes
 	docker system prune -af
 
-re: fclean dev
+re: fclean all
 
 logs:
-	$(LOGS)
+	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
 
-.PHONY: all up dev down fclean re logs
+.PHONY: all up down start stop recreate-nginx recreate-frontend \
+	recreate-api-gateway recreate-auth recreate-content recreate-game \
+	recreate-postgres recreate-redis fclean re logs \
