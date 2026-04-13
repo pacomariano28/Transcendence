@@ -5,8 +5,6 @@ import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
 import { logInfo } from "./lib/logger.js";
 
-
-
 const app = express();
 
 /*
@@ -28,7 +26,7 @@ Con middleware: puedes hacer req.body.user.
 */
 app.use(express.json());
 
-app.use(healthRouter);
+app.use("/auth", healthRouter);
 
 app.use("/auth", authRouter);
 

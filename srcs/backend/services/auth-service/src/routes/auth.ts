@@ -1,32 +1,25 @@
 import { Router, Request, Response } from "express";
-import { signAccessToken, verifyAccessToken } from "../lib/jwt.js";
+import { signAccessToken } from "../lib/jwt.js";
 import { requireAuth } from "../middlewares/requireAuth.js";
+import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
+import { refreshBodySchema, registerBodySchema, loginBodySchema } from "../schemas/auth.schemas.js";
 
 export const authRouter = Router();
 
-/*
-authRouter.get("/auth", (_req, res) => {
-    res.status(200).json({
-        status: "ok",
-        service: "auth-service",
-        endpoint: "auth"
-    });
-})
-*/
-
 authRouter.post("/register", (req: Request, res: Response) => {
-  const { email, username, password } = req.body ?? {};
+  const parsed = registerBodySchema.safeParse(req.body);
 
-  if (!email || !username || !password) {
-    res.status(400).json({
+  if (!parsed.success) {
+    return res.status(400).json({
       ok: false,
-      error: "Missing required fields",
-      required: ["email", "username", "password"],
+      error: "VALIDATION_ERROR: Invalid request body for register",
+      issues: parsed.error.issues,
     });
-
-    return;
   }
 
+  const { email, username, password } = parsed.data;
+
+  // MOD: not using password yet because we use stub atm
   res.status(201).json({
     ok: true,
     message: "User registered (stub)",
@@ -39,17 +32,18 @@ authRouter.post("/register", (req: Request, res: Response) => {
 });
 
 authRouter.post("/login", (req: Request, res: Response) => {
-  const { email, password } = req.body ?? {};
+  const parsed = loginBodySchema.safeParse(req.body);
 
-  if (!email || !password) {
-    res.status(400).json({
+  if (!parsed.success) {
+    return res.status(400).json({
       ok: false,
-      message: "Missing required fields",
-      required: ["email", "password"],
+      error: "VALIDATION_ERROR: Invalid request body for login",
+      issues: parsed.error.issues,
     });
-
-    return;
   }
+
+  // :MOD
+  const { email, password } = parsed.data;
 
   const token = signAccessToken({
     sub: "stub-user-id",
@@ -57,11 +51,72 @@ authRouter.post("/login", (req: Request, res: Response) => {
     username: "stub",
   });
 
+  const issued = issueRefreshToken("stub-user-id");
+
   res.status(200).json({
     ok: true,
     message: "Login successful (stub)",
     token,
+    refreshToken: issued.refreshToken,
   });
+});
+
+/**
+ * @brief Deletes the existing refreshToken. Then creates a new refreshToken
+ * and a new token.
+ *
+ * @param request Raw HTTP request whose body should have a valid refreshToken
+ * @return on success {ok, token, refreshToken }
+ * @return on failure { ok, error, required? }
+ */
+authRouter.post("/refresh", (req: Request, res: Response) => {
+  console.log(`refresh ${req.body.json}`);
+  const parsed = refreshBodySchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      error: "VALIDATION_ERROR: Invalid request body for refresh token",
+      issues: parsed.error.issues,
+    });
+  }
+
+  const { refreshToken } = parsed.data;
+
+  try {
+    const { userId } = consumeRefreshToken(refreshToken);
+
+    // 1) Nuevo access token
+    // STUB: sin DB no podemos reconstruir email/username reales todavía
+    const token = signAccessToken({
+      sub: userId,
+      email: "stub@local",
+      username: "stub",
+    });
+
+    // 2) Nuevo refresh token (rotación)
+    const issued = issueRefreshToken(userId);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      refreshToken: issued.refreshToken,
+    });
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "";
+
+    if (code === "EXPIRED_REFRESH_TOKEN") {
+      return res.status(401).json({
+        ok: false,
+        error: "Refresh token expired",
+      });
+    }
+
+    return res.status(401).json({
+      ok: false,
+      error: "Invalid refresh token",
+    });
+  }
 });
 
 authRouter.get("/me", requireAuth, (_req: Request, res: Response) => {

@@ -1,9 +1,14 @@
-import express, { ErrorRequestHandler, NextFunction, Request, Response } from "express";
+import express, {
+  ErrorRequestHandler,
+  NextFunction,
+  Request,
+  Response,
+} from "express";
 import { randomUUID } from "node:crypto";
 import { logError, logInfo } from "./lib/logger.js";
-import { globalLimiter } from './middlewares/rateLimit.middleware.js'
-import searchRoutes from './routes/search.routes.js';
-import healthRoutes from './routes/health.routes.js';
+import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
+import searchRoutes from "./routes/search.routes.js";
+import healthRoutes from "./routes/health.routes.js";
 
 const app = express();
 
@@ -38,11 +43,12 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
-
 // Centralized error logger + response
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const requestId = res.locals.requestId ?? null;
-  const statusCode = Number((err as any)?.statusCode || (err as any)?.status || 500);
+  const statusCode = Number(
+    (err as any)?.statusCode || (err as any)?.status || 500,
+  );
   const message = (err as any)?.message || "Internal server error";
 
   logError({
@@ -67,7 +73,6 @@ app.use(globalErrorHandler);
 app.listen(PORT, () => {
   logInfo(`Listening on port ${PORT}`);
 });
-
 
 // Process-level safety net logs
 process.on("unhandledRejection", (reason) => {
