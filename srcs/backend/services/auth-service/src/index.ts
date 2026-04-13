@@ -5,8 +5,6 @@ import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
 import { logInfo } from "./lib/logger.js";
 
-
-
 const app = express();
 
 /*
