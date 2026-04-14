@@ -42,7 +42,7 @@ services:
     environment:
       NODE_ENV: development
     env_file:
-      - ./backend/services/api-gateway/.env
+      - ./backend/services/api-gateway/.env.example
     container_name: songuess-api-gateway
     restart: unless-stopped
     depends_on:
@@ -70,7 +70,7 @@ services:
       # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
       # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
     env_file:
-      - ./backend/services/auth-service/.env
+      - ./backend/services/auth-service/.env.example
     container_name: songuess-auth-service
     restart: unless-stopped
     depends_on:
@@ -92,7 +92,7 @@ services:
     environment:
       NODE_ENV: development
     env_file:
-      - ./backend/services/content-service/.env
+      - ./backend/services/content-service/.env.example
     container_name: songuess-content-service
     restart: unless-stopped
     depends_on:

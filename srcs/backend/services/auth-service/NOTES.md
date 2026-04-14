@@ -25,3 +25,9 @@ req.body es any
 validaciones repetidas a mano en cada endpoint
 errores 400 inconsistentes
 bugs “raros” porque faltaba un campo o venía con otro tipo
+
+TODO LIST
+
+[] Añadir endpoint logout
+[] Cambiar persistencia
+[] Limpiar código
