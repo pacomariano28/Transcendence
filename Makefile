@@ -1,6 +1,6 @@
 COMPOSE= docker compose
 COMPOSE_FILE= ./srcs/compose.dev.yaml
-RECREATE= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build --force-recreate
+RECREATE= $(COMPOSE) -f $(COMPOSE_FILE) up -d --build -V
 
 all: up
 
