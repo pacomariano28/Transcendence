@@ -3,6 +3,9 @@ import { signAccessToken } from "../lib/jwt.js";
 import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
 import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schemas/auth.schemas.js";
 
+import { prisma } from "../lib/prisma.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+
 
 /**
  * 
@@ -19,7 +22,7 @@ import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schem
  *   "password": "password123"
  * }
  */
-export function register(req: Request, res: Response) {
+export async function register(req: Request, res: Response) {
     const parsed = registerBodySchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -32,16 +35,32 @@ export function register(req: Request, res: Response) {
 
     const { email, username, password } = parsed.data;
 
-    // MOD: not using password yet because we use stub atm
-    res.status(201).json({
-        ok: true,
-        message: "User registered (stub)",
-        user: {
-            id: "stub-user-id",
-            email,
-            username,
-        },
-    });
+    try {
+        const user = await prisma.user.create({
+            data: {
+                email,
+                username,
+                passwordHash: await hashPassword(password),
+            },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+            },
+        });
+
+        return res.status(201).json({
+            ok: true,
+            message: "User registered",
+            user,
+        });
+    } catch (err) {
+        // Por ahora: si hay unique violation (email/username) devolvemos 409
+        return res.status(409).json({
+            ok: false,
+            error: "USER_ALREADY_EXISTS",
+        });
+    }
 }
 
 
@@ -71,20 +90,41 @@ export async function login(req: Request, res: Response) {
         });
     }
 
-    // :MOD
     const { email, password } = parsed.data;
 
-    const token = signAccessToken({
-        sub: "stub-user-id",
-        email,
-        username: "stub",
+    const user = await prisma.user.findUnique({
+        where: { email },
+        select: {
+            id: true,
+            email: true,
+            username: true,
+            passwordHash: true,
+        },
     });
 
-    const issued = await issueRefreshToken("stub-user-id");
+    if (!user) {
+        return res.status(401).json({
+            ok: false,
+            error: "INVALID_CREDENTIALS",
+        });
+    }
+
+    const ok = await verifyPassword(password, user.passwordHash);
+
+    if (!ok) {
+        return res.status(401).json({
+            ok: false,
+            error: "INVALID_CREDENTIALS",
+        });
+    }
+
+    const token = signAccessToken({sub: user.id, email: user.email, username: user.username});
+
+    const issued = await issueRefreshToken(user.id);
 
     res.status(200).json({
         ok: true,
-        message: "Login successful (stub)",
+        message: "Login successful",
         token,
         refreshToken: issued.refreshToken,
     });
@@ -121,12 +161,26 @@ export async function refresh(req: Request, res: Response) {
     try {
         const { userId } = await consumeRefreshToken(refreshToken);
 
-        // 1) Nuevo access token
-        // STUB: sin DB no podemos reconstruir email/username reales todavía
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+            }
+        })
+
+        if (!user) {
+            return res.status(401).json({
+                ok :false,
+                error: "INVALID_REFRESH_TOKEN",
+            });
+        }
+
         const token = signAccessToken({
             sub: userId,
-            email: "stub@local",
-            username: "stub",
+            email: user.email,
+            username: user.username,
         });
 
         // 2) Nuevo refresh token (rotación)
@@ -172,7 +226,19 @@ export function me(_req: Request, res: Response) {
 
 /**
  * Testing
- *
- * Get  
- * docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT id, "userId", "expiresAt", "revokedAt", "createdAt" FROM auth."RefreshToken" ORDER BY "createdAt" DESC;'
+ 
+ * Register a new user:
+ 
+    curl -i -sS -X POST "http://localhost:4002/auth/register" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"user1@gmail.com","username":"user1","password":"password123"}'
+ 
+* Get all the Users in DB:
+
+    docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c \
+    'SELECT id, email, username, "createdAt" FROM auth."User" ORDER BY "createdAt" DESC LIMIT 20;'
+
+
+ * Get all refresh tokens in DB:
+    docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT id, "userId", "expiresAt", "revokedAt", "createdAt" FROM auth."RefreshToken" ORDER BY "createdAt" DESC;'
  */

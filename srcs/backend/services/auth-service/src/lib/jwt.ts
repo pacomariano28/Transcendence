@@ -1,20 +1,5 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
-/**
- * type JwtPayload es un tipo de TypeScript que describe el objeto típico que devuelve verify cuando el token contiene un payload JSON (claims).
- */
 
-/**
- * Función IIFE
- *
- * Un ternario pero chetao
- * Ejecutamos la función definida instantaneamente ( gracias al último () ) y guardamos el valor directamente en la variable.
- *
- * La uso en este caso porque en este momento necesito esta función que nose si la necesitaré mas adelane. Si la necesitara pues ya la extraigo y hago una función normal. :MOD
- */
-
-/**
- * This function is used to ehck if the JWT exists. If it doesn't exist, it throws an error. If it does exist, it returns the JWT secret.
- */
 
 /**
  * @brief Retrieve the JWT secret from environment variables.
@@ -34,9 +19,23 @@ const JWT_SECRET: string = (() => {
 
   if (!secret) throw new Error("JWT_SECRET is not set");
   return secret;
-})(); // el último parentesis puede rellenarse con los parámetros que le queramos mandar a la función en el momento. Ej: const result = ((name: string) => `Hola ${name}`)("Paco");
+})();
 
-// definimos que información va dentro del token, puede que pongamos más :MOD
+
+/**
+ * @brief Interface representing the payload of a JWT access token.
+ *
+ * @description
+ * This interface defines the structure of the payload that will be included in the JWT access token. It typically contains the user's unique identifier (sub), email, and username. The 'sub' claim is a standard JWT claim that stands for "subject" and is commonly used to store the user ID. The email and username fields are included for convenience, but they can be omitted if you prefer to fetch this information from the database when needed.
+ * 
+ * @example
+ * const payload: AccessTokenPayload = {
+ *   sub: "12345",
+ *   email: "user@example.com",
+ *   username: "john_doe"
+ * };
+
+ */
 export type AccessTokenPayload = {
   sub: string; // user id
 
