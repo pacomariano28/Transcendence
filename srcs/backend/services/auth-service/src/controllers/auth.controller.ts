@@ -60,7 +60,7 @@ export function register(req: Request, res: Response) {
  * }
 
  */
-export function login(req: Request, res: Response) {
+export async function login(req: Request, res: Response) {
     const parsed = loginBodySchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -80,7 +80,7 @@ export function login(req: Request, res: Response) {
         username: "stub",
     });
 
-    const issued = issueRefreshToken("stub-user-id");
+    const issued = await issueRefreshToken("stub-user-id");
 
     res.status(200).json({
         ok: true,
@@ -105,7 +105,7 @@ export function login(req: Request, res: Response) {
  * }
 
  */
-export function refresh(req: Request, res: Response) {
+export async function refresh(req: Request, res: Response) {
     const parsed = refreshBodySchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -119,7 +119,7 @@ export function refresh(req: Request, res: Response) {
     const { refreshToken } = parsed.data;
 
     try {
-        const { userId } = consumeRefreshToken(refreshToken);
+        const { userId } = await consumeRefreshToken(refreshToken);
 
         // 1) Nuevo access token
         // STUB: sin DB no podemos reconstruir email/username reales todavía
@@ -130,7 +130,7 @@ export function refresh(req: Request, res: Response) {
         });
 
         // 2) Nuevo refresh token (rotación)
-        const issued = issueRefreshToken(userId);
+        const issued = await issueRefreshToken(userId);
 
         return res.status(200).json({
             ok: true,
@@ -168,3 +168,11 @@ export function me(_req: Request, res: Response) {
         user: res.locals.user,
     });
 }
+
+
+/**
+ * Testing
+ *
+ * Get  
+ * docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT id, "userId", "expiresAt", "revokedAt", "createdAt" FROM auth."RefreshToken" ORDER BY "createdAt" DESC;'
+ */
