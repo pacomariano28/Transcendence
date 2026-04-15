@@ -10,16 +10,16 @@
  * Note: This file affects TypeScript types only; it does not run at runtime.
  */
 
-export {}
+export {};
 
 declare global {
-    namespace Express {
-        interface Locals {
-            user?: {
-                id: string;
-                email: string;
-                username: string;
-            };
-        }
+  namespace Express {
+    interface Locals {
+      user?: {
+        id: string;
+        email: string;
+        username: string;
+      };
     }
+  }
 }

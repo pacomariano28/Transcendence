@@ -26,7 +26,7 @@ Con middleware: puedes hacer req.body.user.
 */
 app.use(express.json());
 
-app.use(healthRouter);
+app.use("/auth", healthRouter);
 
 app.use(authRouter);
 
