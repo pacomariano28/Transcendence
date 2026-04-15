@@ -70,7 +70,7 @@ services:
       # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
       # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
     env_file:
-      - ./backend/services/auth-service/.env.example
+      - ./backend/services/auth-service/.env
     container_name: songuess-auth-service
     restart: unless-stopped
     depends_on:
@@ -80,6 +80,7 @@ services:
     networks:
       - songuess-net
     volumes:
+      - ./backend/services/auth-service/prisma:/app/prisma
       - ./backend/services/auth-service/src:/app/src
       - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
       - /app/node_modules
