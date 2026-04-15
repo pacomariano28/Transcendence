@@ -28,7 +28,7 @@ app.use(express.json());
 
 app.use(healthRouter);
 
-app.use("/auth", authRouter);
+app.use(authRouter);
 
 const port = Number(process.env.PORT ?? 4002);
 
