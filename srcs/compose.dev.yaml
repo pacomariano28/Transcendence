@@ -107,21 +107,21 @@ services:
       - ./backend/services/content-service/tsconfig.json:/app/tsconfig.json
       - /app/node_modules
 
-  nginx-reload:
-    image: alpine:latest
-    volumes:
-      - ../infra/nginx:/nginx:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: |
-      sh -c "apk add --no-cache inotify-tools docker-cli && \
-      inotifywait -r -m -e modify /nginx | while read -r path action file; do \
-        echo 'Recargando nginx...'; \
-        docker exec songuess-nginx nginx -s reload; \
-      done"
-    depends_on:
-      - nginx
-    networks:
-      - songuess-net
+  # nginx-reload:
+  #   image: alpine:latest
+  #   volumes:
+  #     - ../infra/nginx:/nginx:ro
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   command: |
+  #     sh -c "apk add --no-cache inotify-tools docker-cli && \
+  #     inotifywait -r -m -e modify /nginx | while read -r path action file; do \
+  #       echo 'Recargando nginx...'; \
+  #       docker exec songuess-nginx nginx -s reload; \
+  #     done"
+  #   depends_on:
+  #     - nginx
+  #   networks:
+  #     - songuess-net
 
   postgres:
     image: postgres:17.9-alpine3.22
