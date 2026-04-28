@@ -7,8 +7,13 @@ import express, {
 import { randomUUID } from "node:crypto";
 import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
+<<<<<<< HEAD
 import searchRoutes from "./routes/search.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+=======
+import contentRoutes from "./routes/content.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+>>>>>>> origin/develop
 
 const app = express();
 
@@ -31,8 +36,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Routes registration
-app.use("/api/search", searchRoutes);
-app.use("/", healthRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/content", contentRoutes);
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {

@@ -1,6 +1,5 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
-
 /**
  * @brief Retrieve the JWT secret from environment variables.
  *
@@ -20,7 +19,6 @@ const JWT_SECRET: string = (() => {
   if (!secret) throw new Error("JWT_SECRET is not set");
   return secret;
 })();
-
 
 /**
  * @brief Interface representing the payload of a JWT access token.
