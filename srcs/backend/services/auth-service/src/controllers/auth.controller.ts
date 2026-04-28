@@ -57,6 +57,7 @@ export async function register(req: Request, res: Response) {
     return res.status(409).json({
       ok: false,
       error: "USER_ALREADY_EXISTS",
+      message: err,
     });
   }
 }
