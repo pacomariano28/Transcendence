@@ -35,11 +35,11 @@ services:
 
   api-gateway:
     build:
-      context: ./backend/services/api-gateway
+      context: ./backend/api-gateway
       dockerfile: Dockerfile
       target: production
     env_file:
-      - ./backend/services/api-gateway/.env
+      - ./backend/api-gateway/.env
     container_name: songuess-api-gateway
     restart: unless-stopped
     depends_on:
@@ -55,7 +55,7 @@ services:
 
   auth-service:
     build:
-      context: ./backend/services/auth-service
+      context: ./backend/auth-service
       dockerfile: Dockerfile
       target: production
     environment:
@@ -78,11 +78,11 @@ services:
 
   content-service:
     build:
-      context: ./backend/services/content-service
+      context: ./backend/content-service
       dockerfile: Dockerfile
       target: production
     env_file:
-      - ./backend/services/content-service/.env
+      - ./backend/content-service/.env
     container_name: songuess-content-service
     restart: unless-stopped
     depends_on:
@@ -96,7 +96,7 @@ services:
 
   # game-service:
   #   build:
-  #     context: ./backend/services/game-service
+  #     context: ./backend/game-service
   #     dockerfile: Dockerfile
   #     target: production
   #   environment:
