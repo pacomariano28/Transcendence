@@ -26,9 +26,9 @@ Con middleware: puedes hacer req.body.user.
 */
 app.use(express.json());
 
-app.use("/auth", healthRouter);
+app.use(healthRouter);
 
-app.use("/auth", authRouter);
+app.use(authRouter);
 
 const port = Number(process.env.PORT ?? 4002);
 

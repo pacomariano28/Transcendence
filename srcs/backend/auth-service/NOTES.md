@@ -64,10 +64,10 @@ CREATE INDEX IF NOT EXISTS "RefreshToken_userId_idx" ON auth."RefreshToken" ("us
 SQL
 
 **Comprobar que existen**
-docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c '\dt'
+docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c '\dt auth.*'
 
 **Ver tabla User**
-docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT \* FROM auth."User";'
+docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c SELECT * FROM auth."User";
 
 **logout auth-service**
 
