@@ -34,7 +34,7 @@ api-gateway:
 auth:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fsv auth-service
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache auth-service
-	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V auth
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V auth-service
 
 content:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fsv content-service
@@ -44,7 +44,7 @@ content:
 game:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fsv game-service
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache game-service
-	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V game
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V game-service
 
 postgres:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fs postgres
