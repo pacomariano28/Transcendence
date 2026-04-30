@@ -1,11 +1,15 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "./assets/vite.svg";
+import heroImg from "./assets/hero.png";
+import "./App.css";
+
+import { HealthCheckButton } from "./HealthCheckButton";
+import { RegisterForm } from "./RegisterForm";
+import SearchBar from "./SearchTrackBar";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
   return (
     <>
@@ -17,6 +21,12 @@ function App() {
         </div>
         <div>
           <h1>Get started</h1>
+          <div className="App">
+            <h1>Songuess Dev Testing</h1>
+            <HealthCheckButton />
+            <SearchBar />
+            <RegisterForm />
+          </div>
           <p>
             Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
           </p>
@@ -115,7 +125,7 @@ function App() {
       <div className="ticks"></div>
       <section id="spacer"></section>
     </>
-  )
+  );
 }
 
-export default App
+export default App;

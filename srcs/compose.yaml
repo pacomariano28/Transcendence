@@ -3,155 +3,154 @@ services:
     image: nginx:1.28.2-alpine3.23
     container_name: songuess-nginx
     restart: unless-stopped
-    environment:
-      NGINX_HOST: localhost
     depends_on:
-      - api-gateway
+      - frontend
     ports:
       - "8443:443"
+    networks:
+      - songuess-net
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - ../infra/certs:/etc/nginx/certs:ro
-      - ./frontend:/usr/share/nginx/html:ro
-    networks:
-      - songuess-net
+      - frontend_data:/usr/share/nginx/html:ro
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: production
+    # env_file:
+    #   - ./.env
     container_name: songuess-frontend
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "5173"
-    # command: npm run build && npm run serve
-    command: npm run build
     depends_on:
-      - nginx
+      - api-gateway
+    expose:
+      - "5173"
     networks:
       - songuess-net
+    volumes:
+      - frontend_data:/app/dist
 
   api-gateway:
     build:
-      context: ./backend/services/api-gateway
+      context: ./backend/api-gateway
       dockerfile: Dockerfile
       target: production
+    env_file:
+      - ./backend/api-gateway/.env
     container_name: songuess-api-gateway
     restart: unless-stopped
-    env_file:
-      - ./.env
-    environment:
-      PORT: 4000
-      GAME_SERVICE_URL: http://game-service:4001
-      AUTH_SERVICE_URL: http://auth-service:4002
-      CONTENT_SERVICE_URL: http://content-service:4003
-      ITUNES_BASE_URL: https://itunes.apple.com
+    depends_on:
+      - auth-service
+      - content-service
+      # - game-service
     expose:
       - "4000"
-    # depends_on:
-    #   - game-service
-    #   - auth-service
-    #   - content-service
     networks:
       - songuess-net
+    volumes:
+      - api-gateway_data:/app/data
 
   auth-service:
     build:
-      context: ./backend/services/auth-service
+      context: ./backend/auth-service
       dockerfile: Dockerfile
       target: production
-    container_name: songuess-auth-service
-    restart: unless-stopped
-    env_file:
-      - ./.env
     environment:
       PORT: 4002
       SERVICE_NAME: auth-service
       # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
       # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
-    expose:
-      - "4002"
+    env_file:
+      - ./.env
+    container_name: songuess-auth-service
+    restart: unless-stopped
     depends_on:
       - postgres
+    expose:
+      - "4002"
     networks:
       - songuess-net
+    volumes:
+      - auth_data:/app/data
+
+  content-service:
+    build:
+      context: ./backend/content-service
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - ./backend/content-service/.env
+    container_name: songuess-content-service
+    restart: unless-stopped
+    depends_on:
+      - redis
+    expose:
+      - "4003"
+    networks:
+      - songuess-net
+    volumes:
+      - content_data:/app/data
 
   # game-service:
   #   build:
-  #     context: ./services/game-service
+  #     context: ./backend/game-service
   #     dockerfile: Dockerfile
-  #   container_name: songuess-game-service
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./.env
+  #     target: production
   #   environment:
   #     PORT: 4001
   #     DATABASE_URL: postgresql://songuess:songuess_dev_password@postgres:5432/songuess
   #     SERVICE_NAME: game-service
+  #   env_file:
+  #     - ./.env
+  #   container_name: songuess-game-service
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - postgres
   #   expose:
   #     - "4001"
-  #   depends_on:
-  #     - postgres
   #   networks:
   #     - songuess-net
-
-  # auth-service:
-  #   build:
-  #     context: ./services/auth-service
-  #     dockerfile: Dockerfile
-  #   container_name: songuess-auth-service
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./.env
-  #   environment:
-  #     PORT: 4002
-  #     DATABASE_URL: postgresql://songuess:songuess_dev_password@postgres:5432/songuess
-  #     SERVICE_NAME: auth-service
-  #   expose:
-  #     - "4002"
-  #   depends_on:
-  #     - postgres
-  #   networks:
-  #     - songuess-net
-
-  # content-service:
-  #   build:
-  #     context: ./services/content-service
-  #     dockerfile: Dockerfile
-  #   container_name: songuess-content-service
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./.env
-  #   environment:
-  #     PORT: 4003
-  #     SERVICE_NAME: content-service
-  #     GEMINI_API_KEY: ${GEMINI_API_KEY}
-  #   expose:
-  #     - "4003"
-  #   networks:
-  #     - songuess-net
+  #   volumes:
+  #     - game_data:/app/data
 
   postgres:
     image: postgres:17.9-alpine3.22
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
     container_name: songuess-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
+    expose:
       - "5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     networks:
       - songuess-net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8.4.2-alpine3.22
+    container_name: songuess-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    networks:
+      - songuess-net
+    volumes:
+      - redis_data:/data
 
 networks:
   songuess-net:
     driver: bridge
 
 volumes:
+  frontend_data:
+  api-gateway_data:
+  auth_data:
+  content_data:
+  # game_data:
   postgres_data:
+  redis_data:
