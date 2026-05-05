@@ -26,4 +26,7 @@ router.get("/me", requireAuth, proxyOptions);
 
 router.get("/health", globalLimiter, proxyOptions);
 
+router.get("/spotify/login", globalLimiter, proxyOptions);
+router.get("/spotify/callback", globalLimiter, proxyOptions);
+
 export default router;
