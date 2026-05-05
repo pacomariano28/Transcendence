@@ -77,30 +77,33 @@ export async function issueRefreshToken(userId: string): Promise<IssuedRefreshTo
  * }
  */
 export async function consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
-  const rec = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
-    select: { id: true, userId: true, expiresAt: true, revokedAt: true },
+  const tokenHash = hashToken(refreshToken);
+  const now = new Date();
+
+  // Atomic consume (prevents race conditions):
+  // only one request can flip revokedAt from null -> now for a non-expired token
+  const consumed = await prisma.refreshToken.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null,
+      expiresAt: { gt: now },
+    },
+    data: { revokedAt: now },
   });
 
-  if (!rec || rec?.revokedAt) {
+  if (consumed.count !== 1) {
+    // Covers: not found, already revoked/consumed, expired
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
-  // its expired? Set revokedAt to now and throw error
-  if (Date.now() > rec.expiresAt.getTime()) {
-    await prisma.refreshToken.update({
-      where: { id: rec.id },
-      data: { revokedAt: new Date() },
-    });
-
-    throw new Error("EXPIRED_REFRESH_TOKEN");
-  }
-
-  // Consume the token by setting revokedAt to now
-  await prisma.refreshToken.update({
-    where: { id: rec.id },
-    data: { revokedAt: new Date() },
+  const rec = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    select: { userId: true },
   });
+
+  if (!rec) {
+    throw new Error("INVALID_REFRESH_TOKEN");
+  }
 
   return { userId: rec.userId };
 }
