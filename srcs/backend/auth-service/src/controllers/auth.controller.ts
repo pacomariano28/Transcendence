@@ -1,15 +1,16 @@
 import type { Request, Response } from "express";
-import { signAccessToken } from "../lib/jwt.js";
-import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
 import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schemas/auth.schemas.js";
-
-import { prisma } from "../lib/prisma.js";
-import { hashPassword, verifyPassword } from "../lib/password.js";
+import {
+  registerUser,
+  loginUser,
+  refreshSession,
+  getAuthedUserFromHeaders,
+} from "../services/auth.service.js";
 
 /**
  *
  * @brief Registers a new user with the provided email, username, and password.
- * @param req Raw HTTP request whose body should have { email, username, password }
+ * @param req Raw HTTP request whose body should have { email, username, password }.
  * @param res HTTP response where we will send the result of the registration attempt.
  * @returns JSON response indicating the result of the registration attempt. On success: { ok: true, message: string, user: { id: string, email: string, username: string } }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
  *
@@ -32,50 +33,38 @@ export async function register(req: Request, res: Response) {
     });
   }
 
-  const { email, username, password } = parsed.data;
-
   try {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        passwordHash: await hashPassword(password),
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-      },
-    });
+    const user = await registerUser(parsed.data);
 
     return res.status(201).json({
       ok: true,
       message: "User registered",
       user,
     });
-  } catch (err) {
-    return res.status(409).json({
-      ok: false,
-      error: "USER_ALREADY_EXISTS",
-      message: err,
-    });
+  } catch (err: any) {
+    const code = err instanceof Error ? err.message : "";
+
+    if (code === "USER_ALREADY_EXISTS") {
+      return res.status(409).json({ ok: false, error: "USER_ALREADY_EXISTS" });
+    }
+
+    return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
   }
 }
 
 /**
- * 
+ *
  * @brief Authenticates a user with the provided email and password. On success, returns an access token and a refresh token.
- * @param req Raw HTTP request whose body should have { email, password }
+ * @param req Raw HTTP request whose body should have { email, password }.
  * @param res HTTP response where we will send the result of the login attempt.
  * @returns JSON response indicating the result of the login attempt. On success: { ok: true, message: string, token: string, refreshToken: string }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
- * 
+ *
  * @example
  * // Request body
  * {
  *   "email": "user@example.com",
  *   "password": "password123"
  * }
-
  */
 export async function login(req: Request, res: Response) {
   const parsed = loginBodySchema.safeParse(req.body);
@@ -88,59 +77,38 @@ export async function login(req: Request, res: Response) {
     });
   }
 
-  const { email, password } = parsed.data;
+  try {
+    const { token, refreshToken } = await loginUser(parsed.data);
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      passwordHash: true,
-    },
-  });
-
-  if (!user) {
-    return res.status(401).json({
-      ok: false,
-      error: "INVALID_CREDENTIALS",
+    return res.status(200).json({
+      ok: true,
+      message: "Login successful",
+      token,
+      refreshToken,
     });
+  } catch (err: any) {
+    const code = err instanceof Error ? err.message : "";
+
+    if (code === "INVALID_CREDENTIALS") {
+      return res.status(401).json({ ok: false, error: "INVALID_CREDENTIALS" });
+    }
+
+    return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
   }
-
-  const ok = await verifyPassword(password, user.passwordHash);
-
-  if (!ok) {
-    return res.status(401).json({
-      ok: false,
-      error: "INVALID_CREDENTIALS",
-    });
-  }
-
-  const token = signAccessToken({ sub: user.id, email: user.email, username: user.username });
-
-  const issued = await issueRefreshToken(user.id);
-
-  res.status(200).json({
-    ok: true,
-    message: "Login successful",
-    token,
-    refreshToken: issued.refreshToken,
-  });
 }
 
 /**
- * @brief Deletes the existing refreshToken. Then creates a new refreshToken
- * and a new token.
  *
- * @param request Raw HTTP request whose body should have a valid refreshToken
- * @return JSON response indicating the result of the refresh attempt. On success: { ok: true, token: string, refreshToken: string }. On failure: { ok: false, error: string }.
- * 
+ * @brief Rotates the refresh token. Consumes (revokes) the existing refresh token and issues a new refresh token plus a new access token.
+ * @param req Raw HTTP request whose body should have { refreshToken }.
+ * @param res HTTP response where we will send the result of the refresh attempt.
+ * @returns JSON response indicating the result of the refresh attempt. On success: { ok: true, token: string, refreshToken: string }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
+ *
  * @example
  * // Request body
  * {
  *   "refreshToken": "your-refresh-token-here"
  * }
-
  */
 export async function refresh(req: Request, res: Response) {
   const parsed = refreshBodySchema.safeParse(req.body);
@@ -153,87 +121,48 @@ export async function refresh(req: Request, res: Response) {
     });
   }
 
-  const { refreshToken } = parsed.data;
-
   try {
-    const { userId } = await consumeRefreshToken(refreshToken);
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        ok: false,
-        error: "INVALID_REFRESH_TOKEN",
-      });
-    }
-
-    const token = signAccessToken({
-      sub: userId,
-      email: user.email,
-      username: user.username,
-    });
-
-    // 2) Nuevo refresh token (rotación)
-    const issued = await issueRefreshToken(userId);
+    const { token, refreshToken } = await refreshSession(parsed.data.refreshToken);
 
     return res.status(200).json({
       ok: true,
       token,
-      refreshToken: issued.refreshToken,
+      refreshToken,
     });
-  } catch (err) {
+  } catch (err: any) {
     const code = err instanceof Error ? err.message : "";
 
     if (code === "EXPIRED_REFRESH_TOKEN") {
-      return res.status(401).json({
-        ok: false,
-        error: "Refresh token expired",
-      });
+      return res.status(401).json({ ok: false, error: "Refresh token expired" });
     }
 
-    return res.status(401).json({
-      ok: false,
-      error: "Invalid refresh token",
-    });
+    if (code === "INVALID_REFRESH_TOKEN") {
+      return res.status(401).json({ ok: false, error: "Invalid refresh token" });
+    }
+
+    return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
   }
 }
 
 /**
- * @brief Protected endpoint that returns the current authenticated user's information. Requires a valid access token in the Authorization header.
  *
- * @param _req
- * @param res
- * @returns JSON response with the authenticated user's information. On success: { ok: true, user: { id: string, email: string, username: string } }. On failure (e.g. missing/invalid token): 401 Unauthorized with { ok: false, error: string }.
+ * @brief Returns the current authenticated user's information. This endpoint is intended to be called behind the API gateway, which injects x-user-* headers after validating the access token.
+ * @param req Raw HTTP request whose headers should include x-user-id and x-user-email (and optionally x-user-username).
+ * @param res HTTP response where we will send the authenticated user's information.
+ * @returns JSON response with the authenticated user's information. On success: { ok: true, user: { id: string, email: string, username?: string } }. On failure: 401 Unauthorized with { ok: false, error: string }.
+ *
+ * @example
+ * // Example request headers (set by api-gateway)
+ * // x-user-id: "uuid"
+ * // x-user-email: "user@example.com"
+ * // x-user-username: "user"
  */
-export function me(_req: Request, res: Response) {
-  res.status(200).json({
-    ok: true,
-    user: res.locals.user,
-  });
+export async function me(req: Request, res: Response) {
+  const user = getAuthedUserFromHeaders(req);
+
+  if (!user) {
+    return res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+  }
+
+  return res.json({ ok: true, user });
 }
-
-/**
- * Testing
- 
- * Register a new user:
- 
-    curl -i -sS -X POST "http://localhost:4002/auth/register" \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"user1@gmail.com","username":"user1","password":"password123"}'
- 
-* Get all the Users in DB:
-
-    docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c \
-    'SELECT id, email, username, "createdAt" FROM auth."User" ORDER BY "createdAt" DESC LIMIT 20;'
-
-
- * Get all refresh tokens in DB:
-    docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT id, "userId", "expiresAt", "revokedAt", "createdAt" FROM auth."RefreshToken" ORDER BY "createdAt" DESC;'
- */

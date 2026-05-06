@@ -1,10 +1,27 @@
 import type { Request, Response } from "express";
 import crypto from "crypto";
+import { handleSpotifyCallback } from "../services/spotifyAuth.service.js";
+import {
+  clearSpotifyStateCookie,
+  setAuthCookies,
+  setSpotifyStateCookie,
+} from "../services/sessionCookies.service.js";
 
 function base64Url(buf: Buffer) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+/**
+ *
+ * @brief Starts the Spotify OAuth login flow by generating a CSRF state, storing it as an HTTP-only cookie, and redirecting the user to Spotify's authorization endpoint.
+ * @param _req Raw HTTP request (unused).
+ * @param res HTTP response used to set the OAuth state cookie and redirect the client to Spotify.
+ * @returns Redirect response to Spotify authorization URL. On configuration failure returns JSON { error: string } with HTTP 500.
+ *
+ * @example
+ * // Browser navigation
+ * // GET /api/auth/spotify/login
+ */
 export async function spotifyLogin(_req: Request, res: Response) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
@@ -15,14 +32,8 @@ export async function spotifyLogin(_req: Request, res: Response) {
 
   const state = base64Url(crypto.randomBytes(16));
 
-  // Local dev: http://localhost:4002 (no HTTPS) => secure: false
-  res.cookie("spotify_oauth_state", state, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge: 5 * 60 * 1000, // 5 min
-    path: "/",
-  });
+  // Store state in a cookie so we can validate it during the callback (CSRF protection).
+  setSpotifyStateCookie(res, state);
 
   const scope = ["user-read-email", "user-read-private", "user-top-read"].join(" ");
 
@@ -37,13 +48,74 @@ export async function spotifyLogin(_req: Request, res: Response) {
   return res.redirect(authorizeUrl.toString());
 }
 
+/**
+ *
+ * @brief Handles the Spotify OAuth callback by validating the state and delegating the token exchange, user lookup, and session issuance to the service layer.
+ * @param req Raw HTTP request containing the OAuth query params { code, state } and the state cookie.
+ * @param res HTTP response where we set session cookies and redirect to the frontend.
+ * @returns Redirect to {FRONTEND_URL}/auth/spotify/success on success. On failure returns JSON { ok?: boolean, error: string, details?: unknown } with the corresponding HTTP status.
+ *
+ * @example
+ * // Spotify redirects back to your backend callback URL:
+ * // GET /api/auth/spotify/callback?code=<CODE>&state=<STATE>
+ */
 export async function spotifyCallback(req: Request, res: Response) {
-  const { code, state, error } = req.query;
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
 
-  return res.status(200).json({
-    ok: true,
-    error,
-    code: typeof code === "string" ? code : null,
-    state: typeof state === "string" ? state : null,
-  });
+  if (!clientId || !clientSecret || !redirectUri) {
+    return res.status(500).json({ error: "SPOTIFY_OAUTH_NOT_CONFIGURED" });
+  }
+
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    return res.status(500).json({ ok: false, error: "FRONTEND_URL_NOT_CONFIGURED" });
+  }
+
+  const code = typeof req.query.code === "string" ? req.query.code : null;
+  const returnedState = typeof req.query.state === "string" ? req.query.state : null;
+
+  if (!code) return res.status(400).json({ error: "MISSING_CODE" });
+  if (!returnedState) return res.status(400).json({ error: "MISSING_STATE" });
+
+  const cookieState: string | undefined = req.cookies?.spotify_oauth_state;
+
+  try {
+    const result = await handleSpotifyCallback({
+      code,
+      returnedState,
+      cookieState,
+      clientId,
+      clientSecret,
+      redirectUri,
+    });
+
+    setAuthCookies(res, { accessToken: result.accessToken, refreshToken: result.refreshToken });
+    clearSpotifyStateCookie(res);
+
+    return res.redirect(`${frontendUrl}/auth/spotify/success`);
+  } catch (err: any) {
+    const msg = err instanceof Error ? err.message : "";
+
+    if (msg === "INVALID_STATE") {
+      clearSpotifyStateCookie(res);
+      return res.status(401).json({ error: "INVALID_STATE" });
+    }
+
+    if (msg === "SPOTIFY_EMAIL_NOT_AVAILABLE") {
+      return res.status(400).json({ ok: false, error: "SPOTIFY_EMAIL_NOT_AVAILABLE" });
+    }
+
+    if (msg === "USER_NOT_REGISTERED") {
+      return res.status(401).json({ ok: false, error: "USER_NOT_REGISTERED" });
+    }
+
+    // Errors thrown by spotify client include a `details` field.
+    if (msg === "SPOTIFY_TOKEN_EXCHANGE_FAILED" || msg === "SPOTIFY_ME_FAILED") {
+      return res.status(502).json({ error: msg, details: err.details });
+    }
+
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
 }

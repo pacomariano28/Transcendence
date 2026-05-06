@@ -9,6 +9,7 @@ import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.set("trust proxy", 1);
 if (isProd) app.use(globalLimiter);
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Request id middleware for correlation across logs
 app.use((req: Request, res: Response, next: NextFunction) => {
