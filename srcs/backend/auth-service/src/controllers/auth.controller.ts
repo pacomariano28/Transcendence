@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schemas/auth.schemas.js";
+import { setAuthCookies } from "../services/sessionCookies.service.js";
 import {
   registerUser,
   loginUser,
@@ -80,6 +81,8 @@ export async function login(req: Request, res: Response) {
   try {
     const { token, refreshToken } = await loginUser(parsed.data);
 
+    setAuthCookies(res, { accessToken: token, refreshToken });
+
     return res.status(200).json({
       ok: true,
       message: "Login successful",
@@ -138,6 +141,46 @@ export async function refresh(req: Request, res: Response) {
 
     if (code === "INVALID_REFRESH_TOKEN") {
       return res.status(401).json({ ok: false, error: "Invalid refresh token" });
+    }
+
+    return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
+  }
+}
+
+/**
+ *
+ * @brief Rotates the session using the refresh_token cookie (httpOnly). Issues a new access token and a new refresh token and stores them again as cookies.
+ * @param req Raw HTTP request whose cookies should include { refresh_token }.
+ * @param res HTTP response where we will set the new session cookies.
+ * @returns JSON response indicating the refresh result. On success: { ok: true }. On failure: { ok: false, error: string }.
+ *
+ * @example
+ * // Browser call (no body needed)
+ * fetch("https://127.0.0.1:8443/api/auth/refresh", { method: "POST", credentials: "include" })
+ */
+export async function refreshCookie(req: Request, res: Response) {
+  const refreshToken = req.cookies?.refresh_token;
+
+  if (!refreshToken) {
+    return res.status(401).json({ ok: false, error: "MISSING_REFRESH_TOKEN" });
+  }
+
+  try {
+    const { token, refreshToken: newRefreshToken } = await refreshSession(refreshToken);
+
+    // Persist the rotated tokens as cookies (httpOnly).
+    setAuthCookies(res, { accessToken: token, refreshToken: newRefreshToken });
+
+    return res.status(200).json({ ok: true });
+  } catch (err: any) {
+    const code = err instanceof Error ? err.message : "";
+
+    if (code === "EXPIRED_REFRESH_TOKEN") {
+      return res.status(401).json({ ok: false, error: "REFRESH_TOKEN_EXPIRED" });
+    }
+
+    if (code === "INVALID_REFRESH_TOKEN") {
+      return res.status(401).json({ ok: false, error: "INVALID_REFRESH_TOKEN" });
     }
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
