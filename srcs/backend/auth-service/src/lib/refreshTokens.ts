@@ -81,7 +81,7 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
   const now = new Date();
 
   // Atomic consume (prevents race conditions):
-  // only one request can flip revokedAt from null -> now for a non-expired token
+  // only one request can flip revokedAt from null -> now for a non-expired token.
   const consumed = await prisma.refreshToken.updateMany({
     where: {
       tokenHash,
@@ -92,7 +92,27 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
   });
 
   if (consumed.count !== 1) {
-    // Covers: not found, already revoked/consumed, expired
+    // Distinguish between invalid and expired for better UX/debugging.
+    const rec = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      select: { expiresAt: true, revokedAt: true },
+    });
+
+    if (!rec || rec.revokedAt) {
+      throw new Error("INVALID_REFRESH_TOKEN");
+    }
+
+    if (rec.expiresAt.getTime() <= now.getTime()) {
+      // Best-effort: ensure token is marked as revoked if it is expired but not yet revoked.
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: now },
+      });
+
+      throw new Error("EXPIRED_REFRESH_TOKEN");
+    }
+
+    // Fallback (should be rare): treat as invalid if we couldn't consume it.
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
@@ -102,6 +122,7 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
   });
 
   if (!rec) {
+    // Extremely unlikely after a successful consume, but keep it safe.
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
