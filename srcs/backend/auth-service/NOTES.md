@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS auth."RefreshToken" (
 CREATE INDEX IF NOT EXISTS "RefreshToken_userId_idx" ON auth."RefreshToken" ("userId");
 SQL
 
+**Crear un usuario**
+curl -k -X POST https://localhost:8443/api/auth/register -H "Content-type: application/json" -d '{"email":"pacomariano28@gmail.com", "username":"pacowner", "password":"123"}'
+
 **Comprobar que existen**
 docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c '\dt auth.\*'
 

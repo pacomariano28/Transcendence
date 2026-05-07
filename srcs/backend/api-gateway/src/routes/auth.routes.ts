@@ -19,6 +19,7 @@ const proxyOptions = createProxyMiddleware({
   },
 });
 
+// Credentials auth
 router.post("/register", globalLimiter, proxyOptions);
 router.post("/login", globalLimiter, proxyOptions);
 router.post("/refresh", globalLimiter, proxyOptions);
@@ -26,6 +27,7 @@ router.get("/me", requireAuth, proxyOptions);
 
 router.get("/health", globalLimiter, proxyOptions);
 
+// Spotify Oauth
 router.get("/spotify/login", globalLimiter, proxyOptions);
 router.get("/spotify/callback", globalLimiter, proxyOptions);
 

@@ -7,6 +7,25 @@ import {
   setSpotifyStateCookie,
 } from "../services/sessionCookies.service.js";
 
+/**
+ *
+ * @brief Encodes a Buffer into a Base64URL string (RFC 4648, URL-safe Base64 variant).
+ *
+ * Converts standard Base64 output into the URL-safe form by:
+ * - Replacing '+' with '-'
+ * - Replacing '/' with '_'
+ * - Removing trailing '=' padding
+ *
+ * This is commonly used to generate tokens (e.g., OAuth state/nonces) that can be safely placed in URLs
+ * and cookies without requiring extra escaping.
+ *
+ * @param buf Raw bytes to encode.
+ * @returns URL-safe Base64-encoded string without padding.
+ *
+ * @example
+ * const state = base64Url(crypto.randomBytes(16));
+ * // Example output: "Q3VwZl9aQk1Jb2t1d2x2eA"
+ */
 function base64Url(buf: Buffer) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
