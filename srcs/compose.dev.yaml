@@ -17,7 +17,6 @@ services:
       - ../infra/certs:/etc/nginx/certs
 
   frontend:
-    user: node
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -39,7 +38,6 @@ services:
       - /app/node_modules
 
   api-gateway:
-    user: node
     build:
       context: ./backend/api-gateway
       dockerfile: Dockerfile
@@ -65,7 +63,6 @@ services:
       - /app/node_modules
 
   auth-service:
-    user: node
     build:
       context: ./backend/auth-service
       dockerfile: Dockerfile
@@ -93,7 +90,6 @@ services:
       - /app/node_modules
 
   content-service:
-    user: node
     build:
       context: ./backend/content-service
       dockerfile: Dockerfile

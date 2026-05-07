@@ -16,7 +16,6 @@ EXPOSE 4003
 CMD ["node", "dist/index.js"]
 
 FROM node:24-alpine3.22 AS development
-USER node
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

@@ -19,7 +19,6 @@ CMD ["node", "dist/index.js"]
 
 # development
 FROM node:24-alpine3.22 AS development
-USER node
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
