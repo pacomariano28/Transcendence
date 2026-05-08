@@ -9,6 +9,8 @@ import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import gameRoutes from "./routes/game.routes.js";
+import cors from 'cors';
 
 const app = express();
 
@@ -22,6 +24,8 @@ if (isProd) app.use(globalLimiter);
 
 app.use(express.json());
 
+app.use(cors());
+
 // Request id middleware for correlation across logs
 app.use((req: Request, res: Response, next: NextFunction) => {
   const requestId = req.header("x-request-id") || randomUUID();
@@ -33,6 +37,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes registration
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/game", gameRoutes);
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {

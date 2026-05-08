@@ -64,6 +64,28 @@ services:
       - ./backend/api-gateway:/app
       - /app/node_modules
 
+  game-service:
+    user: node
+    build:
+      context: ./backend/game-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+    env_file:
+      - ./backend/game-service/.env
+    container_name: songuess-game-service
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    networks:
+      - songuess-net
+    volumes:
+      # - ./backend/services/game-service/src:/app/src
+      # - ./backend/services/game-service/tsconfig.json:/app/tsconfig.json
+      - ./backend/game-service:/app
+      - /app/node_modules
+
   auth-service:
     user: node
     build:
