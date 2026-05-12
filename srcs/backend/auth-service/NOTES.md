@@ -1,7 +1,3 @@
-hemos añadido dotenv ya que no tenemos la inyección desde el docker compose de la variable de entorno JWT_SECRET
-
-necesito crear un .env que lo tenga dentro de este servicio y acceder a ella a través de dotenv
-
 Si la función recibe (req, res, next) y puede “cortar” la request → middlewares/
 
 Si es una función pura sin Express (ej: validar objeto, formatear) → lib/ o utils/
@@ -63,11 +59,14 @@ CREATE TABLE IF NOT EXISTS auth."RefreshToken" (
 CREATE INDEX IF NOT EXISTS "RefreshToken_userId_idx" ON auth."RefreshToken" ("userId");
 SQL
 
+**Crear un usuario**
+curl -k -X POST https://localhost:8443/api/auth/register -H "Content-type: application/json" -d '{"email":"pacomariano28@gmail.com", "username":"pacowner", "password":"123"}'
+
 **Comprobar que existen**
-docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c '\dt auth.*'
+docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c '\dt auth.\*'
 
 **Ver tabla User**
-docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c SELECT * FROM auth."User";
+docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT \* FROM auth."User";'
 
 **logout auth-service**
 
@@ -90,3 +89,11 @@ authRouter.post("/logout", requireAuth, authController.logout)
 Placing requireAuth enforces that a valid access token is present, preventing anonymous token invalidation abuse 5. README.md — add POST /auth/logout to the endpoints table
 
 6. NOTES.md — mark the logout TODO as done
+
+fetch("https://127.0.0.1:8443/api/auth/me", {
+method: "GET",
+credentials: "include",
+})
+.then(async (r) => ({ status: r.status, body: await r.json() }))
+.then(console.log)
+.catch(console.error);
