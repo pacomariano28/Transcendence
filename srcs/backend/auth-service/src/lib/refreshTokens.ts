@@ -128,3 +128,22 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
 
   return { userId: rec.userId };
 }
+
+/**
+ * @brief Revokes a refresh token without rotating it.
+ * @param refreshToken Refresh token to invalidate.
+ * @returns `true` if a token row was marked as revoked, `false` if it was missing or already revoked.
+ */
+export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
+  const tokenHash = hashToken(refreshToken);
+
+  const result = await prisma.refreshToken.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date() },
+  });
+
+  return result.count > 0;
+}

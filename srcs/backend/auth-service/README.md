@@ -24,6 +24,7 @@ Service responsible for authentication and minimal user management for the proje
 - `POST /register` → create user
 - `POST /login` → obtain JWT
 - `GET /me` → basic data for the authenticated user
+- `POST /logout` → revoke the current refresh token
 
 > Note: the API Gateway decides the public prefix (for example `/api/auth/*`). Internally, this service keeps “clean” routes.
 
@@ -31,6 +32,7 @@ Service responsible for authentication and minimal user management for the proje
 
 - JWT via header: `Authorization: Bearer <token>`
 - No cookies in the first iteration.
+- Logout revokes the refresh token sent in the request body.
 
 ## Environment variables (draft)
 
