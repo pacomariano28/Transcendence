@@ -9,6 +9,7 @@ authRouter.post("/register", authController.register);
 authRouter.post("/login", authController.login);
 authRouter.post("/refresh", authController.refresh);
 authRouter.post("/refresh-cookie", authController.refreshCookie);
+authRouter.post("/logout", authController.logout);
 authRouter.get("/me", authController.me);
 
 // Spotify Oauth

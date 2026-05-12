@@ -77,43 +77,17 @@ export async function issueRefreshToken(userId: string): Promise<IssuedRefreshTo
  * }
  */
 export async function consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
-<<<<<<< HEAD
   const tokenHash = hashToken(refreshToken);
-  const now = new Date();
-
-  // Atomic consume (prevents race conditions):
-  // only one request can flip revokedAt from null -> now for a non-expired token
-  const consumed = await prisma.refreshToken.updateMany({
-    where: {
-      tokenHash,
-      revokedAt: null,
-      expiresAt: { gt: now },
-    },
-    data: { revokedAt: now },
-  });
-
-  if (consumed.count !== 1) {
-    // Covers: not found, already revoked/consumed, expired
-    throw new Error("INVALID_REFRESH_TOKEN");
-  }
 
   const rec = await prisma.refreshToken.findUnique({
     where: { tokenHash },
-    select: { userId: true },
-=======
-  const rec = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
     select: { id: true, userId: true, expiresAt: true, revokedAt: true },
->>>>>>> origin/develop
   });
 
-  if (!rec || rec?.revokedAt) {
+  if (!rec || rec.revokedAt) {
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
-<<<<<<< HEAD
-=======
-  // its expired? Set revokedAt to now and throw error
   if (Date.now() > rec.expiresAt.getTime()) {
     await prisma.refreshToken.update({
       where: { id: rec.id },
@@ -123,12 +97,29 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
     throw new Error("EXPIRED_REFRESH_TOKEN");
   }
 
-  // Consume the token by setting revokedAt to now
   await prisma.refreshToken.update({
     where: { id: rec.id },
     data: { revokedAt: new Date() },
   });
 
->>>>>>> origin/develop
   return { userId: rec.userId };
+}
+
+/**
+ * @brief Revokes a refresh token without rotating it.
+ * @param refreshToken Refresh token to invalidate.
+ * @returns `true` if a token row was marked as revoked, `false` if it was missing or already revoked.
+ */
+export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
+  const tokenHash = hashToken(refreshToken);
+
+  const result = await prisma.refreshToken.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date() },
+  });
+
+  return result.count > 0;
 }

@@ -24,6 +24,7 @@ router.post("/register", globalLimiter, proxyOptions);
 router.post("/login", globalLimiter, proxyOptions);
 router.post("/refresh", globalLimiter, proxyOptions);
 router.post("/refresh-cookie", globalLimiter, proxyOptions);
+router.post("/logout", globalLimiter, proxyOptions);
 router.get("/me", requireAuth, proxyOptions);
 
 router.get("/health", globalLimiter, proxyOptions);

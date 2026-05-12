@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
 import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schemas/auth.schemas.js";
-import { setAuthCookies } from "../services/sessionCookies.service.js";
+import { clearAuthCookies, setAuthCookies } from "../services/sessionCookies.service.js";
 import {
   registerUser,
   loginUser,
   refreshSession,
   getAuthedUserFromHeaders,
 } from "../services/auth.service.js";
+import { revokeRefreshToken } from "../lib/refreshTokens.js";
 
 /**
  *
@@ -185,6 +186,28 @@ export async function refreshCookie(req: Request, res: Response) {
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
   }
+}
+
+/**
+ *
+ * @brief Logs out the current session by revoking the refresh token and clearing auth cookies.
+ * @param req Raw HTTP request whose cookies or body may contain a refresh token.
+ * @param res HTTP response where we will clear the session cookies.
+ * @returns JSON response indicating the logout result.
+ */
+export async function logout(req: Request, res: Response) {
+  const bodyRefreshToken =
+    typeof req.body?.refreshToken === "string" ? req.body.refreshToken : null;
+  const refreshToken = req.cookies?.refresh_token ?? bodyRefreshToken;
+
+  if (!refreshToken) {
+    return res.status(400).json({ ok: false, error: "MISSING_REFRESH_TOKEN" });
+  }
+
+  await revokeRefreshToken(refreshToken);
+  clearAuthCookies(res);
+
+  return res.status(200).json({ ok: true, message: "Logged out successfully" });
 }
 
 /**

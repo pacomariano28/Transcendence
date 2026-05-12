@@ -39,6 +39,16 @@ export function setAuthCookies(
 
 /**
  *
+ * @brief Clears the application's session cookies.
+ * @param res HTTP response where we will clear the session cookies.
+ */
+export function clearAuthCookies(res: Response) {
+  res.clearCookie("access_token", { path: "/" });
+  res.clearCookie("refresh_token", { path: "/" });
+}
+
+/**
+ *
  * @brief Stores the Spotify OAuth state value in an HTTP-only cookie for CSRF protection during the OAuth callback.
  * @param res HTTP response where we will set the OAuth state cookie.
  * @param state Random state string to persist until the OAuth callback is received.
