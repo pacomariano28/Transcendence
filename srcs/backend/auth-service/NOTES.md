@@ -89,3 +89,11 @@ authRouter.post("/logout", requireAuth, authController.logout)
 Placing requireAuth enforces that a valid access token is present, preventing anonymous token invalidation abuse 5. README.md — add POST /auth/logout to the endpoints table
 
 6. NOTES.md — mark the logout TODO as done
+
+fetch("https://127.0.0.1:8443/api/auth/me", {
+method: "GET",
+credentials: "include",
+})
+.then(async (r) => ({ status: r.status, body: await r.json() }))
+.then(console.log)
+.catch(console.error);
