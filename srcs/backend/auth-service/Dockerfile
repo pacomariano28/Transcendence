@@ -25,4 +25,4 @@ COPY prisma ./prisma
 RUN npm ci
 # COPY --chown=node:node . .
 EXPOSE 4002
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run dev"]

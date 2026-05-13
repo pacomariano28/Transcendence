@@ -78,7 +78,8 @@ services:
     container_name: songuess-auth-service
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "4002:4002"
     networks:
@@ -142,6 +143,15 @@ services:
       - songuess-net
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres_user} -d ${POSTGRES_DB:-postgres_db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 15
 
   redis:
     image: redis:8.4.2-alpine3.22
