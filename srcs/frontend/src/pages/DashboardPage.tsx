@@ -1,17 +1,32 @@
 import { useAuth } from "../auth/AuthContext";
 
 export default function DashboardPage() {
-  const { user, reload } = useAuth();
+  const { user } = useAuth();
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Dashboard</h1>
-      <p>You are authenticated.</p>
-      <button onClick={() => reload()}>Reload session</button>
-      <pre style={{ marginTop: 16 }}>{JSON.stringify(user, null, 2)}</pre>
-      <p>
-        <a href="/login">Go to login</a>
-      </p>
+    <div className="container-page py-10 fade-in">
+      <div className="card p-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          Dashboard
+        </h1>
+        <p className="mt-2 text-sm text-zinc-400">Authenticated area.</p>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs font-medium text-zinc-400">User</div>
+            <pre className="mt-2 overflow-auto text-xs text-zinc-200">
+              {JSON.stringify(user, null, 2)}
+            </pre>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs font-medium text-zinc-400">Next</div>
+            <p className="mt-2 text-sm text-zinc-300">
+              Aquí luego metemos “Play” / “Join room” / etc.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

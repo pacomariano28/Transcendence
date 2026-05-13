@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
-import { registerBodySchema, loginBodySchema, refreshBodySchema } from "../schemas/auth.schemas.js";
-import { clearAuthCookies, setAuthCookies } from "../services/sessionCookies.service.js";
+import {
+  registerBodySchema,
+  loginBodySchema,
+  refreshBodySchema,
+} from "../schemas/auth.schemas.js";
+import {
+  clearAuthCookies,
+  setAuthCookies,
+} from "../services/sessionCookies.service.js";
 import {
   registerUser,
   loginUser,
@@ -93,8 +100,8 @@ export async function login(req: Request, res: Response) {
   } catch (err: any) {
     const code = err instanceof Error ? err.message : "";
 
-    if (code === "INVALID_CREDENTIALS") {
-      return res.status(401).json({ ok: false, error: "INVALID_CREDENTIALS" });
+    if (code === "Wrong credentials") {
+      return res.status(401).json({ ok: false, error: "Wrong credentials" });
     }
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
@@ -126,7 +133,9 @@ export async function refresh(req: Request, res: Response) {
   }
 
   try {
-    const { token, refreshToken } = await refreshSession(parsed.data.refreshToken);
+    const { token, refreshToken } = await refreshSession(
+      parsed.data.refreshToken,
+    );
 
     return res.status(200).json({
       ok: true,
@@ -137,11 +146,15 @@ export async function refresh(req: Request, res: Response) {
     const code = err instanceof Error ? err.message : "";
 
     if (code === "EXPIRED_REFRESH_TOKEN") {
-      return res.status(401).json({ ok: false, error: "Refresh token expired" });
+      return res
+        .status(401)
+        .json({ ok: false, error: "Refresh token expired" });
     }
 
     if (code === "INVALID_REFRESH_TOKEN") {
-      return res.status(401).json({ ok: false, error: "Invalid refresh token" });
+      return res
+        .status(401)
+        .json({ ok: false, error: "Invalid refresh token" });
     }
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
@@ -167,7 +180,8 @@ export async function refreshCookie(req: Request, res: Response) {
   }
 
   try {
-    const { token, refreshToken: newRefreshToken } = await refreshSession(refreshToken);
+    const { token, refreshToken: newRefreshToken } =
+      await refreshSession(refreshToken);
 
     // Persist the rotated tokens as cookies (httpOnly).
     setAuthCookies(res, { accessToken: token, refreshToken: newRefreshToken });
@@ -177,11 +191,15 @@ export async function refreshCookie(req: Request, res: Response) {
     const code = err instanceof Error ? err.message : "";
 
     if (code === "EXPIRED_REFRESH_TOKEN") {
-      return res.status(401).json({ ok: false, error: "REFRESH_TOKEN_EXPIRED" });
+      return res
+        .status(401)
+        .json({ ok: false, error: "REFRESH_TOKEN_EXPIRED" });
     }
 
     if (code === "INVALID_REFRESH_TOKEN") {
-      return res.status(401).json({ ok: false, error: "INVALID_REFRESH_TOKEN" });
+      return res
+        .status(401)
+        .json({ ok: false, error: "INVALID_REFRESH_TOKEN" });
     }
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
