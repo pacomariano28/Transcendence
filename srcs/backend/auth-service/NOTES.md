@@ -15,3 +15,5 @@ credentials: "include",
 .then(async (r) => ({ status: r.status, body: await r.json() }))
 .then(console.log)
 .catch(console.error);
+
+Si iniciamos sesión en spotify sin tener cuenta creada, debemos recoger los datos y guardarlos si no tiene cuenta en la bbdd?
