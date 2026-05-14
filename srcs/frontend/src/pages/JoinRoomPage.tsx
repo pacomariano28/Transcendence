@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function normalizeCode(raw: string) {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -98,8 +99,9 @@ export default function JoinRoomPage() {
               type="button"
               onClick={onJoin}
               title={disabledReason}
+              onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              Join
+              <span>Join</span>
             </button>
 
             <Link className="btn-ghost flex-1" to="/create">

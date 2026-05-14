@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
@@ -64,13 +65,29 @@ export default function AppHeader() {
                   {user.username ?? user.email}
                 </span>
               </div>
-              <button className="btn-ghost" onClick={onLogout}>
-                Logout
+              <button
+                className="btn-logout"
+                onMouseMove={handleMouseMoveToSetFillOrigin}
+                type="button"
+                onClick={onLogout}
+              >
+                <span>Logout</span>
               </button>
             </>
           ) : (
-            <Link className="btn-ghost" to="/login">
-              Login
+            <Link to="/login">
+              <button
+                className="btn-glow btn-glow-no-bold w-full"
+                style={
+                  {
+                    "--btn-color": "#f7d046",
+                    "--font-weight": "none",
+                  } as React.CSSProperties
+                }
+                onMouseMove={handleMouseMoveToSetFillOrigin}
+              >
+                <span>Login</span>
+              </button>
             </Link>
           )}
         </div>

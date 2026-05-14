@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { login, register } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
 import { loginSchema, registerSchema } from "../validation/authSchemas";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import SpotifyIcon from "../components/icons/SpotifyIcon";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -59,24 +61,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container-page py-10">
-      <div className="mx-auto grid w-full max-w-4xl gap-6 md:grid-cols-2">
+    <div className="container-page py-8 sm:py-10 lg:py-12">
+      <div className="mx-auto grid w-full max-w-3xl gap-6 lg:max-w-4xl lg:grid-cols-2">
         <section className="fade-in">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
-            {title}
-          </h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            Minimal login UI to validate{" "}
-            <span className="text-zinc-200">auth-service</span>.
-          </p>
+          <div className="max-w-xl">
+            <h1 className="page-title">{title}</h1>
+            <p className="page-subtitle">
+              Minimal login UI to validate{" "}
+              <span className="text-zinc-200">auth-service</span>.
+            </p>
+          </div>
+        </section>
 
-          <div className="mt-6 card card-hover p-5">
+        <section className="fade-in">
+          <div className="page-card">
             <button
-              className="btn-ghost w-full"
+              className="btn-glow w-full"
+              style={{ "--btn-color": "#1DB954" } as React.CSSProperties}
               onClick={loginWithSpotify}
               type="button"
+              onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              Continue with Spotify
+              <span className="flex items-center gap-2">
+                Continue with
+                <SpotifyIcon className="h-6 w-6" />
+              </span>
             </button>
 
             <div className="my-4 flex items-center gap-3">
@@ -85,7 +94,7 @@ export default function LoginPage() {
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <form className="space-y-3" onSubmit={onSubmit}>
+            <form className="space-y-4" onSubmit={onSubmit}>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-zinc-400">
                   Email
@@ -137,15 +146,19 @@ export default function LoginPage() {
               )}
 
               <button
-                className="btn-primary w-full"
+                className="btn-glow w-full"
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 disabled={submitting}
                 type="submit"
+                onMouseMove={handleMouseMoveToSetFillOrigin}
               >
-                {submitting
-                  ? "Working…"
-                  : mode === "login"
-                    ? "Login"
-                    : "Create account"}
+                <span>
+                  {submitting
+                    ? "Working…"
+                    : mode === "login"
+                      ? "Login"
+                      : "Create account"}
+                </span>
               </button>
 
               <button
