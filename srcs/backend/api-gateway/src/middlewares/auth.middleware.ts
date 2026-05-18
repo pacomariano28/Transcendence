@@ -38,7 +38,7 @@ export const requireAuth = (
   if (authHeader?.startsWith("Bearer ")) {
     token = authHeader.slice("Bearer ".length).trim();
   } else {
-    token = (req as any).cookies?.access_token; // Use req.cookies.access_token if you have proper typings.
+    token = req.cookies?.access_token; // Use req.cookies.access_token if you have proper typings.
   }
 
   if (!token) {

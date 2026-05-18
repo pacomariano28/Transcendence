@@ -47,20 +47,19 @@ app.use((_req: Request, res: Response) => {
 
 // Centralized error logger + response
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  void _next;
   const requestId = res.locals.requestId ?? null;
-  const statusCode = Number(
-    (err as any)?.statusCode || (err as any)?.status || 500,
-  );
-  const message = (err as any)?.message || "Internal server error";
+  const statusCode = Number(err?.statusCode || 500);
+  const message = err?.message || "Internal server error";
 
   logError({
     requestId,
     method: req.method,
     path: req.originalUrl,
     statusCode,
-    errorName: (err as any)?.name || "Error",
+    errorName: err?.name || "Error",
     errorMessage: message,
-    stack: (err as any)?.stack,
+    stack: err?.stack,
   });
 
   res.status(statusCode).json({

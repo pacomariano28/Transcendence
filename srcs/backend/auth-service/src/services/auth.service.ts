@@ -2,7 +2,10 @@ import type { Request } from "express";
 import { prisma } from "../lib/prisma.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { signAccessToken } from "../lib/jwt.js";
-import { issueRefreshToken, consumeRefreshToken } from "../lib/refreshTokens.js";
+import {
+  issueRefreshToken,
+  consumeRefreshToken,
+} from "../lib/refreshTokens.js";
 
 export type RegisterInput = {
   email: string;
@@ -60,7 +63,7 @@ export async function registerUser(input: RegisterInput) {
  * const { token, refreshToken } = await loginUser({ email: "user@example.com", password: "password123" });
  */
 export async function loginUser(
-  input: LoginInput
+  input: LoginInput,
 ): Promise<{ token: string; refreshToken: string }> {
   const user = await prisma.user.findUnique({
     where: { email: input.email },
@@ -72,7 +75,11 @@ export async function loginUser(
   const ok = await verifyPassword(input.password, user.passwordHash);
   if (!ok) throw new Error("INVALID_CREDENTIALS");
 
-  const token = signAccessToken({ sub: user.id, email: user.email, username: user.username });
+  const token = signAccessToken({
+    sub: user.id,
+    email: user.email,
+    username: user.username,
+  });
   const issued = await issueRefreshToken(user.id);
 
   return { token, refreshToken: issued.refreshToken };
@@ -89,7 +96,7 @@ export async function loginUser(
  * const { token, refreshToken } = await refreshSession("<refresh-token>");
  */
 export async function refreshSession(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<{ token: string; refreshToken: string }> {
   let userId: string;
 
@@ -99,10 +106,14 @@ export async function refreshSession(
     const code = err instanceof Error ? err.message : "";
 
     if (code === "EXPIRED_REFRESH_TOKEN") {
-      throw new Error("EXPIRED_REFRESH_TOKEN");
+      throw new Error("EXPIRED_REFRESH_TOKEN", {
+        cause: err,
+      });
     }
 
-    throw new Error("INVALID_REFRESH_TOKEN");
+    throw new Error("INVALID_REFRESH_TOKEN", {
+      cause: err,
+    });
   }
 
   const user = await prisma.user.findUnique({
@@ -112,7 +123,11 @@ export async function refreshSession(
 
   if (!user) throw new Error("INVALID_REFRESH_TOKEN");
 
-  const token = signAccessToken({ sub: userId, email: user.email, username: user.username });
+  const token = signAccessToken({
+    sub: userId,
+    email: user.email,
+    username: user.username,
+  });
   const issued = await issueRefreshToken(userId);
 
   return { token, refreshToken: issued.refreshToken };

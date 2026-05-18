@@ -27,7 +27,11 @@ import {
  * // Example output: "Q3VwZl9aQk1Jb2t1d2x2eA"
  */
 function base64Url(buf: Buffer) {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return buf
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 /**
@@ -54,7 +58,9 @@ export async function spotifyLogin(_req: Request, res: Response) {
   // Store state in a cookie so we can validate it during the callback (CSRF protection).
   setSpotifyStateCookie(res, state);
 
-  const scope = ["user-read-email", "user-read-private", "user-top-read"].join(" ");
+  const scope = ["user-read-email", "user-read-private", "user-top-read"].join(
+    " ",
+  );
 
   const authorizeUrl = new URL("https://accounts.spotify.com/authorize");
   authorizeUrl.searchParams.set("client_id", clientId);
@@ -89,11 +95,14 @@ export async function spotifyCallback(req: Request, res: Response) {
 
   const frontendUrl = process.env.FRONTEND_URL;
   if (!frontendUrl) {
-    return res.status(500).json({ ok: false, error: "FRONTEND_URL_NOT_CONFIGURED" });
+    return res
+      .status(500)
+      .json({ ok: false, error: "FRONTEND_URL_NOT_CONFIGURED" });
   }
 
   const code = typeof req.query.code === "string" ? req.query.code : null;
-  const returnedState = typeof req.query.state === "string" ? req.query.state : null;
+  const returnedState =
+    typeof req.query.state === "string" ? req.query.state : null;
 
   if (!code) return res.status(400).json({ error: "MISSING_CODE" });
   if (!returnedState) return res.status(400).json({ error: "MISSING_STATE" });
@@ -110,12 +119,19 @@ export async function spotifyCallback(req: Request, res: Response) {
       redirectUri,
     });
 
-    setAuthCookies(res, { accessToken: result.accessToken, refreshToken: result.refreshToken });
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
     clearSpotifyStateCookie(res);
 
     return res.redirect(`${frontendUrl}/auth/spotify/success`);
-  } catch (err: any) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
+    const details =
+      typeof err === "object" && err !== null && "details" in err
+        ? err.details
+        : undefined;
 
     if (msg === "INVALID_STATE") {
       clearSpotifyStateCookie(res);
@@ -123,7 +139,9 @@ export async function spotifyCallback(req: Request, res: Response) {
     }
 
     if (msg === "SPOTIFY_EMAIL_NOT_AVAILABLE") {
-      return res.status(400).json({ ok: false, error: "SPOTIFY_EMAIL_NOT_AVAILABLE" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "SPOTIFY_EMAIL_NOT_AVAILABLE" });
     }
 
     if (msg === "USER_NOT_REGISTERED") {
@@ -131,8 +149,11 @@ export async function spotifyCallback(req: Request, res: Response) {
     }
 
     // Errors thrown by spotify client include a `details` field.
-    if (msg === "SPOTIFY_TOKEN_EXCHANGE_FAILED" || msg === "SPOTIFY_ME_FAILED") {
-      return res.status(502).json({ error: msg, details: err.details });
+    if (
+      msg === "SPOTIFY_TOKEN_EXCHANGE_FAILED" ||
+      msg === "SPOTIFY_ME_FAILED"
+    ) {
+      return res.status(502).json({ error: msg, details });
     }
 
     return res.status(500).json({ error: "INTERNAL_ERROR" });
