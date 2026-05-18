@@ -99,12 +99,13 @@ export default function RoomLobbyPage() {
 
             <div className="mt-4 flex flex-col gap-3">
               <button
-                className="btn-primary"
+                className="btn-glow"
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 type="button"
                 disabled
                 title="Game not implemented yet"
               >
-                Start game
+                <span>Start game</span>
               </button>
               <button className="btn-ghost" type="button" onClick={leave}>
                 Leave room

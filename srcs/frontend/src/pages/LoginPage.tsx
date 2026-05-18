@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { loginSchema, registerSchema } from "../validation/authSchemas";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import SpotifyIcon from "../components/icons/SpotifyIcon";
+import TypingText from "../components/TypingText";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -65,11 +66,21 @@ export default function LoginPage() {
       <div className="mx-auto grid w-full max-w-3xl gap-6 lg:max-w-4xl lg:grid-cols-2">
         <section className="fade-in">
           <div className="max-w-xl">
-            <h1 className="page-title">{title}</h1>
-            <p className="page-subtitle">
-              Minimal login UI to validate{" "}
-              <span className="text-zinc-200">auth-service</span>.
-            </p>
+            <h1 key={mode} className="page-title pop-in">
+              {title}
+            </h1>
+
+            <div className="pb-1 font-mono text-xs sm:text-sm tracking-[0.35em] text-[#f7d046] mb-3">
+              <TypingText
+                text="SONGUESS"
+                className="drop-shadow-[0_0_14px_rgba(247,208,70,0.16)]"
+                typingDelays={[220, 300, 180, 260, 200, 340, 170, 280]}
+                typoChance={0.22}
+                pauseAfterCompleteMs={2200}
+                pauseAfterDeleteMs={700}
+                cursorBlinkMs={550}
+              />
+            </div>
           </div>
         </section>
 

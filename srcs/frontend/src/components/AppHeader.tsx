@@ -66,7 +66,8 @@ export default function AppHeader() {
                 </span>
               </div>
               <button
-                className="btn-logout"
+                className="btn-glow btn-glow-no-bold"
+                style={{ "--btn-color": "#d12219" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 type="button"
                 onClick={onLogout}
@@ -78,12 +79,7 @@ export default function AppHeader() {
             <Link to="/login">
               <button
                 className="btn-glow btn-glow-no-bold w-full"
-                style={
-                  {
-                    "--btn-color": "#f7d046",
-                    "--font-weight": "none",
-                  } as React.CSSProperties
-                }
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
               >
                 <span>Login</span>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 export default function CreateRoomPage() {
   const { user } = useAuth();
@@ -93,12 +94,14 @@ export default function CreateRoomPage() {
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <button
-              className="btn-primary flex-1"
+              className="btn-glow flex-1"
+              style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
               type="button"
-              disabled
               title={disabledReason}
+              disabled={!user}
+              onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              Create
+              <span>Create</span>
             </button>
             <Link className="btn-ghost flex-1" to="/join">
               I have a code

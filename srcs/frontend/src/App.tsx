@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import CreateRoomPage from "./pages/CreateRoomPage";
 import JoinRoomPage from "./pages/JoinRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
+import Footer from "./components/AppFooter";
 
 export default function App() {
   return (
@@ -20,24 +21,28 @@ export default function App() {
           <div className="app-bg" />
           <AppHeader />
 
-          <RouteTransition>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/auth/spotify/success"
-                element={<SpotifySuccessPage />}
-              />
-              <Route path="/create" element={<CreateRoomPage />} />
-              <Route path="/join" element={<JoinRoomPage />} />
+          <main className="flex-1">
+            <RouteTransition>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/auth/spotify/success"
+                  element={<SpotifySuccessPage />}
+                />
+                <Route path="/create" element={<CreateRoomPage />} />
+                <Route path="/join" element={<JoinRoomPage />} />
 
-              <Route element={<RequireAuth />}>
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/room/:code" element={<RoomLobbyPage />} />
-              </Route>
-            </Routes>
-          </RouteTransition>
+                <Route element={<RequireAuth />}>
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/room/:code" element={<RoomLobbyPage />} />
+                </Route>
+              </Routes>
+            </RouteTransition>
+          </main>
+
+          <Footer />
         </div>
       </AuthProvider>
     </BrowserRouter>

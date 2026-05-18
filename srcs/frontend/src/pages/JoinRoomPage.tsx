@@ -95,7 +95,8 @@ export default function JoinRoomPage() {
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <button
-              className="btn-primary flex-1"
+              className="btn-glow flex-1"
+              style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
               type="button"
               onClick={onJoin}
               title={disabledReason}

@@ -18,7 +18,7 @@
 
 @layer components {
   .app-shell {
-    @apply min-h-full bg-[#0b0b0c];
+    @apply min-h-screen flex flex-col bg-[#0b0b0c];
   }
 
   .app-bg {
@@ -113,11 +113,7 @@
   .btn-glow:hover::before {
     width: 280%;
     height: 280%;
-  }
-
-  .btn-glow > * {
-    position: relative;
-    z-index: 1;
+    color: black !important;
   }
 
   .btn-glow:hover {
@@ -128,6 +124,11 @@
       0 0 22px color-mix(in srgb, var(--btn-color) 12%, transparent);
     font-weight: bold;
     letter-spacing: 1px;
+  }
+
+  .btn-glow > * {
+    position: relative;
+    z-index: 1;
   }
 
   .btn-ghost {
