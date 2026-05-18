@@ -36,7 +36,7 @@ export default function TypingText({
   const [displayText, setDisplayText] = useState("");
   const [charIndex, setCharIndex] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true);
-  const [typoChar, setTypoChar] = useState<string | null>(null);
+  // const [typoChar, setTypoChar] = useState<string | null>(null);
 
   const currentTypingDelay = useMemo(() => {
     if (!text.length) return 180;
@@ -69,7 +69,7 @@ export default function TypingText({
 
           if (shouldMakeTypo) {
             const wrongChar = typoMap[nextChar];
-            setTypoChar(wrongChar);
+            // setTypoChar(wrongChar);
             setDisplayText(text.slice(0, charIndex) + wrongChar);
             setPhase("typo");
           } else {
@@ -88,7 +88,7 @@ export default function TypingText({
     if (phase === "typo") {
       timeoutId = window.setTimeout(() => {
         setDisplayText(text.slice(0, charIndex));
-        setTypoChar(null);
+        // setTypoChar(null);
         setPhase("typing");
       }, 220);
     }

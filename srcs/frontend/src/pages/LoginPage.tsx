@@ -54,8 +54,10 @@ export default function LoginPage() {
 
       await reload();
       nav("/dashboard", { replace: true });
-    } catch (err: any) {
-      setError(err?.message ?? "Unknown error");
+    } catch (err: unknown) {
+      const message: string =
+        err instanceof Error ? err.message : "Unknown error";
+      setError(message);
     } finally {
       setSubmitting(false);
     }

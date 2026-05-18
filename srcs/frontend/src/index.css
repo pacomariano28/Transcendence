@@ -167,7 +167,7 @@
   }
 
   .code-flash {
-    animation: codeFlash 3.5s ease-out both;
+    animation: codeFlash 2.5s ease-out both;
     animation-delay: 0.15s;
   }
 }
