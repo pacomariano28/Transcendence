@@ -45,7 +45,9 @@ function hashToken(token: string) {
  * console.log("Issued Refresh Token:", refreshToken);
  * console.log("Expires At:", new Date(expiresAt).toISOString());
  */
-export async function issueRefreshToken(userId: string): Promise<IssuedRefreshToken> {
+export async function issueRefreshToken(
+  userId: string,
+): Promise<IssuedRefreshToken> {
   const refreshToken = crypto.randomBytes(48).toString("hex");
   const expiresAt = Date.now() + REFRESH_TTL_MS;
 
@@ -76,7 +78,9 @@ export async function issueRefreshToken(userId: string): Promise<IssuedRefreshTo
  *   console.error("Error consuming refresh token:", error.message);
  * }
  */
-export async function consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
+export async function consumeRefreshToken(
+  refreshToken: string,
+): Promise<{ userId: string }> {
   const tokenHash = hashToken(refreshToken);
   const now = new Date();
 
@@ -134,7 +138,9 @@ export async function consumeRefreshToken(refreshToken: string): Promise<{ userI
  * @param refreshToken Refresh token to invalidate.
  * @returns `true` if a token row was marked as revoked, `false` if it was missing or already revoked.
  */
-export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
+export async function revokeRefreshToken(
+  refreshToken: string,
+): Promise<boolean> {
   const tokenHash = hashToken(refreshToken);
 
   const result = await prisma.refreshToken.updateMany({

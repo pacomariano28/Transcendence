@@ -35,7 +35,9 @@ export async function exchangeCodeForToken(params: {
   redirectUri: string;
   code: string;
 }): Promise<SpotifyTokenResponse> {
-  const basic = Buffer.from(`${params.clientId}:${params.clientSecret}`).toString("base64");
+  const basic = Buffer.from(
+    `${params.clientId}:${params.clientSecret}`,
+  ).toString("base64");
 
   const body = new URLSearchParams();
   body.set("grant_type", "authorization_code");
@@ -55,7 +57,9 @@ export async function exchangeCodeForToken(params: {
 
   if (!tokenRes.ok) {
     // Throw with details so the controller/service can map this to an upstream (502) error.
-    throw Object.assign(new Error("SPOTIFY_TOKEN_EXCHANGE_FAILED"), { details: tokenJson });
+    throw Object.assign(new Error("SPOTIFY_TOKEN_EXCHANGE_FAILED"), {
+      details: tokenJson,
+    });
   }
 
   return tokenJson;
