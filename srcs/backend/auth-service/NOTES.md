@@ -15,3 +15,5 @@ credentials: "include",
 .then(async (r) => ({ status: r.status, body: await r.json() }))
 .then(console.log)
 .catch(console.error);
+
+Si alguien le da que no al aceptar el oauth el callback pa donde va?

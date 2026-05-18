@@ -1,3 +1,5 @@
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { prisma } from "../lib/prisma.js";
 import { issueRefreshToken } from "../lib/refreshTokens.js";
 import { signAccessToken } from "../lib/jwt.js";
@@ -40,14 +42,14 @@ export type SpotifyCallbackResult = {
  * });
  */
 export async function handleSpotifyCallback(
-  input: SpotifyCallbackInput
+  input: SpotifyCallbackInput,
 ): Promise<SpotifyCallbackResult> {
-  // Protect against CSRF by validating the OAuth state.
+  // Validar el estado (CSRF protection)
   if (!input.cookieState || input.cookieState !== input.returnedState) {
     throw new Error("INVALID_STATE");
   }
 
-  // Exchange the authorization code for a Spotify access token.
+  // Intercambiar el código por un token de acceso
   const tokenJson = await exchangeCodeForToken({
     clientId: input.clientId,
     clientSecret: input.clientSecret,
@@ -55,25 +57,41 @@ export async function handleSpotifyCallback(
     code: input.code,
   });
 
-  // Fetch Spotify user profile to obtain a stable identifier and email.
+  // Obtener el perfil del usuario de Spotify
   const me = await getMe(tokenJson.access_token);
 
   if (!me.email) {
     throw new Error("SPOTIFY_EMAIL_NOT_AVAILABLE");
   }
 
-  // Map Spotify identity to an existing local user.
-  const user = await prisma.user.findUnique({
+  // Buscar al usuario en la base de datos
+  let user = await prisma.user.findUnique({
     where: { email: me.email },
     select: { id: true, email: true, username: true },
   });
 
+  // Si el usuario no existe, crearlo
   if (!user) {
-    throw new Error("USER_NOT_REGISTERED");
+    const hashedPassword = await bcrypt.hash(
+      crypto.randomBytes(12).toString("hex"),
+      10,
+    );
+
+    user = await prisma.user.create({
+      data: {
+        email: me.email,
+        username: me.display_name || me.email.split("@")[0], // Usar el nombre de Spotify o el correo
+        passwordHash: hashedPassword,
+      },
+    });
   }
 
   // Issue app tokens (short-lived access token + long-lived refresh token).
-  const accessToken = signAccessToken({ sub: user.id, email: user.email, username: user.username });
+  const accessToken = signAccessToken({
+    sub: user.id,
+    email: user.email,
+    username: user.username,
+  });
   const issued = await issueRefreshToken(user.id);
 
   return {

@@ -100,8 +100,8 @@ export async function login(req: Request, res: Response) {
   } catch (err: unknown) {
     const code = err instanceof Error ? err.message : "";
 
-    if (code === "INVALID_CREDENTIALS") {
-      return res.status(401).json({ ok: false, error: "INVALID_CREDENTIALS" });
+    if (code === "Wrong credentials") {
+      return res.status(401).json({ ok: false, error: "Wrong credentials" });
     }
 
     return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
