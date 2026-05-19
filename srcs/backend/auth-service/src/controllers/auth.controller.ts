@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { prisma } from "../lib/prisma.js";
 import {
   registerBodySchema,
   loginBodySchema,
@@ -242,10 +243,33 @@ export async function logout(req: Request, res: Response) {
  * // x-user-username: "user"
  */
 export async function me(req: Request, res: Response) {
-  const user = getAuthedUserFromHeaders(req);
+  const authUser = getAuthedUserFromHeaders(req);
+
+  if (!authUser) {
+    return res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: authUser.id },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      spotifyProfile: {
+        select: {
+          spotifyUserId: true,
+          displayName: true,
+          email: true,
+          topArtists: true,
+          topGenres: true,
+          syncedAt: true,
+        },
+      },
+    },
+  });
 
   if (!user) {
-    return res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+    return res.status(404).json({ ok: false, error: "USER_NOT_FOUND" });
   }
 
   return res.json({ ok: true, user });
