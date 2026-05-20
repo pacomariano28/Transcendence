@@ -22,11 +22,41 @@ export type SpotifyArtist = {
   imageUrl: string | null;
 };
 
+export type SpotifyTrack = {
+  id: string;
+  name: string;
+  artists: Array<{
+    id: string;
+    name: string;
+  }>;
+  popularity: number;
+  imageUrl: string | null;
+};
+
 export type SpotifyTopArtistsResponse = {
   items: Array<{
     id: string;
     name: string;
     popularity: number;
+  }>;
+};
+
+export type SpotifyTopTracksResponse = {
+  items: Array<{
+    id: string;
+    name: string;
+    popularity: number;
+    artists: Array<{
+      id: string;
+      name: string;
+    }>;
+    album: {
+      images?: Array<{
+        url: string;
+        height: number | null;
+        width: number | null;
+      }>;
+    };
   }>;
 };
 
@@ -167,7 +197,7 @@ export async function getArtistById(
 export async function getTopArtists(
   accessToken: string,
 ): Promise<SpotifyArtist[]> {
-  const res = await fetch("https://api.spotify.com/v1/me/top/artists?limit=5", {
+  const res = await fetch("https://api.spotify.com/v1/me/top/artists?limit=3", {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -196,4 +226,49 @@ export async function getTopArtists(
   );
 
   return detailedArtists;
+}
+
+/**
+ *
+ * @brief Fetches the user's top Spotify tracks for a given time range and normalizes them for profile display.
+ * @param accessToken Spotify access token to authenticate the request.
+ * @param timeRange Spotify time range. Use "short_term" for recent tracks and "long_term" for all-time tracks.
+ * @returns Array of normalized top tracks with album image and artist information. On failure throws an Error with message "SPOTIFY_TOP_TRACKS_FAILED"
+ * and a `details` property containing Spotify's response body.
+ *
+ * @example
+ * // Fetch the user's top tracks for the month
+ * const tracks = await getTopTracks("BQD...", "short_term");
+ */
+export async function getTopTracks(
+  accessToken: string,
+  timeRange: "short_term" | "medium_term" | "long_term",
+): Promise<SpotifyTrack[]> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/top/tracks?limit=1&time_range=${timeRange}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  const json = (await res.json()) as SpotifyTopTracksResponse;
+
+  if (!res.ok) {
+    throw Object.assign(new Error("SPOTIFY_TOP_TRACKS_FAILED"), {
+      details: json,
+    });
+  }
+
+  return json.items.map((track) => ({
+    id: track.id,
+    name: track.name,
+    artists: track.artists.map((artist) => ({
+      id: artist.id,
+      name: artist.name,
+    })),
+    popularity: track.popularity,
+    imageUrl: track.album.images?.[0]?.url ?? null,
+  }));
 }

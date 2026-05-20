@@ -1,4 +1,5 @@
 import { useAuth } from "../auth/AuthContext";
+import TypingText from "../components/TypingText";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -6,9 +7,7 @@ export default function DashboardPage() {
   return (
     <div className="container-page py-10 fade-in">
       <div className="card p-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Dashboard
-        </h1>
+        <TypingText text="DASHBOARD" size="lg" />
         <p className="mt-2 text-sm text-zinc-400">Authenticated area.</p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">

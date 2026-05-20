@@ -9,7 +9,7 @@ export default function SpotifySuccessPage() {
   useEffect(() => {
     (async () => {
       await reload();
-      nav("/dashboard", { replace: true });
+      nav("/profile", { replace: true });
     })();
   }, [reload, nav]);
 
