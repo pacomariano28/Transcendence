@@ -1,18 +1,84 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/auth-context";
+import { socket } from "../api/socket";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
+function generateRoomCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+
+  for (let index = 0; index < 6; index += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+
+  return code;
+}
+
 export default function CreateRoomPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [isPrivate, setIsPrivate] = useState(true);
   const [maxPlayers, setMaxPlayers] = useState(6);
+  const [isCreating, setIsCreating] = useState(false);
 
   const disabledReason = useMemo(() => {
     if (!user) return "Login required";
-    return "Rooms API not implemented yet";
+    return "";
   }, [user]);
+
+  async function createRoom() {
+    if (!user || isCreating) {
+      return;
+    }
+
+    setIsCreating(true);
+
+    const matchId = generateRoomCode();
+    const playerName = user.username ?? user.email;
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const handleCreated = (payload: { matchId: string }) => {
+          if (payload.matchId === matchId) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const handleError = (payload: { message?: string }) => {
+          cleanup();
+          reject(new Error(payload.message || "MATCH_CREATE_FAILED"));
+        };
+
+        const cleanup = () => {
+          socket.off("match:created", handleCreated);
+          socket.off("match:error", handleError);
+        };
+
+        socket.on("match:created", handleCreated);
+        socket.on("match:error", handleError);
+
+        if (!socket.connected) {
+          socket.connect();
+        }
+
+        socket.emit("match:create", {
+          matchId,
+          playerId: user.id,
+          playerName,
+          expectedPlayers: maxPlayers,
+        });
+      });
+
+      navigate(`/room/${matchId}`);
+    } catch {
+      // Keep the page usable; the button unlocks in finally.
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   return (
     <div className="container-page py-10 fade-in">
@@ -98,10 +164,11 @@ export default function CreateRoomPage() {
               style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
               type="button"
               title={disabledReason}
-              disabled={!user}
+              disabled={!user || isCreating}
+              onClick={createRoom}
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              <span>Create</span>
+              <span>{isCreating ? "Creating..." : "Create"}</span>
             </button>
             <Link className="btn-ghost flex-1" to="/join">
               I have a code
