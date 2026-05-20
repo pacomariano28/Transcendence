@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import { useAuth } from "../auth/auth-context";
 
 function normalizeCode(raw: string) {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -14,7 +15,12 @@ export default function JoinRoomPage() {
   const normalized = useMemo(() => normalizeCode(code), [code]);
   const isValid = normalized.length >= 4 && normalized.length <= 8;
 
-  const disabledReason = "Rooms API not implemented yet";
+  const { user } = useAuth();
+
+  const disabledReason = useMemo(() => {
+    if (!user) return "Login required";
+    return "";
+  }, [user]);
 
   async function pasteFromClipboard() {
     try {
