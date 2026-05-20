@@ -9,6 +9,7 @@ import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import gameRoutes from "./routes/game.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -34,6 +35,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes registration
 app.use("/api/auth", authRoutes);
+app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
 
 // 404 fallback
