@@ -192,7 +192,6 @@ export default function ProfilePage() {
 
   const monthTrack = spotifyProfile?.topTrackMonth?.[0] ?? null;
   const allTimeTrack = spotifyProfile?.topTrackAllTime?.[0] ?? null;
-  const avatarUrl = spotifyProfile?.avatarUrl ?? null;
 
   return (
     <div className="container-page py-10 fade-in">
@@ -231,100 +230,100 @@ export default function ProfilePage() {
           </StatCard>
         </div>
 
-        <div className="mt-8">
-          <div className="mb-3 text-sm font-medium text-zinc-300">
-            Top Tracks
-          </div>
-
-          {hasSpotify ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <TrackCard
-                title="Song of the month"
-                subtitle="Recent listening"
-                track={monthTrack}
-              />
-              <TrackCard
-                title="Song of all time"
-                subtitle="All time listening"
-                track={allTimeTrack}
-              />
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-[#f7d046]/30 bg-black/20 p-6 text-center">
-              <div className="text-lg font-semibold text-white">
-                Spotify not connected
+        {hasSpotify ? (
+          <>
+            <div className="mt-8">
+              <div className="mb-3 text-sm font-medium text-zinc-300">
+                Top Tracks
               </div>
-              <p className="mt-2 text-sm text-zinc-400">
-                Create your account with Spotify login to unlock your top
-                artists, genres and music profile.
-              </p>
-              <Link
-                to="/login"
-                className="mt-4 inline-flex rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-4 py-2 text-sm font-medium text-[#f7d046] transition-colors hover:bg-[#f7d046]/15"
-              >
-                Connect Spotify
-              </Link>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <TrackCard
+                  title="Song of the month"
+                  subtitle="Recent listening"
+                  track={monthTrack}
+                />
+                <TrackCard
+                  title="Song of all time"
+                  subtitle="All time listening"
+                  track={allTimeTrack}
+                />
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="mt-8">
-          <div className="mb-3 text-sm font-medium text-zinc-300">
-            Top Artists
-          </div>
-
-          {hasSpotify ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {spotifyProfile?.topArtists?.length ? (
-                spotifyProfile.topArtists.map((artist, index) => (
-                  <div
-                    key={artist.id}
-                    className="group rounded-3xl border border-white/10 bg-black/20 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d046]/50 hover:bg-white/5 hover:shadow-[0_0_0_1px_rgba(247,208,70,0.12),0_18px_40px_rgba(0,0,0,0.2)]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="transition-transform duration-200 group-hover:rotate-[-2deg]">
-                        <ProfileAvatar
-                          username={artist.name}
-                          email={undefined}
-                          imageUrl={artist.imageUrl}
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs text-zinc-500">
-                          Rank #{index + 1}
+            <div className="mt-8">
+              <div className="mb-3 text-sm font-medium text-zinc-300">
+                Top Artists
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {spotifyProfile?.topArtists?.length ? (
+                  spotifyProfile.topArtists.map((artist, index) => (
+                    <div
+                      key={artist.id}
+                      className="group rounded-3xl border border-white/10 bg-black/20 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d046]/50 hover:bg-white/5 hover:shadow-[0_0_0_1px_rgba(247,208,70,0.12),0_18px_40px_rgba(0,0,0,0.2)]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="transition-transform duration-200 group-hover:rotate-[-2deg]">
+                          <ProfileAvatar
+                            username={artist.name}
+                            email={undefined}
+                            imageUrl={artist.imageUrl}
+                          />
                         </div>
-                        <div className="truncate text-base font-semibold text-white transition-colors duration-200 group-hover:text-[#fff3bf]">
-                          {artist.name}
-                        </div>
-                        <div className="text-xs text-zinc-400">
-                          Popularity {artist.popularity}
+
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-zinc-500">
+                            Rank #{index + 1}
+                          </div>
+                          <div className="truncate text-base font-semibold text-white transition-colors duration-200 group-hover:text-[#fff3bf]">
+                            {artist.name}
+                          </div>
+                          <div className="text-xs text-zinc-400">
+                            Popularity {artist.popularity}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {artist.genres?.length ? (
-                        artist.genres.map((genre) => (
-                          <span
-                            key={genre}
-                            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d046]/30 hover:bg-[#f7d046]/10 hover:text-zinc-100"
-                          >
-                            {genre}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {artist.genres?.length ? (
+                          artist.genres.map((genre) => (
+                            <span
+                              key={genre}
+                              className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d046]/30 hover:bg-[#f7d046]/10 hover:text-zinc-100"
+                            >
+                              {genre}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-zinc-500">
+                            No genres
                           </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-zinc-500">No genres</span>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-zinc-400">No artists yet.</div>
-              )}
+                  ))
+                ) : (
+                  <div className="text-sm text-zinc-400">No artists yet.</div>
+                )}
+              </div>
             </div>
-          ) : null}
-        </div>
+          </>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-[#f7d046]/30 bg-black/20 p-6 text-center mt-4">
+            <div className="text-lg font-semibold text-white">
+              Spotify not connected
+            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              Log in with your Spotify account to unlock your top artists,
+              genres and music profile.
+            </p>
+            <Link
+              to="/login"
+              className="mt-4 inline-flex rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-4 py-2 text-sm font-medium text-[#f7d046] transition-colors hover:bg-[#f7d046]/15"
+            >
+              Connect Spotify
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

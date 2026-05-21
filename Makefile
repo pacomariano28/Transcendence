@@ -46,6 +46,11 @@ game:
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache game-service
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V game-service
 
+playlist:
+	$(COMPOSE) -f $(COMPOSE_FILE) rm -fsv playlist-service
+	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache playlist-service
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V playlist-service
+
 postgres:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fs postgres
 	docker volume rm songuess_postgres_data
@@ -70,6 +75,9 @@ auth-logs:
 
 content-logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f content-service
+
+playlist-logs:
+	$(COMPOSE) -f $(COMPOSE_FILE) logs -f playlist-service
 
 game-logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f game-service
