@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RefreshToken {
+  id        String    @id
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SpotifyProfile {
+  id              String    @id
+  userId          String    @unique
+  spotifyUserId   String    @unique
+  displayName     String?
+  email           String?
+  avatarUrl       String?
+  topArtists      Json
+  topGenres       Json
+  topTrackMonth   Json
+  topTrackAllTime Json
+  syncedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime
+  User            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id             String          @id
+  email          String          @unique
+  username       String          @unique
+  passwordHash   String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime
+  RefreshToken   RefreshToken[]
+  SpotifyProfile SpotifyProfile?
+}
+
+model Song {
+  id        String   @id
+  fileName  String   @unique
+  title     String
+  artist    String
+  genre     String
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}

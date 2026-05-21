@@ -1,12 +1,8 @@
-import express from "express";
-//import { recommendPlaylist } from "../controllers/playlist.controller.js";
+import { Router } from "express";
+import { getPlaylist } from "../controllers/playlist.controller.js";
 
-const router = express.Router();
+const router = Router();
 
-/**
- * POST /api/playlists/recommend
- * Delegates to controller
- */
-//router.post("/recommend", recommendPlaylist);
+router.get("/get-playlist", getPlaylist);
 
 export default router;

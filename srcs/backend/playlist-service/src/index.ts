@@ -7,13 +7,10 @@ import cookieParser from "cookie-parser";
 const app = express();
 
 app.use(express.json());
+
 app.use(cookieParser());
 
-app.use("/api/playlists", playlistRouter);
-
-app.get("/health", (_req, res) =>
-  res.status(200).json({ status: "ok", service: "playlist-service" }),
-);
+app.use(playlistRouter);
 
 const port = Number(
   process.env.PLAYLIST_SERVICE_PORT ?? process.env.PORT ?? 4004,
