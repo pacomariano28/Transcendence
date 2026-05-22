@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { prisma } from "../lib/prisma.js";
 import {
   registerBodySchema,
   loginBodySchema,
@@ -17,19 +18,7 @@ import {
 import { revokeRefreshToken } from "../lib/refreshTokens.js";
 
 /**
- *
- * @brief Registers a new user with the provided email, username, and password.
- * @param req Raw HTTP request whose body should have { email, username, password }.
- * @param res HTTP response where we will send the result of the registration attempt.
- * @returns JSON response indicating the result of the registration attempt. On success: { ok: true, message: string, user: { id: string, email: string, username: string } }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
- *
- * @example
- * // Request body
- * {
- *   "email": "user@example.com",
- *   "username": "user",
- *   "password": "password123"
- * }
+ * Registers a new user with the provided email, username, and password.
  */
 export async function register(req: Request, res: Response) {
   const parsed = registerBodySchema.safeParse(req.body);
@@ -62,18 +51,7 @@ export async function register(req: Request, res: Response) {
 }
 
 /**
- *
- * @brief Authenticates a user with the provided email and password. On success, returns an access token and a refresh token.
- * @param req Raw HTTP request whose body should have { email, password }.
- * @param res HTTP response where we will send the result of the login attempt.
- * @returns JSON response indicating the result of the login attempt. On success: { ok: true, message: string, token: string, refreshToken: string }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
- *
- * @example
- * // Request body
- * {
- *   "email": "user@example.com",
- *   "password": "password123"
- * }
+ * Authenticates a user with the provided email and password.
  */
 export async function login(req: Request, res: Response) {
   const parsed = loginBodySchema.safeParse(req.body);
@@ -109,17 +87,7 @@ export async function login(req: Request, res: Response) {
 }
 
 /**
- *
- * @brief Rotates the refresh token. Consumes (revokes) the existing refresh token and issues a new refresh token plus a new access token.
- * @param req Raw HTTP request whose body should have { refreshToken }.
- * @param res HTTP response where we will send the result of the refresh attempt.
- * @returns JSON response indicating the result of the refresh attempt. On success: { ok: true, token: string, refreshToken: string }. On validation failure: { ok: false, error: string, issues?: ZodIssue[] }.
- *
- * @example
- * // Request body
- * {
- *   "refreshToken": "your-refresh-token-here"
- * }
+ * Rotates the refresh token.
  */
 export async function refresh(req: Request, res: Response) {
   const parsed = refreshBodySchema.safeParse(req.body);
@@ -162,15 +130,7 @@ export async function refresh(req: Request, res: Response) {
 }
 
 /**
- *
- * @brief Rotates the session using the refresh_token cookie (httpOnly). Issues a new access token and a new refresh token and stores them again as cookies.
- * @param req Raw HTTP request whose cookies should include { refresh_token }.
- * @param res HTTP response where we will set the new session cookies.
- * @returns JSON response indicating the refresh result. On success: { ok: true }. On failure: { ok: false, error: string }.
- *
- * @example
- * // Browser call (no body needed)
- * fetch("https://127.0.0.1:8443/api/auth/refresh", { method: "POST", credentials: "include" })
+ * Rotates the session using the refresh_token cookie.
  */
 export async function refreshCookie(req: Request, res: Response) {
   const refreshToken = req.cookies?.refresh_token;
@@ -183,7 +143,6 @@ export async function refreshCookie(req: Request, res: Response) {
     const { token, refreshToken: newRefreshToken } =
       await refreshSession(refreshToken);
 
-    // Persist the rotated tokens as cookies (httpOnly).
     setAuthCookies(res, { accessToken: token, refreshToken: newRefreshToken });
 
     return res.status(200).json({ ok: true });
@@ -207,11 +166,7 @@ export async function refreshCookie(req: Request, res: Response) {
 }
 
 /**
- *
- * @brief Logs out the current session by revoking the refresh token and clearing auth cookies.
- * @param req Raw HTTP request whose cookies or body may contain a refresh token.
- * @param res HTTP response where we will clear the session cookies.
- * @returns JSON response indicating the logout result.
+ * Logs out the current session.
  */
 export async function logout(req: Request, res: Response) {
   const bodyRefreshToken =
@@ -229,23 +184,39 @@ export async function logout(req: Request, res: Response) {
 }
 
 /**
- *
- * @brief Returns the current authenticated user's information. This endpoint is intended to be called behind the API gateway, which injects x-user-* headers after validating the access token.
- * @param req Raw HTTP request whose headers should include x-user-id and x-user-email (and optionally x-user-username).
- * @param res HTTP response where we will send the authenticated user's information.
- * @returns JSON response with the authenticated user's information. On success: { ok: true, user: { id: string, email: string, username?: string } }. On failure: 401 Unauthorized with { ok: false, error: string }.
- *
- * @example
- * // Example request headers (set by api-gateway)
- * // x-user-id: "uuid"
- * // x-user-email: "user@example.com"
- * // x-user-username: "user"
+ * Returns the current authenticated user's information.
  */
 export async function me(req: Request, res: Response) {
-  const user = getAuthedUserFromHeaders(req);
+  const authUser = getAuthedUserFromHeaders(req);
+
+  if (!authUser) {
+    return res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: authUser.id },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      spotifyProfile: {
+        select: {
+          spotifyUserId: true,
+          displayName: true,
+          email: true,
+          avatarUrl: true,
+          topArtists: true,
+          topGenres: true,
+          topTrackMonth: true,
+          topTrackAllTime: true,
+          syncedAt: true,
+        },
+      },
+    },
+  });
 
   if (!user) {
-    return res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+    return res.status(404).json({ ok: false, error: "USER_NOT_FOUND" });
   }
 
   return res.json({ ok: true, user });
