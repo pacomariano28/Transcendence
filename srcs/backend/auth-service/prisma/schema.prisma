@@ -60,10 +60,8 @@ model SpotifyProfile {
 
 model Song {
   id        String   @id @default(uuid())
+  trackId   String
   fileName  String   @unique
-  title     String
-  artist    String
-  genre     String
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

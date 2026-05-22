@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import TypingText from "../components/TypingText";
@@ -45,6 +44,10 @@ type AuthUser = {
   username: string;
   spotifyProfile?: SpotifyProfile | null;
 };
+
+function loginWithSpotify() {
+  window.location.href = "/api/auth/spotify/login";
+}
 
 function ProfileAvatar({
   username,
@@ -316,12 +319,12 @@ export default function ProfilePage() {
               Log in with your Spotify account to unlock your top artists,
               genres and music profile.
             </p>
-            <Link
-              to="/login"
+            <button
+              onClick={loginWithSpotify}
               className="mt-4 inline-flex rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-4 py-2 text-sm font-medium text-[#f7d046] transition-colors hover:bg-[#f7d046]/15"
             >
               Connect Spotify
-            </Link>
+            </button>
           </div>
         )}
       </div>

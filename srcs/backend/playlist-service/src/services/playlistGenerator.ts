@@ -2,10 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import crypto from "crypto";
 
 interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  genre: string;
+  trackId: string;
   fileName: string;
   used: boolean;
 }
@@ -24,13 +21,19 @@ function fisherYatesShuffle<T>(array: T[]): T[] {
 
 export async function generateRandomPlaylist() {
   // 1. Consultar canciones no usadas
-  const unusedSongs: Song[] = await prisma.song.findMany({
+  let unusedSongs: Song[] = await prisma.song.findMany({
     where: { used: false },
   });
 
+  // si no hay suficientes canciones disponibles, reseteamos todas
   if (unusedSongs.length < PLAYLIST_SIZE) {
-    // No hay suficientes canciones disponibles
-    return null;
+    await prisma.song.updateMany({
+      data: { used: false },
+    });
+
+    unusedSongs = await prisma.song.findMany({
+      where: { used: false },
+    });
   }
 
   // 2. Barajar y seleccionar las primeras 5
@@ -38,20 +41,17 @@ export async function generateRandomPlaylist() {
   const selectedSongs = shuffled.slice(0, PLAYLIST_SIZE);
 
   const playlistId = crypto.randomUUID();
-  const songIds = selectedSongs.map((s) => s.id);
+  const songIds = selectedSongs.map((s) => s.trackId);
 
   // 3. Marcar esas canciones como usadas
   await prisma.song.updateMany({
-    where: { id: { in: songIds } },
+    where: { trackId: { in: songIds } },
     data: { used: true },
   });
 
   // 4. Preparar las canciones para la respuesta (omitimos campos internos)
-  const songs = selectedSongs.map(({ id, title, artist, genre, fileName }) => ({
-    id,
-    title,
-    artist,
-    genre,
+  const songs = selectedSongs.map(({ trackId, fileName }) => ({
+    trackId,
     fileName,
   }));
 

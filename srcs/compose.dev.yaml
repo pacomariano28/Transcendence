@@ -76,6 +76,7 @@ services:
     env_file:
       - ./backend/auth-service/.env
     container_name: songuess-auth-service
+    #entrypoint: "tail -f"
     restart: unless-stopped
     depends_on:
       postgres:

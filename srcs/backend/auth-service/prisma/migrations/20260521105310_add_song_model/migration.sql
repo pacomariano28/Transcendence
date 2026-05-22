@@ -1,15 +1,11 @@
 -- CreateTable
 CREATE TABLE "Song" (
-    "id" TEXT NOT NULL,
+    "id" TEXT PRIMARY KEY,
+    "trackId" TEXT NOT NULL,
     "fileName" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "artist" TEXT NOT NULL,
-    "genre" TEXT NOT NULL,
     "used" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Song_pkey" PRIMARY KEY ("id")
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
 -- CreateIndex
