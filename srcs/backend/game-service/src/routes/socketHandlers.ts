@@ -55,16 +55,19 @@ export function registerSocketHandlers(io: Server): void {
     logInfo(`Socket connected: ${socket.id}`);
 
     socket.on("match:create", (payload: CreateMatchPayload) => {
+      console.log("Event received: match:create", payload);
       try {
         const match = matchService.createMatch({
           ...payload,
           socketId: socket.id,
         });
 
+        console.log("Match created:", match);
         socket.join(match.matchId);
         emitMatchState(socket, match);
         socket.emit("match:created", toPayload(match));
       } catch (error) {
+        console.error("Error creating match:", error);
         emitMatchError(socket, error);
       }
     });
@@ -86,7 +89,7 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on("match:ready", () => {
       try {
-        const result = matchService.markReady(socket.id);
+        const result = matchService.markReady(socket.id, () => undefined);
 
         emitMatchState(socket, result.match);
 

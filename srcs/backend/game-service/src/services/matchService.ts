@@ -1,13 +1,30 @@
+import { randomInt } from "node:crypto";
+
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
   private readonly socketToMatch = new Map<string, string>();
 
-  createMatch(input: CreateMatchInput): MatchState {
-    const matchId: string = input.matchId || "";
+  generateMatchCode(length = 6): string {
+    let code;
 
-    if (this.matches.has(matchId)) {
-      throw new Error("MATCH_ALREADY_EXISTS");
-    }
+    do {
+      code = ""; // Reset code for each attempt
+      for (let i = 0; i < length; i++) {
+        code += ALPHABET[randomInt(ALPHABET.length)];
+      }
+    } while (this.matches.has(code)); // Ensure the code is unique
+
+    return code;
+  }
+
+  createMatch(input: CreateMatchInput): MatchState {
+    const matchId: string = this.generateMatchCode();
+
+    // if (this.matches.has(matchId)) {
+    //   throw new Error("MATCH_ALREADY_EXISTS");
+    // }
 
     const match: MatchState = {
       matchId,
@@ -57,7 +74,10 @@ export class MatchService {
     return match;
   }
 
-  markReady(socketId: string): ReadyResult {
+  markReady(
+    socketId: string,
+    emit: (event: string, data: unknown) => void,
+  ): ReadyResult {
     const match = this.getMatchBySocketOrThrow(socketId);
     const player = match.players.find((entry) => entry.socketId === socketId);
 
@@ -74,6 +94,19 @@ export class MatchService {
 
     if (countdownStarted) {
       match.phase = "countdown";
+
+      // Start a 10-second countdown
+      let countdown = 3;
+      const interval = setInterval(() => {
+        countdown -= 1;
+        emit("countdown", { matchId: match.matchId, countdown }); // Emit countdown updates
+
+        if (countdown === 0) {
+          clearInterval(interval);
+          match.phase = "in-game" as MatchPhase;
+          emit("match-started", { matchId: match.matchId }); // Notify that the match has started
+        }
+      }, 1000);
     }
 
     return {
@@ -103,16 +136,51 @@ export class MatchService {
       return undefined;
     }
 
-    match.players = match.players.filter(
-      (player) => player.socketId !== socketId,
-    );
-    this.socketToMatch.delete(socketId);
-
-    if (match.players.length === 0) {
-      this.matches.delete(match.matchId);
+    const player = match.players.find((p) => p.socketId === socketId);
+    if (player) {
+      player.socketId = "DISCONNECTED"; // Mark the player as disconnected with a placeholder string
+      console.log(
+        `Player ${player.playerId} disconnected from match ${match.matchId}`,
+      );
     }
 
+    // Check if all players are disconnected
+    const allDisconnected = match.players.every(
+      (p) => p.socketId === "DISCONNECTED",
+    );
+    if (allDisconnected) {
+      console.log(
+        `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
+      );
+
+      // Set a timeout to remove the match if no players reconnect
+      setTimeout(() => {
+        const stillDisconnected = match.players.every(
+          (p) => p.socketId === "DISCONNECTED",
+        );
+        if (stillDisconnected) {
+          console.log(`Match ${match.matchId} removed due to inactivity.`);
+          this.matches.delete(match.matchId);
+        }
+      }, 300000); // 5 minutes timeout
+    }
+
+    this.socketToMatch.delete(socketId);
     return match;
+  }
+
+  reconnectSocket(playerId: string, newSocketId: string): MatchState {
+    for (const match of this.matches.values()) {
+      const player = match.players.find((p) => p.playerId === playerId);
+      if (player) {
+        player.socketId = newSocketId; // Restore the player's connection
+        this.socketToMatch.set(newSocketId, match.matchId);
+        console.log(`Player ${playerId} reconnected to match ${match.matchId}`);
+        return match;
+      }
+    }
+
+    throw new Error("MATCH_NOT_FOUND");
   }
 
   private getMatchOrThrow(matchId: string): MatchState {
