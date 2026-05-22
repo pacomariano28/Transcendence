@@ -6,7 +6,7 @@ const router: Router = Router();
 const GAME_SERVICE_URL =
   process.env.GAME_SERVICE_URL || "http://game-service:4001";
 
-const proxyOptions = createProxyMiddleware({
+export const gameProxy = createProxyMiddleware({
   target: GAME_SERVICE_URL,
   changeOrigin: true,
   ws: true,
@@ -18,6 +18,6 @@ const proxyOptions = createProxyMiddleware({
   },
 });
 
-router.use("/", proxyOptions);
+router.use("/", gameProxy);
 
 export default router;

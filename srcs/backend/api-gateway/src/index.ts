@@ -4,15 +4,18 @@ import express, {
   Request,
   Response,
 } from "express";
+import { createServer } from "node:http";
+import type { Socket as NetSocket } from "node:net";
 import { randomUUID } from "node:crypto";
 import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import gameRoutes from "./routes/game.routes.js";
+import gameRoutes, { gameProxy } from "./routes/game.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
+const server = createServer(app);
 
 const PORT = Number(process.env.PORT || 3000);
 const isProd = process.env.NODE_ENV === "production";
@@ -73,7 +76,13 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
 app.use(globalErrorHandler);
 
-app.listen(PORT, () => {
+server.on("upgrade", (req, socket, head) => {
+  if (req.url?.startsWith("/api/game")) {
+    gameProxy.upgrade(req, socket as NetSocket, head);
+  }
+});
+
+server.listen(PORT, () => {
   logInfo(`Listening on port ${PORT}`);
 });
 
