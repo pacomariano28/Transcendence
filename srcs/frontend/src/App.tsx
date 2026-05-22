@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage";
 import CreateRoomPage from "./pages/CreateRoomPage";
 import JoinRoomPage from "./pages/JoinRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
+import MatchPage from "./pages/MatchPage";
 import Footer from "./components/AppFooter";
 
 function AppShell() {
@@ -46,6 +47,7 @@ function AppShell() {
               <Route path="/create" element={<CreateRoomPage />} />
               <Route path="/join" element={<JoinRoomPage />} />
               <Route path="/room/:code" element={<RoomLobbyPage />} />
+              <Route path="/match/:code" element={<MatchPage />} />
             </Route>
           </Routes>
         </RouteTransition>

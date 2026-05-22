@@ -3,16 +3,44 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+// import { generateMatchCode } from "../api/lobby";
 
-function generateRoomCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
+// function generateRoomCode() {
+//   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+//   let code = "";
 
-  for (let index = 0; index < 6; index += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+//   for (let index = 0; index < 6; index += 1) {
+//     code += alphabet[Math.floor(Math.random() * alphabet.length)];
+//   }
+
+//   return code;
+// }
+
+async function ensureSocketConnected() {
+  if (!socket.connected) {
+    await new Promise<void>((resolve, reject) => {
+      const handleConnect = () => {
+        cleanup();
+        resolve();
+      };
+
+      const handleConnectError = (err: unknown) => {
+        cleanup();
+        console.error("Failed to connect socket:", err);
+        reject(err);
+
+      };
+
+      const cleanup = () => {
+        socket.off("connect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+      };
+
+      socket.once("connect", handleConnect);
+      socket.once("connect_error", handleConnectError);
+      socket.connect();
+    });
   }
-
-  return code;
 }
 
 export default function CreateRoomPage() {
@@ -35,19 +63,24 @@ export default function CreateRoomPage() {
 
     setIsCreating(true);
 
-    const matchId = generateRoomCode();
-    const playerName = user.username ?? user.email;
-
     try {
+      await ensureSocketConnected();
+
+      let matchId: string = "";
+      const playerName = user.username ?? user.email;
+
       await new Promise<void>((resolve, reject) => {
         const handleCreated = (payload: { matchId: string }) => {
-          if (payload.matchId === matchId) {
+          console.log("Event received: match:created", payload);
+          if (payload.matchId) {
+            matchId = payload.matchId;
             cleanup();
             resolve();
           }
         };
 
         const handleError = (payload: { message?: string }) => {
+          console.error("Event received: match:error", payload);
           cleanup();
           reject(new Error(payload.message || "MATCH_CREATE_FAILED"));
         };
@@ -60,10 +93,6 @@ export default function CreateRoomPage() {
         socket.on("match:created", handleCreated);
         socket.on("match:error", handleError);
 
-        if (!socket.connected) {
-          socket.connect();
-        }
-
         socket.emit("match:create", {
           matchId,
           playerId: user.id,
@@ -73,8 +102,8 @@ export default function CreateRoomPage() {
       });
 
       navigate(`/room/${matchId}`);
-    } catch {
-      // Keep the page usable; the button unlocks in finally.
+    } catch (error) {
+      console.error("Error creating room:", error);
     } finally {
       setIsCreating(false);
     }
