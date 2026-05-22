@@ -16,10 +16,19 @@ type MatchStatePayload = {
   expectedPlayers: number;
   phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
   players: Array<{
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   }>;
+};
+
+type MatchPhasePayload = {
+  matchId: string;
+  phase: MatchStatePayload["phase"];
+  previousPhase?: MatchStatePayload["phase"];
+  reason?: string;
 };
 
 const phaseMeta: Record<
@@ -79,7 +88,8 @@ export default function RoomLobbyPage() {
   // Identify the current user in the player list
   const me = useMemo(() => {
     if (!matchState || !user) return null;
-    return matchState.players.find((p) => p.playerId === String(user.id));
+    const userId = String(user.id);
+    return matchState.players.find((p) => p.userId === userId);
   }, [matchState, user]);
 
   const phaseKey = getPhaseKey(matchState?.phase);
@@ -100,9 +110,9 @@ export default function RoomLobbyPage() {
 
   const allReady = Boolean(
     matchState &&
-      matchState.players.length > 0 &&
-      matchState.players.length === matchState.expectedPlayers &&
-      matchState.players.every((entry) => entry.ready),
+    matchState.players.length > 0 &&
+    matchState.players.length === matchState.expectedPlayers &&
+    matchState.players.every((entry) => entry.ready),
   );
 
   useEffect(() => {
@@ -123,8 +133,7 @@ export default function RoomLobbyPage() {
     const joinMatch = () => {
       socket.emit("match:join", {
         matchId: code,
-        playerId: String(user.id), // Ensure string mapping matches your backend
-        playerName: user.username ?? user.email ?? "Guest",
+        displayName: user.username ?? user.email ?? "Guest",
       });
     };
 
@@ -140,6 +149,21 @@ export default function RoomLobbyPage() {
       if (payload.phase !== "countdown") {
         setCountdownSeconds(null);
         clearCountdownTimer();
+      }
+    });
+
+    socket.on("match:phase", (payload: MatchPhasePayload) => {
+      if (payload.matchId !== code) return;
+      setMatchState((prev) =>
+        prev ? { ...prev, phase: payload.phase } : prev,
+      );
+      setError(null);
+      if (payload.phase !== "countdown") {
+        setCountdownSeconds(null);
+        clearCountdownTimer();
+      }
+      if (payload.phase === "in-game") {
+        nav(`/match/${code}`, { replace: true });
       }
     });
 
@@ -170,6 +194,7 @@ export default function RoomLobbyPage() {
     return () => {
       socket.off("connect", joinMatch);
       socket.off("match:state");
+      socket.off("match:phase");
       socket.off("match:error");
       socket.off("match:countdown");
       window.removeEventListener("beforeunload", clearCountdownTimer);
@@ -277,7 +302,9 @@ export default function RoomLobbyPage() {
                       {code || "———"}
                     </div>
                     <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400">
-                      Share this code with the other players. The room stays aligned with the current socket state and will move forward automatically when everyone is ready.
+                      Share this code with the other players. The room stays
+                      aligned with the current socket state and will move
+                      forward automatically when everyone is ready.
                     </p>
                   </div>
 
@@ -300,7 +327,7 @@ export default function RoomLobbyPage() {
                       {matchState ? matchState.players.length : 0}
                     </div>
                     <div className="mt-1 text-sm text-zinc-400">
-                      Connected to the match
+                      In the room
                     </div>
                   </div>
 
@@ -358,7 +385,9 @@ export default function RoomLobbyPage() {
                       background: `${meta.accent}10`,
                     }}
                   >
-                    {matchState ? `${matchState.expectedPlayers} player room` : "Connecting"}
+                    {matchState
+                      ? `${matchState.expectedPlayers} player room`
+                      : "Connecting"}
                   </div>
                 </div>
 
@@ -372,7 +401,8 @@ export default function RoomLobbyPage() {
                         {countdownSeconds ?? "5"}
                       </div>
                       <p className="mt-4 max-w-xs text-sm leading-relaxed text-zinc-400">
-                        The match is being staged. This area can become the actual game board later.
+                        The match is being staged. This area can become the
+                        actual game board later.
                       </p>
                     </>
                   ) : phaseKey === "in-game" ? (
@@ -384,7 +414,8 @@ export default function RoomLobbyPage() {
                         Gameplay shell ready
                       </div>
                       <p className="mt-4 max-w-sm text-sm leading-relaxed text-zinc-400">
-                        The match page is ready for a future playfield or canvas without changing the current room structure.
+                        The match page is ready for a future playfield or canvas
+                        without changing the current room structure.
                       </p>
                     </>
                   ) : (
@@ -418,7 +449,9 @@ export default function RoomLobbyPage() {
                     {me?.ready ? "Ready" : "Not ready"}
                   </div>
                 </div>
-                <div className={`h-3 w-3 rounded-full ${me?.ready ? "bg-emerald-400" : "bg-rose-400"}`} />
+                <div
+                  className={`h-3 w-3 rounded-full ${me?.ready ? "bg-emerald-400" : "bg-rose-400"}`}
+                />
               </div>
 
               <div className="mt-5 flex flex-col gap-3">
@@ -463,7 +496,9 @@ export default function RoomLobbyPage() {
                   </div>
                 </div>
                 <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
-                  {matchState ? `${matchState.players.length}/${matchState.expectedPlayers}` : "..."}
+                  {matchState
+                    ? `${matchState.players.length}/${matchState.expectedPlayers}`
+                    : "..."}
                 </div>
               </div>
 
@@ -475,24 +510,32 @@ export default function RoomLobbyPage() {
                 ) : (
                   matchState.players.map((p) => (
                     <div
-                      key={p.playerId}
+                      key={p.userId}
                       className="rounded-2xl border border-white/10 bg-black/20 p-4 transition duration-200 ease-out hover:border-white/20 hover:bg-white/[0.07]"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-sm font-medium text-zinc-100">
-                          {p.playerName}
-                          {p.playerId === String(user?.id) ? (
+                          {p.displayName}
+                          {p.userId === String(user?.id) ? (
                             <span className="text-zinc-500"> (you)</span>
                           ) : null}
                         </div>
                         <div
                           className={`h-2.5 w-2.5 rounded-full ${
-                            p.ready ? "bg-emerald-400" : "bg-rose-400"
+                            p.connected
+                              ? p.ready
+                                ? "bg-emerald-400"
+                                : "bg-rose-400"
+                              : "bg-zinc-500"
                           }`}
                         />
                       </div>
                       <div className="mt-2 text-xs text-zinc-500">
-                        {p.ready ? "Ready to play" : "Waiting on ready signal"}
+                        {!p.connected
+                          ? "Disconnected"
+                          : p.ready
+                            ? "Ready to play"
+                            : "Waiting on ready signal"}
                       </div>
                     </div>
                   ))

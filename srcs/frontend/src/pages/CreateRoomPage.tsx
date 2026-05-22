@@ -3,18 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
-// import { generateMatchCode } from "../api/lobby";
-
-// function generateRoomCode() {
-//   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-//   let code = "";
-
-//   for (let index = 0; index < 6; index += 1) {
-//     code += alphabet[Math.floor(Math.random() * alphabet.length)];
-//   }
-
-//   return code;
-// }
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
@@ -28,7 +16,6 @@ async function ensureSocketConnected() {
         cleanup();
         console.error("Failed to connect socket:", err);
         reject(err);
-
       };
 
       const cleanup = () => {
@@ -95,8 +82,7 @@ export default function CreateRoomPage() {
 
         socket.emit("match:create", {
           matchId,
-          playerId: user.id,
-          playerName,
+          displayName: playerName,
           expectedPlayers: maxPlayers,
         });
       });

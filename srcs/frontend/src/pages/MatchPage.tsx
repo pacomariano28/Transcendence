@@ -15,10 +15,19 @@ type MatchStatePayload = {
   expectedPlayers: number;
   phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
   players: Array<{
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   }>;
+};
+
+type MatchPhasePayload = {
+  matchId: string;
+  phase: MatchStatePayload["phase"];
+  previousPhase?: MatchStatePayload["phase"];
+  reason?: string;
 };
 
 const phaseMeta: Record<
@@ -31,7 +40,8 @@ const phaseMeta: Record<
 > = {
   lobby: {
     title: "Match staging",
-    caption: "The room is still syncing. The active board will appear once the match begins.",
+    caption:
+      "The room is still syncing. The active board will appear once the match begins.",
     accent: "#f7d046",
   },
   countdown: {
@@ -76,7 +86,8 @@ export default function MatchPage() {
   const meta = phaseMeta[phaseKey];
   const me = useMemo(() => {
     if (!matchState || !user) return null;
-    return matchState.players.find((player) => player.playerId === String(user.id));
+    const userId = String(user.id);
+    return matchState.players.find((player) => player.userId === userId);
   }, [matchState, user]);
 
   useEffect(() => {
@@ -89,8 +100,7 @@ export default function MatchPage() {
     const joinMatch = () => {
       socket.emit("match:join", {
         matchId: code,
-        playerId: String(user.id),
-        playerName: user.username ?? user.email ?? "Guest",
+        displayName: user.username ?? user.email ?? "Guest",
       });
     };
 
@@ -103,6 +113,16 @@ export default function MatchPage() {
       setMatchState(payload);
       setError(null);
     });
+    socket.on("match:phase", (payload: MatchPhasePayload) => {
+      if (payload.matchId !== code) return;
+      setMatchState((prev) =>
+        prev ? { ...prev, phase: payload.phase } : prev,
+      );
+      setError(null);
+      if (payload.phase === "lobby") {
+        nav(`/room/${code}`, { replace: true });
+      }
+    });
     socket.on("match:error", (err: { message: string }) => {
       setError(err.message);
     });
@@ -110,6 +130,7 @@ export default function MatchPage() {
     return () => {
       socket.off("connect", joinMatch);
       socket.off("match:state");
+      socket.off("match:phase");
       socket.off("match:error");
     };
   }, [code, user]);
@@ -119,7 +140,9 @@ export default function MatchPage() {
     return matchState.players.filter((player) => player.ready).length;
   }, [matchState]);
 
-  const liveCount = matchState?.players.length ?? 0;
+  const liveCount = matchState
+    ? matchState.players.filter((player) => player.connected).length
+    : 0;
 
   return (
     <div className="container-page py-10 fade-in">
@@ -136,7 +159,10 @@ export default function MatchPage() {
               {meta.caption}
             </p>
           </div>
-          <button className="btn-ghost" onClick={() => nav(`/room/${code}`, { replace: true })}>
+          <button
+            className="btn-ghost"
+            onClick={() => nav(`/room/${code}`, { replace: true })}
+          >
             Back to lobby
           </button>
         </div>
@@ -157,7 +183,9 @@ export default function MatchPage() {
                   </div>
                   <div className="mt-1 flex items-center gap-3">
                     <h2 className="text-xl font-semibold text-white sm:text-2xl">
-                      {phaseKey === "countdown" ? "Waiting for handoff" : "Match active"}
+                      {phaseKey === "countdown"
+                        ? "Waiting for handoff"
+                        : "Match active"}
                     </h2>
                     <span
                       className="rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.22em]"
@@ -191,7 +219,8 @@ export default function MatchPage() {
                       Gameplay shell ready
                     </div>
                     <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
-                      This screen is separated from the lobby and can host the actual game canvas later without changing the room flow.
+                      This screen is separated from the lobby and can host the
+                      actual game canvas later without changing the room flow.
                     </p>
                   </div>
                 </div>
@@ -217,13 +246,17 @@ export default function MatchPage() {
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
                       Room
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">{code || "—"}</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {code || "—"}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
                       Phase
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">{meta.title}</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {meta.title}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
@@ -244,7 +277,9 @@ export default function MatchPage() {
                 Players
               </div>
               <div className="mt-1 text-sm text-zinc-400">
-                {matchState ? `${readyCount} ready / ${liveCount} connected` : "Connecting to socket..."}
+                {matchState
+                  ? `${readyCount} ready / ${liveCount} connected`
+                  : "Connecting to socket..."}
               </div>
 
               <div className="mt-4 grid gap-3">
@@ -255,24 +290,32 @@ export default function MatchPage() {
                 ) : (
                   matchState.players.map((player) => (
                     <div
-                      key={player.playerId}
+                      key={player.userId}
                       className="rounded-2xl border border-white/10 bg-black/20 p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-sm font-medium text-zinc-100">
-                          {player.playerName}
-                          {player.playerId === String(user?.id) ? (
+                          {player.displayName}
+                          {player.userId === String(user?.id) ? (
                             <span className="text-zinc-500"> (you)</span>
                           ) : null}
                         </div>
                         <div
                           className={`h-2.5 w-2.5 rounded-full ${
-                            player.ready ? "bg-emerald-400" : "bg-rose-400"
+                            player.connected
+                              ? player.ready
+                                ? "bg-emerald-400"
+                                : "bg-rose-400"
+                              : "bg-zinc-500"
                           }`}
                         />
                       </div>
                       <div className="mt-2 text-xs text-zinc-500">
-                        {player.ready ? "Ready" : "Still loading"}
+                        {!player.connected
+                          ? "Disconnected"
+                          : player.ready
+                            ? "Ready"
+                            : "Still loading"}
                       </div>
                     </div>
                   ))
