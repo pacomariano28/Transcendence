@@ -4,15 +4,19 @@ import { matchService } from "../services/matchService.js";
 
 type CreateMatchPayload = {
   matchId?: string;
-  playerId: string;
-  playerName: string;
   expectedPlayers: number;
+  displayName?: string;
+  userId?: string;
+  playerId?: string;
+  playerName?: string;
 };
 
 type JoinMatchPayload = {
   matchId: string;
-  playerId: string;
-  playerName: string;
+  displayName?: string;
+  userId?: string;
+  playerId?: string;
+  playerName?: string;
 };
 
 type MatchStatePayload = {
@@ -20,9 +24,13 @@ type MatchStatePayload = {
   expectedPlayers: number;
   phase: MatchState["phase"];
   players: Array<{
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
+    playerId?: string;
+    playerName?: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   }>;
 };
 
@@ -32,9 +40,13 @@ function toPayload(match: MatchState): MatchStatePayload {
     expectedPlayers: match.expectedPlayers,
     phase: match.phase,
     players: match.players.map((player) => ({
-      playerId: player.playerId,
-      playerName: player.playerName,
+      userId: player.userId,
+      displayName: player.displayName,
+      playerId: player.userId,
+      playerName: player.displayName,
       ready: player.ready,
+      connected: player.connected,
+      disconnectedAt: player.disconnectedAt,
     })),
   };
 }
@@ -57,8 +69,16 @@ export function registerSocketHandlers(io: Server): void {
     socket.on("match:create", (payload: CreateMatchPayload) => {
       console.log("Event received: match:create", payload);
       try {
+        const userId = payload.userId ?? payload.playerId;
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+        const displayName =
+          payload.displayName ?? payload.playerName ?? "Guest";
         const match = matchService.createMatch({
-          ...payload,
+          expectedPlayers: payload.expectedPlayers,
+          userId,
+          displayName,
           socketId: socket.id,
         });
 
@@ -74,8 +94,16 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on("match:join", (payload: JoinMatchPayload) => {
       try {
+        const userId = payload.userId ?? payload.playerId;
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+        const displayName =
+          payload.displayName ?? payload.playerName ?? "Guest";
         const match = matchService.joinMatch({
-          ...payload,
+          matchId: payload.matchId,
+          userId,
+          displayName,
           socketId: socket.id,
         });
 

@@ -33,9 +33,11 @@ export class MatchService {
       players: [
         {
           socketId: input.socketId,
-          playerId: input.playerId,
-          playerName: input.playerName,
+          userId: input.userId,
+          displayName: input.displayName,
           ready: false,
+          connected: true,
+          disconnectedAt: null,
         },
       ],
     };
@@ -51,22 +53,29 @@ export class MatchService {
 
     const existingPlayer = match.players.find(
       (player) =>
-        player.socketId === input.socketId ||
-        player.playerId === input.playerId,
+        player.socketId === input.socketId || player.userId === input.userId,
     );
 
     if (existingPlayer) {
       existingPlayer.socketId = input.socketId;
-      existingPlayer.playerName = input.playerName;
+      existingPlayer.displayName = input.displayName;
+      existingPlayer.connected = true;
+      existingPlayer.disconnectedAt = null;
       this.socketToMatch.set(input.socketId, match.matchId);
       return match;
     }
 
+    if (match.players.length >= match.expectedPlayers) {
+      throw new Error("MATCH_FULL");
+    }
+
     match.players.push({
       socketId: input.socketId,
-      playerId: input.playerId,
-      playerName: input.playerName,
+      userId: input.userId,
+      displayName: input.displayName,
       ready: false,
+      connected: true,
+      disconnectedAt: null,
     });
 
     this.socketToMatch.set(input.socketId, match.matchId);
@@ -79,6 +88,9 @@ export class MatchService {
     emit: (event: string, data: unknown) => void,
   ): ReadyResult {
     const match = this.getMatchBySocketOrThrow(socketId);
+    if (match.phase !== "lobby") {
+      throw new Error("INVALID_STATE");
+    }
     const player = match.players.find((entry) => entry.socketId === socketId);
 
     if (!player) {
@@ -103,7 +115,7 @@ export class MatchService {
 
         if (countdown === 0) {
           clearInterval(interval);
-          match.phase = "in-game" as MatchPhase;
+          match.phase = "in-game";
           emit("match-started", { matchId: match.matchId }); // Notify that the match has started
         }
       }, 1000);
@@ -138,16 +150,16 @@ export class MatchService {
 
     const player = match.players.find((p) => p.socketId === socketId);
     if (player) {
-      player.socketId = "DISCONNECTED"; // Mark the player as disconnected with a placeholder string
+      player.socketId = null;
+      player.connected = false;
+      player.disconnectedAt = new Date().toISOString();
       console.log(
-        `Player ${player.playerId} disconnected from match ${match.matchId}`,
+        `Player ${player.userId} disconnected from match ${match.matchId}`,
       );
     }
 
     // Check if all players are disconnected
-    const allDisconnected = match.players.every(
-      (p) => p.socketId === "DISCONNECTED",
-    );
+    const allDisconnected = match.players.every((p) => !p.connected);
     if (allDisconnected) {
       console.log(
         `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
@@ -155,9 +167,7 @@ export class MatchService {
 
       // Set a timeout to remove the match if no players reconnect
       setTimeout(() => {
-        const stillDisconnected = match.players.every(
-          (p) => p.socketId === "DISCONNECTED",
-        );
+        const stillDisconnected = match.players.every((p) => !p.connected);
         if (stillDisconnected) {
           console.log(`Match ${match.matchId} removed due to inactivity.`);
           this.matches.delete(match.matchId);
@@ -171,9 +181,11 @@ export class MatchService {
 
   reconnectSocket(playerId: string, newSocketId: string): MatchState {
     for (const match of this.matches.values()) {
-      const player = match.players.find((p) => p.playerId === playerId);
+      const player = match.players.find((p) => p.userId === playerId);
       if (player) {
         player.socketId = newSocketId; // Restore the player's connection
+        player.connected = true;
+        player.disconnectedAt = null;
         this.socketToMatch.set(newSocketId, match.matchId);
         console.log(`Player ${playerId} reconnected to match ${match.matchId}`);
         return match;
