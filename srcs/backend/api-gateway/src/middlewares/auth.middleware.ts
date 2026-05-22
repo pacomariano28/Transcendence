@@ -30,6 +30,10 @@ export const requireAuth = (
   res: Response,
   next: NextFunction,
 ): void => {
+  if (req.method === "OPTIONS") {
+    next();
+    return;
+  }
   const authHeader = req.headers.authorization;
 
   let token: string | undefined;
