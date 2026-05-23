@@ -133,7 +133,7 @@ export default function MatchPage() {
       socket.off("match:phase");
       socket.off("match:error");
     };
-  }, [code, user]);
+  }, [code, user, nav]);
 
   const readyCount = useMemo(() => {
     if (!matchState) return 0;
