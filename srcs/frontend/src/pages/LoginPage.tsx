@@ -53,7 +53,7 @@ export default function LoginPage() {
       }
 
       await reload();
-      nav("/dashboard", { replace: true });
+      nav("/profile", { replace: true });
     } catch (err: unknown) {
       const message: string =
         err instanceof Error ? err.message : "Unknown error";

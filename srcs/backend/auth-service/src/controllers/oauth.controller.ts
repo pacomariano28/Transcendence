@@ -125,7 +125,7 @@ export async function spotifyCallback(req: Request, res: Response) {
     });
     clearSpotifyStateCookie(res);
 
-    return res.redirect(`${frontendUrl}/auth/spotify/success`);
+    return res.redirect(`${frontendUrl}/profile`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
     const details =

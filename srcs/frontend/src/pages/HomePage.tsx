@@ -11,22 +11,15 @@ export default function HomePage() {
       <div className="mx-auto max-w-4xl">
         <div className="page-card">
           <div className="section-stack">
-            <div>
-              <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mb-2">
-                <h1 className="page-title mb-4">Guess the song.</h1>
+            <div className="space-y-3">
+              <h1 className="page-title">Guess the song.</h1>
 
-                <div className="pb-1 font-mono text-xs sm:text-sm tracking-[0.35em] text-[#f7d046] mb-3">
-                  <TypingText
-                    text="SONGUESS"
-                    className="drop-shadow-[0_0_14px_rgba(247,208,70,0.16)]"
-                    typingDelays={[220, 300, 180, 260, 200, 340, 170, 280]}
-                    typoChance={0.22}
-                    pauseAfterCompleteMs={2200}
-                    pauseAfterDeleteMs={700}
-                    cursorBlinkMs={550}
-                  />
-                </div>
-              </div>
+              <TypingText text="SONGUESS" size="md" className="ms-1" />
+
+              <p className="max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
+                Challenge your friends, guess the track, and keep the room flow
+                fast and clean.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -44,9 +37,9 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
               {loading ? (
-                <span className="text-zinc-400 animate-pulse">
+                <span className="animate-pulse text-zinc-400">
                   Checking session…
                 </span>
               ) : user ? (
@@ -76,7 +69,9 @@ export default function HomePage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="card card-hover p-5 fade-in">
-            <div className="text-xs font-medium text-zinc-400">Status</div>
+            <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+              Status
+            </div>
             <div className="mt-2 text-sm text-zinc-200">
               Auth + UI foundation ready.
             </div>
@@ -86,7 +81,9 @@ export default function HomePage() {
           </div>
 
           <div className="card card-hover p-5 fade-in">
-            <div className="text-xs font-medium text-zinc-400">Controls</div>
+            <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+              Controls
+            </div>
             <div className="mt-2 text-sm text-zinc-200">
               Short transitions, low noise.
             </div>

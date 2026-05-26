@@ -1,6 +1,47 @@
 import { apiJson } from "./http";
 
-export type AuthedUser = { id: string; email: string; username?: string };
+export type SpotifyArtist = {
+  id: string;
+  name: string;
+  genres: string[];
+  popularity: number;
+  imageUrl: string | null;
+};
+
+export type SpotifyTrack = {
+  id: string;
+  name: string;
+  artists: Array<{
+    id: string;
+    name: string;
+  }>;
+  popularity: number;
+  imageUrl: string | null;
+};
+
+export type SpotifyGenre = {
+  name: string;
+  weight: number;
+};
+
+export type SpotifyProfile = {
+  spotifyUserId: string;
+  displayName: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  topArtists: SpotifyArtist[];
+  topGenres: SpotifyGenre[];
+  topTrackMonth: SpotifyTrack[];
+  topTrackAllTime: SpotifyTrack[];
+  syncedAt: string | null;
+};
+
+export type AuthedUser = {
+  id: string;
+  email: string;
+  username: string;
+  spotifyProfile?: SpotifyProfile | null;
+};
 
 export async function getMe(): Promise<AuthedUser> {
   const data = await apiJson<{ user: AuthedUser }>("/api/auth/me");

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type TypingTextProps = {
   text: string;
+  size?: "sm" | "md" | "lg";
   className?: string;
   typingDelays?: number[];
   typoChance?: number;
@@ -20,8 +21,18 @@ const DEFAULT_TYPO_MAP: Record<string, string> = {
   N: "M",
 };
 
+const SIZE_CLASSES: Record<NonNullable<TypingTextProps["size"]>, string> = {
+  sm: "text-xs tracking-[0.28em]",
+  md: "text-xs sm:text-sm tracking-[0.35em]",
+  lg: "text-sm sm:text-base tracking-[0.4em]",
+};
+
+const BASE_CLASSNAME =
+  "font-mono text-[#f7d046] pb-1 drop-shadow-[0_0_14px_rgba(247,208,70,0.16)]";
+
 export default function TypingText({
   text,
+  size = "md",
   className = "",
   typingDelays = DEFAULT_TYPING_DELAYS,
   typoChance = 0.18,
@@ -36,7 +47,6 @@ export default function TypingText({
   const [displayText, setDisplayText] = useState("");
   const [charIndex, setCharIndex] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true);
-  // const [typoChar, setTypoChar] = useState<string | null>(null);
 
   const currentTypingDelay = useMemo(() => {
     if (!text.length) return 180;
@@ -69,7 +79,6 @@ export default function TypingText({
 
           if (shouldMakeTypo) {
             const wrongChar = typoMap[nextChar];
-            // setTypoChar(wrongChar);
             setDisplayText(text.slice(0, charIndex) + wrongChar);
             setPhase("typo");
           } else {
@@ -88,7 +97,6 @@ export default function TypingText({
     if (phase === "typo") {
       timeoutId = window.setTimeout(() => {
         setDisplayText(text.slice(0, charIndex));
-        // setTypoChar(null);
         setPhase("typing");
       }, 220);
     }
@@ -127,12 +135,17 @@ export default function TypingText({
 
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap ${className}`}
+      className={[
+        "inline-flex items-center whitespace-nowrap align-middle",
+        BASE_CLASSNAME,
+        SIZE_CLASSES[size],
+        className,
+      ].join(" ")}
       aria-label={text}
     >
-      <span>{displayText}</span>
+      <span className="inline-block">{displayText}</span>
       <span
-        className={`ml-0.5 inline-block w-[0.6ch] ${
+        className={`ml-0.5 inline-block w-[0.6ch] shrink-0 ${
           cursorVisible ? "opacity-100" : "opacity-0"
         }`}
       >

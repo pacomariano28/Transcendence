@@ -12,6 +12,7 @@ import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import gameRoutes, { gameProxy } from "./routes/game.routes.js";
+import playlistRoutes from "./routes/playlist.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -40,6 +41,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/playlist", playlistRoutes);
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {

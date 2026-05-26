@@ -51,7 +51,7 @@ services:
     depends_on:
       - auth-service
       - content-service
-      # - game-service
+      - playlist-service
     ports:
       - "4000:4000"
     networks:
@@ -97,6 +97,7 @@ services:
     env_file:
       - ./backend/auth-service/.env
     container_name: songuess-auth-service
+    #entrypoint: "tail -f"
     restart: unless-stopped
     depends_on:
       postgres:
@@ -133,6 +134,28 @@ services:
       # - ./backend/services/content-service/tsconfig.json:/app/tsconfig.json
       - ./backend/content-service:/app
       - /app/node_modules
+
+  playlist-service:
+    build:
+      context: ./backend/playlist-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      SERVICE_NAME: playlist-service
+    env_file:
+      - ./backend/playlist-service/.env
+    container_name: songuess-playlist-service
+    restart: unless-stopped
+    ports:
+      - "4004:4004"
+    networks:
+      - songuess-net
+    volumes:
+      - ./backend/playlist-service:/app
+      - /app/node_modules
+      - ./media/previews:/media/previews
 
   # nginx-reload:
   #   image: alpine:latest
