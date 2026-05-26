@@ -1,5 +1,5 @@
+import { useAuth } from "../auth/auth-context";
 import { useEffect, useState } from "react";
-import { useAuth } from "../auth/AuthContext";
 import TypingText from "../components/TypingText";
 
 type SpotifyArtist = {

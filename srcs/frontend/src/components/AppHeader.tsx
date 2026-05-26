@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../api/auth";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -62,13 +62,13 @@ function LogoutIcon() {
 
 export default function AppHeader() {
   const nav = useNavigate();
-  const { user, loading, reload } = useAuth();
+  const { user, loading, clear } = useAuth();
 
   async function onLogout() {
     try {
       await logout();
     } finally {
-      await reload();
+      clear();
       nav("/login", { replace: true });
     }
   }

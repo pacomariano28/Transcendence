@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, register } from "../api/auth";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/auth-context";
 import { loginSchema, registerSchema } from "../validation/authSchemas";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import SpotifyIcon from "../components/icons/SpotifyIcon";

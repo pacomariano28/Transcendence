@@ -1,4 +1,4 @@
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/auth-context";
 import TypingText from "../components/TypingText";
 
 export default function DashboardPage() {
