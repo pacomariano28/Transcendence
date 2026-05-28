@@ -3,6 +3,45 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+// import { generateMatchCode } from "../api/lobby";
+
+// function generateRoomCode() {
+//   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+//   let code = "";
+
+//   for (let index = 0; index < 6; index += 1) {
+//     code += alphabet[Math.floor(Math.random() * alphabet.length)];
+//   }
+
+//   return code;
+// }
+
+async function ensureSocketConnected() {
+  if (!socket.connected) {
+    await new Promise<void>((resolve, reject) => {
+      const handleConnect = () => {
+        cleanup();
+        resolve();
+      };
+
+      const handleConnectError = (err: unknown) => {
+        cleanup();
+        console.error("Failed to connect socket:", err);
+        reject(err);
+
+      };
+
+      const cleanup = () => {
+        socket.off("connect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+      };
+
+      socket.once("connect", handleConnect);
+      socket.once("connect_error", handleConnectError);
+      socket.connect();
+    });
+  }
+}
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
