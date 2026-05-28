@@ -1,11 +1,13 @@
 declare global {
-  export type MatchPhase = "lobby" | "countdown";
+  export type MatchPhase = "lobby" | "countdown" | "in-game" | "finished";
 
   export type MatchPlayer = {
-    socketId: string;
-    playerId: string;
-    playerName: string;
+    socketId: string | null;
+    userId: string;
+    displayName: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   };
 
   export type MatchState = {
@@ -18,16 +20,16 @@ declare global {
   export type CreateMatchInput = {
     matchId?: string;
     socketId: string;
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
     expectedPlayers: number;
   };
 
   export type JoinMatchInput = {
     matchId: string;
     socketId: string;
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
   };
 
   export type ReadyResult = {
