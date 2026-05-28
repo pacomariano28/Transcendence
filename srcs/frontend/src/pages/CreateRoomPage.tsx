@@ -16,32 +16,32 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 //   return code;
 // }
 
-async function ensureSocketConnected() {
-  if (!socket.connected) {
-    await new Promise<void>((resolve, reject) => {
-      const handleConnect = () => {
-        cleanup();
-        resolve();
-      };
+// async function ensureSocketConnected() {
+//   if (!socket.connected) {
+//     await new Promise<void>((resolve, reject) => {
+//       const handleConnect = () => {
+//         cleanup();
+//         resolve();
+//       };
 
-      const handleConnectError = (err: unknown) => {
-        cleanup();
-        console.error("Failed to connect socket:", err);
-        reject(err);
+//       const handleConnectError = (err: unknown) => {
+//         cleanup();
+//         console.error("Failed to connect socket:", err);
+//         reject(err);
 
-      };
+//       };
 
-      const cleanup = () => {
-        socket.off("connect", handleConnect);
-        socket.off("connect_error", handleConnectError);
-      };
+//       const cleanup = () => {
+//         socket.off("connect", handleConnect);
+//         socket.off("connect_error", handleConnectError);
+//       };
 
-      socket.once("connect", handleConnect);
-      socket.once("connect_error", handleConnectError);
-      socket.connect();
-    });
-  }
-}
+//       socket.once("connect", handleConnect);
+//       socket.once("connect_error", handleConnectError);
+//       socket.connect();
+//     });
+//   }
+// }
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
