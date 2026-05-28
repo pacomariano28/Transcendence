@@ -26,6 +26,12 @@ type MatchStatePayload = {
   }>;
 };
 
+type AudioTogglePayload = {
+  matchId: string;
+  action: "play" | "pause";
+  time: number;
+};
+
 function toPayload(match: MatchState): MatchStatePayload {
   return {
     matchId: match.matchId,
@@ -101,6 +107,23 @@ export function registerSocketHandlers(io: Server): void {
         }
       } catch (error) {
         emitMatchError(socket, error);
+      }
+    });
+
+    socket.on("match:audio:toggle", (payload: AudioTogglePayload) => {
+      try {
+        logInfo(
+          `Audio toggled in match ${payload.matchId}: ${payload.action} at ${payload.time}s`,
+        );
+
+        // socket.to(room).emit envia el mensaje a todos en la sala EXCEPTO al remitente.
+        // Esto es perfecto porque el remitente ya pausó/reprodujo su propia música localmente.
+        socket.to(payload.matchId).emit("match:audio:sync", {
+          action: payload.action,
+          time: payload.time,
+        });
+      } catch (error) {
+        console.error("Error toggling audio:", error);
       }
     });
 

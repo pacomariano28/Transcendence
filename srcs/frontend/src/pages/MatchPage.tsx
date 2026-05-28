@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
@@ -31,7 +31,8 @@ const phaseMeta: Record<
 > = {
   lobby: {
     title: "Match staging",
-    caption: "The room is still syncing. The active board will appear once the match begins.",
+    caption:
+      "The room is still syncing. The active board will appear once the match begins.",
     accent: "#f7d046",
   },
   countdown: {
@@ -62,6 +63,95 @@ function getPhaseKey(phase?: MatchStatePayload["phase"] | null) {
   return phase;
 }
 
+function useMatchAudio(audioUrl: string, phaseKey: string, matchId: string) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // 1. Inicialización y caché del audio
+  useEffect(() => {
+    const audio = new Audio(audioUrl);
+    audio.preload = "auto";
+
+    const handleCanPlayThrough = () => setIsAudioReady(true);
+    audio.addEventListener("canplaythrough", handleCanPlayThrough);
+
+    // Sincronizar el estado de React con los eventos nativos del audio
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+
+    audio.load();
+    audioRef.current = audio;
+
+    return () => {
+      audio.removeEventListener("canplaythrough", handleCanPlayThrough);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+    };
+  }, [audioUrl]);
+
+  // 2. Escuchar los eventos del servidor para sincronizar a todos los clientes
+  useEffect(() => {
+    const handleAudioSync = (payload: {
+      action: "play" | "pause";
+      time: number;
+    }) => {
+      if (!audioRef.current) return;
+
+      // Sincronizamos el tiempo exacto de la canción
+      // Si la diferencia es mayor a medio segundo, lo ajustamos para evitar saltos bruscos constantes
+      if (Math.abs(audioRef.current.currentTime - payload.time) > 0.5) {
+        audioRef.current.currentTime = payload.time;
+      }
+
+      if (payload.action === "play") {
+        audioRef.current.play().catch(console.warn);
+      } else if (payload.action === "pause") {
+        audioRef.current.pause();
+      }
+    };
+
+    socket.on("match:audio:sync", handleAudioSync);
+    return () => {
+      socket.off("match:audio:sync", handleAudioSync);
+    };
+  }, []);
+
+  // 3. Auto-play al empezar la partida (Fase in-game)
+  useEffect(() => {
+    if (phaseKey === "in-game" && audioRef.current && isAudioReady) {
+      audioRef.current.play().catch(console.warn);
+    }
+  }, [phaseKey, isAudioReady]);
+
+  // 4. Función para que el botón de la UI emita el evento
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+
+    const isCurrentlyPlaying = !audioRef.current.paused;
+    const action = isCurrentlyPlaying ? "pause" : "play";
+    const time = audioRef.current.currentTime;
+
+    // Pausamos/Reproducimos localmente para una respuesta inmediata (optimista)
+    if (action === "play") audioRef.current.play();
+    else audioRef.current.pause();
+
+    // Avisamos al servidor para que avise a los demás
+    socket.emit("match:audio:toggle", {
+      matchId,
+      action,
+      time,
+    });
+  };
+
+  return { isAudioReady, isPlaying, toggleAudio };
+}
+
 export default function MatchPage() {
   const nav = useNavigate();
   const { code: codeParam } = useParams();
@@ -76,7 +166,9 @@ export default function MatchPage() {
   const meta = phaseMeta[phaseKey];
   const me = useMemo(() => {
     if (!matchState || !user) return null;
-    return matchState.players.find((player) => player.playerId === String(user.id));
+    return matchState.players.find(
+      (player) => player.playerId === String(user.id),
+    );
   }, [matchState, user]);
 
   useEffect(() => {
@@ -121,6 +213,12 @@ export default function MatchPage() {
 
   const liveCount = matchState?.players.length ?? 0;
 
+  const { isAudioReady, isPlaying, toggleAudio } = useMatchAudio(
+    "../public/media/preview_001.mp3",
+    phaseKey,
+    code,
+  );
+
   return (
     <div className="container-page py-10 fade-in">
       <div className="mx-auto max-w-6xl">
@@ -136,7 +234,10 @@ export default function MatchPage() {
               {meta.caption}
             </p>
           </div>
-          <button className="btn-ghost" onClick={() => nav(`/room/${code}`, { replace: true })}>
+          <button
+            className="btn-ghost"
+            onClick={() => nav(`/room/${code}`, { replace: true })}
+          >
             Back to lobby
           </button>
         </div>
@@ -157,7 +258,9 @@ export default function MatchPage() {
                   </div>
                   <div className="mt-1 flex items-center gap-3">
                     <h2 className="text-xl font-semibold text-white sm:text-2xl">
-                      {phaseKey === "countdown" ? "Waiting for handoff" : "Match active"}
+                      {phaseKey === "countdown"
+                        ? "Waiting for handoff"
+                        : "Match active"}
                     </h2>
                     <span
                       className="rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.22em]"
@@ -171,8 +274,29 @@ export default function MatchPage() {
                     </span>
                   </div>
                 </div>
-                <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
-                  {code || "———"}
+
+                <div className="flex items-center gap-3">
+                  {/* Botón de Play/Pause (Solo visible si el audio está listo y estamos jugando) */}
+                  {isAudioReady && phaseKey === "in-game" && (
+                    <button
+                      onClick={toggleAudio}
+                      className="rounded-full border border-white/20 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs text-white transition-colors flex items-center gap-2"
+                    >
+                      {isPlaying ? (
+                        <>
+                          <span>⏸</span> Pause Music
+                        </>
+                      ) : (
+                        <>
+                          <span>▶️</span> Play Music
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
+                    {code || "———"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -191,7 +315,8 @@ export default function MatchPage() {
                       Gameplay shell ready
                     </div>
                     <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
-                      This screen is separated from the lobby and can host the actual game canvas later without changing the room flow.
+                      This screen is separated from the lobby and can host the
+                      actual game canvas later without changing the room flow.
                     </p>
                   </div>
                 </div>
@@ -217,13 +342,17 @@ export default function MatchPage() {
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
                       Room
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">{code || "—"}</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {code || "—"}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
                       Phase
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">{meta.title}</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {meta.title}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
@@ -244,7 +373,9 @@ export default function MatchPage() {
                 Players
               </div>
               <div className="mt-1 text-sm text-zinc-400">
-                {matchState ? `${readyCount} ready / ${liveCount} connected` : "Connecting to socket..."}
+                {matchState
+                  ? `${readyCount} ready / ${liveCount} connected`
+                  : "Connecting to socket..."}
               </div>
 
               <div className="mt-4 grid gap-3">
