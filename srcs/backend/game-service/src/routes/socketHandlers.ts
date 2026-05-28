@@ -4,15 +4,13 @@ import { matchService } from "../services/matchService.js";
 
 type CreateMatchPayload = {
   matchId?: string;
-  playerId: string;
-  playerName: string;
   expectedPlayers: number;
+  displayName?: string;
 };
 
 type JoinMatchPayload = {
   matchId: string;
-  playerId: string;
-  playerName: string;
+  displayName?: string;
 };
 
 type MatchStatePayload = {
@@ -20,9 +18,11 @@ type MatchStatePayload = {
   expectedPlayers: number;
   phase: MatchState["phase"];
   players: Array<{
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   }>;
 };
 
@@ -32,15 +32,27 @@ type AudioTogglePayload = {
   time: number;
 };
 
+function readHeader(
+  headers: Record<string, string | string[] | undefined>,
+  name: string,
+): string | undefined {
+  const value = headers[name.toLowerCase()];
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value[0];
+  return undefined;
+}
+
 function toPayload(match: MatchState): MatchStatePayload {
   return {
     matchId: match.matchId,
     expectedPlayers: match.expectedPlayers,
     phase: match.phase,
     players: match.players.map((player) => ({
-      playerId: player.playerId,
-      playerName: player.playerName,
+      userId: player.userId,
+      displayName: player.displayName,
       ready: player.ready,
+      connected: player.connected,
+      disconnectedAt: player.disconnectedAt,
     })),
   };
 }
@@ -63,8 +75,19 @@ export function registerSocketHandlers(io: Server): void {
     socket.on("match:create", (payload: CreateMatchPayload) => {
       console.log("Event received: match:create", payload);
       try {
+        const userId = readHeader(socket.handshake.headers, "x-user-id");
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+        const displayName =
+          payload.displayName ??
+          readHeader(socket.handshake.headers, "x-user-username") ??
+          readHeader(socket.handshake.headers, "x-user-email") ??
+          "Guest";
         const match = matchService.createMatch({
-          ...payload,
+          expectedPlayers: payload.expectedPlayers,
+          userId,
+          displayName,
           socketId: socket.id,
         });
 
@@ -80,8 +103,19 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on("match:join", (payload: JoinMatchPayload) => {
       try {
+        const userId = readHeader(socket.handshake.headers, "x-user-id");
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+        const displayName =
+          payload.displayName ??
+          readHeader(socket.handshake.headers, "x-user-username") ??
+          readHeader(socket.handshake.headers, "x-user-email") ??
+          "Guest";
         const match = matchService.joinMatch({
-          ...payload,
+          matchId: payload.matchId,
+          userId,
+          displayName,
           socketId: socket.id,
         });
 

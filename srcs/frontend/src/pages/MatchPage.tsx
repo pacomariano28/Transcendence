@@ -15,10 +15,19 @@ type MatchStatePayload = {
   expectedPlayers: number;
   phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
   players: Array<{
-    playerId: string;
-    playerName: string;
+    userId: string;
+    displayName: string;
     ready: boolean;
+    connected: boolean;
+    disconnectedAt: string | null;
   }>;
+};
+
+type MatchPhasePayload = {
+  matchId: string;
+  phase: MatchStatePayload["phase"];
+  previousPhase?: MatchStatePayload["phase"];
+  reason?: string;
 };
 
 const phaseMeta: Record<
@@ -166,9 +175,8 @@ export default function MatchPage() {
   const meta = phaseMeta[phaseKey];
   const me = useMemo(() => {
     if (!matchState || !user) return null;
-    return matchState.players.find(
-      (player) => player.playerId === String(user.id),
-    );
+    const userId = String(user.id);
+    return matchState.players.find((player) => player.userId === userId);
   }, [matchState, user]);
 
   useEffect(() => {
@@ -181,8 +189,7 @@ export default function MatchPage() {
     const joinMatch = () => {
       socket.emit("match:join", {
         matchId: code,
-        playerId: String(user.id),
-        playerName: user.username ?? user.email ?? "Guest",
+        displayName: user.username ?? user.email ?? "Guest",
       });
     };
 
@@ -195,6 +202,16 @@ export default function MatchPage() {
       setMatchState(payload);
       setError(null);
     });
+    socket.on("match:phase", (payload: MatchPhasePayload) => {
+      if (payload.matchId !== code) return;
+      setMatchState((prev) =>
+        prev ? { ...prev, phase: payload.phase } : prev,
+      );
+      setError(null);
+      if (payload.phase === "lobby") {
+        nav(`/room/${code}`, { replace: true });
+      }
+    });
     socket.on("match:error", (err: { message: string }) => {
       setError(err.message);
     });
@@ -202,16 +219,19 @@ export default function MatchPage() {
     return () => {
       socket.off("connect", joinMatch);
       socket.off("match:state");
+      socket.off("match:phase");
       socket.off("match:error");
     };
-  }, [code, user]);
+  }, [code, user, nav]);
 
   const readyCount = useMemo(() => {
     if (!matchState) return 0;
     return matchState.players.filter((player) => player.ready).length;
   }, [matchState]);
 
-  const liveCount = matchState?.players.length ?? 0;
+  const liveCount = matchState
+    ? matchState.players.filter((player) => player.connected).length
+    : 0;
 
   const { isAudioReady, isPlaying, toggleAudio } = useMatchAudio(
     "../public/media/preview_001.mp3",
@@ -386,24 +406,32 @@ export default function MatchPage() {
                 ) : (
                   matchState.players.map((player) => (
                     <div
-                      key={player.playerId}
+                      key={player.userId}
                       className="rounded-2xl border border-white/10 bg-black/20 p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-sm font-medium text-zinc-100">
-                          {player.playerName}
-                          {player.playerId === String(user?.id) ? (
+                          {player.displayName}
+                          {player.userId === String(user?.id) ? (
                             <span className="text-zinc-500"> (you)</span>
                           ) : null}
                         </div>
                         <div
                           className={`h-2.5 w-2.5 rounded-full ${
-                            player.ready ? "bg-emerald-400" : "bg-rose-400"
+                            player.connected
+                              ? player.ready
+                                ? "bg-emerald-400"
+                                : "bg-rose-400"
+                              : "bg-zinc-500"
                           }`}
                         />
                       </div>
                       <div className="mt-2 text-xs text-zinc-500">
-                        {player.ready ? "Ready" : "Still loading"}
+                        {!player.connected
+                          ? "Disconnected"
+                          : player.ready
+                            ? "Ready"
+                            : "Still loading"}
                       </div>
                     </div>
                   ))
