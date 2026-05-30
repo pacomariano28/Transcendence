@@ -234,7 +234,7 @@ export default function MatchPage() {
     : 0;
 
   const { isAudioReady, isPlaying, toggleAudio } = useMatchAudio(
-    "../public/media/preview_001.mp3",
+    "../public/media/previews/preview_026.mp3",
     phaseKey,
     code,
   );
