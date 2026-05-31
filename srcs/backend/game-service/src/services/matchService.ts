@@ -1,6 +1,15 @@
 import { randomInt } from "node:crypto";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const PLAYLIST_SERVICE_URL =
+  process.env.PLAYLIST_SERVICE_URL || "http://playlist-service:4004";
+const MIN_ROUNDS = 1;
+const MAX_ROUNDS = 5;
+const PLAYLIST_TIMEOUT_MS = 5000;
+
+function clampRounds(rounds: number): number {
+  return Math.min(MAX_ROUNDS, Math.max(MIN_ROUNDS, rounds));
+}
 
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
@@ -40,6 +49,18 @@ export class MatchService {
           disconnectedAt: null,
         },
       ],
+      roundsTotal: clampRounds(input.roundsTotal ?? 1),
+      roundIndex: 0,
+      scores: [
+        {
+          userId: input.userId,
+          displayName: input.displayName,
+          score: 0,
+        },
+      ],
+      playlist: [],
+      playlistError: null,
+      round: null,
     };
 
     this.matches.set(matchId, match);
@@ -61,6 +82,7 @@ export class MatchService {
       existingPlayer.displayName = input.displayName;
       existingPlayer.connected = true;
       existingPlayer.disconnectedAt = null;
+      this.ensureScoreEntry(match, existingPlayer);
       this.socketToMatch.set(input.socketId, match.matchId);
       return match;
     }
@@ -70,6 +92,15 @@ export class MatchService {
     }
 
     match.players.push({
+      socketId: input.socketId,
+      userId: input.userId,
+      displayName: input.displayName,
+      ready: false,
+      connected: true,
+      disconnectedAt: null,
+    });
+
+    this.ensureScoreEntry(match, {
       socketId: input.socketId,
       userId: input.userId,
       displayName: input.displayName,
@@ -106,6 +137,7 @@ export class MatchService {
 
     if (countdownStarted) {
       match.phase = "countdown";
+      void this.loadPlaylist(match);
 
       let countdown = 5;
       const interval = setInterval(() => {
@@ -115,6 +147,7 @@ export class MatchService {
         if (countdown === 0) {
           clearInterval(interval);
           match.phase = "in-game";
+          this.startRound(match);
           emit("match-started", { matchId: match.matchId }); // Notify that the match has started
         }
       }, 1000);
@@ -212,6 +245,66 @@ export class MatchService {
     }
 
     return match;
+  }
+
+  private ensureScoreEntry(match: MatchState, player: MatchPlayer): void {
+    const existing = match.scores.find((entry) => entry.userId === player.userId);
+    if (existing) {
+      existing.displayName = player.displayName;
+      return;
+    }
+
+    match.scores.push({
+      userId: player.userId,
+      displayName: player.displayName,
+      score: 0,
+    });
+  }
+
+  private startRound(match: MatchState): void {
+    const preview = match.playlist[match.roundIndex] ?? null;
+    match.round = {
+      roundIndex: match.roundIndex,
+      phase: "sync",
+      preview,
+      lockOwnerId: null,
+      lockAt: null,
+      guessEndsAt: null,
+      countdownEndsAt: null,
+    };
+  }
+
+  private async loadPlaylist(match: MatchState): Promise<void> {
+    if (match.playlist.length > 0 || match.playlistError) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${PLAYLIST_SERVICE_URL}/get-playlist`, {
+        signal: controller.signal,
+      });
+      const payload = (await response.json()) as {
+        ok: boolean;
+        songs?: PlaylistItem[];
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok || !payload.songs) {
+        match.playlistError = payload.error || "PLAYLIST_FETCH_FAILED";
+        return;
+      }
+
+      match.playlist = payload.songs;
+      match.roundsTotal = Math.min(match.roundsTotal, match.playlist.length);
+    } catch (error) {
+      match.playlistError =
+        error instanceof Error ? error.message : "PLAYLIST_FETCH_FAILED";
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }
 
