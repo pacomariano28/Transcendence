@@ -17,6 +17,7 @@ import authRoutes from "./routes/auth.routes.js";
 import gameRoutes, { gameProxy } from "./routes/game.routes.js";
 import playlistRoutes from "./routes/playlist.routes.js";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 
 const app = express();
 const server = createServer(app);
@@ -34,6 +35,15 @@ type JwtPayload = {
 app.set("trust proxy", 1);
 
 if (isProd) app.use(globalLimiter);
+
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-request-id", "Accept"],
+  }),
+);
 
 app.use(express.json());
 app.use(cookieParser());

@@ -42,7 +42,8 @@ ports:
    - Hay que copiar del _csv_ la tabla de nombres y pegarlas en songs=()
    - Hay que copiar del _csv_ la tabla de trackId y pegarlo en tracks=()
 
-   #!/bin/bash
+```
+#!/bin/bash
 
 set -e
 
@@ -82,7 +83,7 @@ songs=(
 "Collard Greens schoolboy q kendrick lamar"
 "20 Min lil uzi vert"
 "Solo future"
-"infinity 888 joey bada$$ xxxtentacion"
+"infinity xxxtentacion joey"
 "16 baby keem"
 "I Wonder kanye west"
 "Nikes on My Feet mac miller"
@@ -176,7 +177,7 @@ do
 
 echo "🎧 [$INDEX] buscando: $song"
 
-META=$(yt-dlp --dump-json "ytsearch1:$song" 2>/dev/null)
+META=$(yt-dlp --dump-json "ytsearch1:$song" 2>/dev/null | tr -d '\n')
 
 if [ $? -ne 0 ] || [ -z "$META" ]; then
 echo -e "${RED}❌ [$INDEX] error${NC}"
@@ -186,8 +187,8 @@ fi
 
 URL=$(echo "$META" | jq -r ".webpage_url")
 
-FILE="song*$INDEX.mp3"
-PREVIEW="preview*$INDEX.mp3"
+FILE="song_$INDEX.mp3"
+PREVIEW="preview_$INDEX.mp3"
 
 echo "⬇️ descargando..."
 
@@ -229,5 +230,6 @@ mv "$TMP" "$OUT"
 echo "================================"
 echo "DONE → $OUT"
 echo "================================"
+```
 
 3. Añadir el archivo json generado al seed.ts de auth-service.

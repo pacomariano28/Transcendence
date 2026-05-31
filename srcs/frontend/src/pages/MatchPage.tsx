@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
@@ -70,6 +70,95 @@ function getPhaseKey(phase?: MatchStatePayload["phase"] | null) {
   if (!phase) return "lobby";
   if (phase === "playing") return "in-game";
   return phase;
+}
+
+function useMatchAudio(audioUrl: string, phaseKey: string, matchId: string) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // 1. Inicialización y caché del audio
+  useEffect(() => {
+    const audio = new Audio(audioUrl);
+    audio.preload = "auto";
+
+    const handleCanPlayThrough = () => setIsAudioReady(true);
+    audio.addEventListener("canplaythrough", handleCanPlayThrough);
+
+    // Sincronizar el estado de React con los eventos nativos del audio
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+
+    audio.load();
+    audioRef.current = audio;
+
+    return () => {
+      audio.removeEventListener("canplaythrough", handleCanPlayThrough);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+    };
+  }, [audioUrl]);
+
+  // 2. Escuchar los eventos del servidor para sincronizar a todos los clientes
+  useEffect(() => {
+    const handleAudioSync = (payload: {
+      action: "play" | "pause";
+      time: number;
+    }) => {
+      if (!audioRef.current) return;
+
+      // Sincronizamos el tiempo exacto de la canción
+      // Si la diferencia es mayor a medio segundo, lo ajustamos para evitar saltos bruscos constantes
+      if (Math.abs(audioRef.current.currentTime - payload.time) > 0.5) {
+        audioRef.current.currentTime = payload.time;
+      }
+
+      if (payload.action === "play") {
+        audioRef.current.play().catch(console.warn);
+      } else if (payload.action === "pause") {
+        audioRef.current.pause();
+      }
+    };
+
+    socket.on("match:audio:sync", handleAudioSync);
+    return () => {
+      socket.off("match:audio:sync", handleAudioSync);
+    };
+  }, []);
+
+  // 3. Auto-play al empezar la partida (Fase in-game)
+  useEffect(() => {
+    if (phaseKey === "in-game" && audioRef.current && isAudioReady) {
+      audioRef.current.play().catch(console.warn);
+    }
+  }, [phaseKey, isAudioReady]);
+
+  // 4. Función para que el botón de la UI emita el evento
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+
+    const isCurrentlyPlaying = !audioRef.current.paused;
+    const action = isCurrentlyPlaying ? "pause" : "play";
+    const time = audioRef.current.currentTime;
+
+    // Pausamos/Reproducimos localmente para una respuesta inmediata (optimista)
+    if (action === "play") audioRef.current.play();
+    else audioRef.current.pause();
+
+    // Avisamos al servidor para que avise a los demás
+    socket.emit("match:audio:toggle", {
+      matchId,
+      action,
+      time,
+    });
+  };
+
+  return { isAudioReady, isPlaying, toggleAudio };
 }
 
 export default function MatchPage() {
@@ -144,6 +233,12 @@ export default function MatchPage() {
     ? matchState.players.filter((player) => player.connected).length
     : 0;
 
+  const { isAudioReady, isPlaying, toggleAudio } = useMatchAudio(
+    "../public/media/previews/preview_026.mp3",
+    phaseKey,
+    code,
+  );
+
   return (
     <div className="container-page py-10 fade-in">
       <div className="mx-auto max-w-6xl">
@@ -199,8 +294,29 @@ export default function MatchPage() {
                     </span>
                   </div>
                 </div>
-                <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
-                  {code || "———"}
+
+                <div className="flex items-center gap-3">
+                  {/* Botón de Play/Pause (Solo visible si el audio está listo y estamos jugando) */}
+                  {isAudioReady && phaseKey === "in-game" && (
+                    <button
+                      onClick={toggleAudio}
+                      className="rounded-full border border-white/20 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs text-white transition-colors flex items-center gap-2"
+                    >
+                      {isPlaying ? (
+                        <>
+                          <span>⏸</span> Pause Music
+                        </>
+                      ) : (
+                        <>
+                          <span>▶️</span> Play Music
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
+                    {code || "———"}
+                  </div>
                 </div>
               </div>
             </div>

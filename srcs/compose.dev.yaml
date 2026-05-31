@@ -155,7 +155,6 @@ services:
     volumes:
       - ./backend/playlist-service:/app
       - /app/node_modules
-      - ./media/previews:/media/previews
 
   # nginx-reload:
   #   image: alpine:latest
