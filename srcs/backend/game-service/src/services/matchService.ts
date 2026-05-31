@@ -5,7 +5,16 @@ const PLAYLIST_SERVICE_URL =
   process.env.PLAYLIST_SERVICE_URL || "http://playlist-service:4004";
 const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 5;
+const LOBBY_COUNTDOWN_SECONDS = 5;
+const ROUND_COUNTDOWN_SECONDS = 5;
+const GUESS_WINDOW_SECONDS = 10;
+const COOLDOWN_SECONDS = 5;
+const RESOLUTION_SECONDS = 5;
+const BASE_SCORE = 100;
+const SPEED_MULTIPLIER = 10;
+const WRONG_GUESS_PENALTY = 50;
 const PLAYLIST_TIMEOUT_MS = 5000;
+const SECOND_MS = 1000;
 
 function clampRounds(rounds: number): number {
   return Math.min(MAX_ROUNDS, Math.max(MIN_ROUNDS, rounds));
@@ -14,6 +23,10 @@ function clampRounds(rounds: number): number {
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
   private readonly socketToMatch = new Map<string, string>();
+  private readonly countdownTimers = new Map<string, NodeJS.Timeout>();
+  private readonly roundCountdownTimers = new Map<string, NodeJS.Timeout>();
+  private readonly guessTimers = new Map<string, NodeJS.Timeout>();
+  private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
 
   generateMatchCode(length = 6): string {
     let code;
@@ -116,7 +129,7 @@ export class MatchService {
 
   markReady(
     socketId: string,
-    emit: (event: string, data: unknown) => void,
+    emit: (matchId: string, event: string, data: unknown) => void,
   ): ReadyResult {
     const match = this.getMatchBySocketOrThrow(socketId);
     if (match.phase !== "lobby") {
@@ -136,27 +149,139 @@ export class MatchService {
       match.players.every((entry) => entry.ready);
 
     if (countdownStarted) {
+      const previousPhase = match.phase;
       match.phase = "countdown";
       void this.loadPlaylist(match);
-
-      let countdown = 5;
-      const interval = setInterval(() => {
-        countdown -= 1;
-        emit("countdown", { matchId: match.matchId, countdown }); // Emit countdown updates
-
-        if (countdown === 0) {
-          clearInterval(interval);
-          match.phase = "in-game";
-          this.startRound(match);
-          emit("match-started", { matchId: match.matchId }); // Notify that the match has started
-        }
-      }, 1000);
+      emit(match.matchId, "match:phase", {
+        matchId: match.matchId,
+        phase: match.phase,
+        previousPhase,
+      });
+      this.startLobbyCountdown(match, emit);
     }
 
     return {
       match,
       countdownStarted,
     };
+  }
+
+  markRoundReady(
+    socketId: string,
+    _emit: (matchId: string, event: string, data: unknown) => void,
+  ): { match: MatchState; countdownStarted: boolean } {
+    void _emit;
+    const match = this.getMatchBySocketOrThrow(socketId);
+    if (match.phase !== "in-game" || !match.round) {
+      throw new Error("INVALID_STATE");
+    }
+    if (match.round.phase !== "sync") {
+      throw new Error("ROUND_NOT_READY");
+    }
+
+    const player = match.players.find((entry) => entry.socketId === socketId);
+    if (!player) {
+      throw new Error("PLAYER_NOT_IN_MATCH");
+    }
+
+    if (!match.round.readyUserIds.includes(player.userId)) {
+      match.round.readyUserIds.push(player.userId);
+    }
+
+    const connectedPlayers = match.players.filter((entry) => entry.connected);
+    const countdownStarted = connectedPlayers.every((entry) =>
+      match.round?.readyUserIds.includes(entry.userId),
+    );
+
+    if (countdownStarted) {
+      match.round.phase = "countdown";
+      match.round.countdownEndsAt =
+        Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
+      this.startRoundCountdown(match);
+    }
+
+    return { match, countdownStarted };
+  }
+
+  requestLock(
+    socketId: string,
+    time: number,
+    emit: (matchId: string, event: string, data: unknown) => void,
+  ): MatchState {
+    const match = this.getMatchBySocketOrThrow(socketId);
+    if (match.phase !== "in-game" || !match.round) {
+      throw new Error("INVALID_STATE");
+    }
+
+    if (match.round.phase !== "playing") {
+      throw new Error("ROUND_NOT_PLAYING");
+    }
+
+    if (match.round.lockOwnerId) {
+      throw new Error("ROUND_ALREADY_LOCKED");
+    }
+
+    const player = match.players.find((entry) => entry.socketId === socketId);
+    if (!player) {
+      throw new Error("PLAYER_NOT_IN_MATCH");
+    }
+
+    const now = Date.now();
+    match.round.phase = "guessing";
+    match.round.lockOwnerId = player.userId;
+    match.round.lockAt = time;
+    match.round.guessEndsAt = now + GUESS_WINDOW_SECONDS * SECOND_MS;
+
+    emit(match.matchId, "round:lock_confirmed", {
+      matchId: match.matchId,
+      roundIndex: match.round.roundIndex,
+      lockOwnerId: match.round.lockOwnerId,
+      lockAt: match.round.lockAt,
+      guessEndsAt: match.round.guessEndsAt,
+    });
+
+    this.clearTimer(this.guessTimers, match.matchId);
+    const timer = setTimeout(() => {
+      this.resolveGuess(match, player.userId, false, "timeout", emit);
+    }, GUESS_WINDOW_SECONDS * SECOND_MS);
+    this.guessTimers.set(match.matchId, timer);
+
+    return match;
+  }
+
+  submitGuess(
+    socketId: string,
+    trackId: string,
+    emit: (matchId: string, event: string, data: unknown) => void,
+  ): MatchState {
+    const match = this.getMatchBySocketOrThrow(socketId);
+    if (match.phase !== "in-game" || !match.round) {
+      throw new Error("INVALID_STATE");
+    }
+
+    const player = match.players.find((entry) => entry.socketId === socketId);
+    if (!player) {
+      throw new Error("PLAYER_NOT_IN_MATCH");
+    }
+
+    if (match.round.phase !== "guessing") {
+      throw new Error("GUESS_NOT_ALLOWED");
+    }
+
+    if (match.round.lockOwnerId !== player.userId) {
+      throw new Error("NOT_LOCK_OWNER");
+    }
+
+    const previewId = match.round.preview?.trackId ?? null;
+    const isCorrect = Boolean(previewId && trackId === previewId);
+    this.resolveGuess(
+      match,
+      player.userId,
+      isCorrect,
+      isCorrect ? null : "wrong",
+      emit,
+    );
+    return match;
   }
 
   getMatch(matchId: string): MatchState | undefined {
@@ -248,7 +373,9 @@ export class MatchService {
   }
 
   private ensureScoreEntry(match: MatchState, player: MatchPlayer): void {
-    const existing = match.scores.find((entry) => entry.userId === player.userId);
+    const existing = match.scores.find(
+      (entry) => entry.userId === player.userId,
+    );
     if (existing) {
       existing.displayName = player.displayName;
       return;
@@ -267,11 +394,163 @@ export class MatchService {
       roundIndex: match.roundIndex,
       phase: "sync",
       preview,
+      readyUserIds: [],
       lockOwnerId: null,
       lockAt: null,
       guessEndsAt: null,
       countdownEndsAt: null,
     };
+  }
+
+  private startLobbyCountdown(
+    match: MatchState,
+    emit: (matchId: string, event: string, data: unknown) => void,
+  ): void {
+    this.clearTimer(this.countdownTimers, match.matchId);
+
+    const timer = setTimeout(() => {
+      const previousPhase = match.phase;
+      match.phase = "in-game";
+      emit(match.matchId, "match:phase", {
+        matchId: match.matchId,
+        phase: match.phase,
+        previousPhase,
+      });
+      this.startRound(match);
+      emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
+    }, LOBBY_COUNTDOWN_SECONDS * SECOND_MS);
+
+    this.countdownTimers.set(match.matchId, timer);
+  }
+
+  private startRoundCountdown(match: MatchState): void {
+    this.clearTimer(this.roundCountdownTimers, match.matchId);
+
+    const timer = setTimeout(() => {
+      if (!match.round) {
+        return;
+      }
+
+      match.round.phase = "playing";
+      match.round.countdownEndsAt = null;
+    }, ROUND_COUNTDOWN_SECONDS * SECOND_MS);
+
+    this.roundCountdownTimers.set(match.matchId, timer);
+  }
+
+  private resolveGuess(
+    match: MatchState,
+    lockOwnerId: string,
+    correct: boolean,
+    reason: "wrong" | "timeout" | null,
+    emit: (matchId: string, event: string, data: unknown) => void,
+  ): void {
+    this.clearTimer(this.guessTimers, match.matchId);
+    this.clearTimer(this.resumeTimers, match.matchId);
+
+    const round = match.round;
+    if (!round) {
+      return;
+    }
+
+    const scoreEntry = match.scores.find(
+      (entry) => entry.userId === lockOwnerId,
+    );
+    const totalTimeMs = GUESS_WINDOW_SECONDS * SECOND_MS;
+    const now = Date.now();
+    const startedAt = round.guessEndsAt ? round.guessEndsAt - totalTimeMs : now;
+    const elapsedSec = Math.max(0, (now - startedAt) / SECOND_MS);
+    const speedBonus = Math.max(
+      0,
+      Math.floor((GUESS_WINDOW_SECONDS - elapsedSec) * SPEED_MULTIPLIER),
+    );
+    const scoreDelta = correct ? BASE_SCORE + speedBonus : -WRONG_GUESS_PENALTY;
+
+    if (scoreEntry) {
+      scoreEntry.score += scoreDelta;
+    }
+
+    round.phase = correct ? "resolution-win" : "resolution-fail";
+
+    emit(match.matchId, "round:guess_result", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+      lockOwnerId,
+      correct,
+      reason,
+      trackId: round.preview?.trackId ?? null,
+      scoreDelta,
+      totalScore: scoreEntry?.score ?? scoreDelta,
+    });
+
+    if (correct) {
+      const timer = setTimeout(() => {
+        if (match.roundIndex + 1 >= match.roundsTotal) {
+          const previousPhase = match.phase;
+          match.phase = "finished";
+          emit(match.matchId, "match:phase", {
+            matchId: match.matchId,
+            phase: match.phase,
+            previousPhase,
+          });
+          emit(match.matchId, "match:end", {
+            matchId: match.matchId,
+            scores: match.scores,
+          });
+          return;
+        }
+
+        match.roundIndex += 1;
+        this.startRound(match);
+        emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
+      }, RESOLUTION_SECONDS * SECOND_MS);
+
+      this.resumeTimers.set(match.matchId, timer);
+      return;
+    }
+
+    const resumeTimer = setTimeout(() => {
+      if (!match.round) {
+        return;
+      }
+
+      const resumeTime = match.round.lockAt;
+      match.round.phase = "playing";
+      match.round.lockOwnerId = null;
+      match.round.lockAt = null;
+      match.round.guessEndsAt = null;
+
+      emit(match.matchId, "round:resume", {
+        matchId: match.matchId,
+        roundIndex: match.round.roundIndex,
+        resumeTime,
+      });
+    }, COOLDOWN_SECONDS * SECOND_MS);
+
+    this.resumeTimers.set(match.matchId, resumeTimer);
+  }
+
+  private toRoundSyncPayload(match: MatchState) {
+    return {
+      matchId: match.matchId,
+      roundIndex: match.roundIndex,
+      roundsTotal: match.roundsTotal,
+      preview: match.round?.preview ?? null,
+      playlistError: match.playlistError,
+    };
+  }
+
+  private clearTimer(
+    timers: Map<string, NodeJS.Timeout>,
+    matchId: string,
+  ): void {
+    const timer = timers.get(matchId);
+    if (!timer) {
+      return;
+    }
+
+    clearTimeout(timer);
+    timers.delete(matchId);
   }
 
   private async loadPlaylist(match: MatchState): Promise<void> {
