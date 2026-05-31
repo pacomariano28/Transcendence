@@ -5,6 +5,7 @@ import { matchService } from "../services/matchService.js";
 type CreateMatchPayload = {
   matchId?: string;
   expectedPlayers: number;
+  roundsTotal?: number;
   displayName?: string;
 };
 
@@ -16,6 +17,7 @@ type JoinMatchPayload = {
 type MatchStatePayload = {
   matchId: string;
   expectedPlayers: number;
+  roundsTotal: number;
   phase: MatchState["phase"];
   players: Array<{
     userId: string;
@@ -46,6 +48,11 @@ type RoundGuessPayload = {
   trackId: string;
 };
 
+type RoundPreviewEndedPayload = {
+  matchId: string;
+  roundIndex: number;
+};
+
 function readHeader(
   headers: Record<string, string | string[] | undefined>,
   name: string,
@@ -60,6 +67,7 @@ function toPayload(match: MatchState): MatchStatePayload {
   return {
     matchId: match.matchId,
     expectedPlayers: match.expectedPlayers,
+    roundsTotal: match.roundsTotal,
     phase: match.phase,
     players: match.players.map((player) => ({
       userId: player.userId,
@@ -100,6 +108,7 @@ export function registerSocketHandlers(io: Server): void {
           "Guest";
         const match = matchService.createMatch({
           expectedPlayers: payload.expectedPlayers,
+          roundsTotal: payload.roundsTotal,
           userId,
           displayName,
           socketId: socket.id,
@@ -136,26 +145,26 @@ export function registerSocketHandlers(io: Server): void {
         socket.join(match.matchId);
         emitMatchState(socket, match);
         socket.emit("match:joined", toPayload(match));
+
+        if (match.phase === "in-game") {
+          const roundPayload = matchService.getRoundSyncPayload(match.matchId);
+          if (roundPayload) {
+            socket.emit("round:sync", roundPayload);
+          }
+        }
       } catch (error) {
         emitMatchError(socket, error);
       }
     });
 
-    socket.on("match:ready", () => {
+    socket.on("match:ready", async () => {
       try {
         const emitToMatch = (matchId: string, event: string, data: unknown) => {
           io.to(matchId).emit(event, data);
         };
-        const result = matchService.markReady(socket.id, emitToMatch);
+        const result = await matchService.markReady(socket.id, emitToMatch);
 
         emitMatchState(socket, result.match);
-
-        if (result.countdownStarted) {
-          io.to(result.match.matchId).emit("match:countdown", {
-            seconds: 5,
-          });
-          logInfo(`Match ${result.match.matchId} countdown started`);
-        }
       } catch (error) {
         emitMatchError(socket, error);
       }
@@ -206,6 +215,22 @@ export function registerSocketHandlers(io: Server): void {
         const match = matchService.submitGuess(
           socket.id,
           payload.trackId,
+          emitToMatch,
+        );
+        emitMatchState(socket, match);
+      } catch (error) {
+        emitMatchError(socket, error);
+      }
+    });
+
+    socket.on("round:preview_ended", (payload: RoundPreviewEndedPayload) => {
+      try {
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const match = matchService.handlePreviewEnded(
+          socket.id,
+          payload.roundIndex,
           emitToMatch,
         );
         emitMatchState(socket, match);

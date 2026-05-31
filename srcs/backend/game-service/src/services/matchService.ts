@@ -127,10 +127,10 @@ export class MatchService {
     return match;
   }
 
-  markReady(
+  async markReady(
     socketId: string,
     emit: (matchId: string, event: string, data: unknown) => void,
-  ): ReadyResult {
+  ): Promise<ReadyResult> {
     const match = this.getMatchBySocketOrThrow(socketId);
     if (match.phase !== "lobby") {
       throw new Error("INVALID_STATE");
@@ -141,23 +141,25 @@ export class MatchService {
       throw new Error("PLAYER_NOT_IN_MATCH");
     }
 
-    player.ready = true;
+    player.ready = !player.ready;
 
+    const connectedPlayers = match.players.filter((entry) => entry.connected);
     const countdownStarted =
       match.phase === "lobby" &&
-      match.players.length === match.expectedPlayers &&
-      match.players.every((entry) => entry.ready);
+      connectedPlayers.length > 0 &&
+      connectedPlayers.every((entry) => entry.ready);
 
     if (countdownStarted) {
       const previousPhase = match.phase;
-      match.phase = "countdown";
-      void this.loadPlaylist(match);
+      match.phase = "in-game";
+      await this.loadPlaylist(match);
+      this.startRound(match);
       emit(match.matchId, "match:phase", {
         matchId: match.matchId,
         phase: match.phase,
         previousPhase,
       });
-      this.startLobbyCountdown(match, emit);
+      emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
     }
 
     return {
@@ -282,6 +284,61 @@ export class MatchService {
       emit,
     );
     return match;
+  }
+
+  handlePreviewEnded(
+    socketId: string,
+    roundIndex: number,
+    emit: (matchId: string, event: string, data: unknown) => void,
+  ): MatchState {
+    const match = this.getMatchBySocketOrThrow(socketId);
+
+    if (match.phase !== "in-game" || !match.round) {
+      return match;
+    }
+
+    if (match.round.roundIndex !== roundIndex) {
+      return match;
+    }
+
+    if (match.round.phase !== "playing" || match.round.lockOwnerId) {
+      return match;
+    }
+
+    if (match.roundIndex + 1 >= match.roundsTotal) {
+      const previousPhase = match.phase;
+      match.phase = "finished";
+      emit(match.matchId, "match:phase", {
+        matchId: match.matchId,
+        phase: match.phase,
+        previousPhase,
+      });
+      emit(match.matchId, "match:end", {
+        matchId: match.matchId,
+        scores: match.scores,
+      });
+      return match;
+    }
+
+    match.roundIndex += 1;
+    this.startRound(match);
+    emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
+    return match;
+  }
+
+  getRoundSyncPayload(matchId: string) {
+    const match = this.getMatch(matchId);
+    if (!match || !match.round) {
+      return null;
+    }
+
+    return {
+      matchId: match.matchId,
+      roundIndex: match.roundIndex,
+      roundsTotal: match.roundsTotal,
+      preview: match.round.preview,
+      playlistError: match.playlistError,
+    };
   }
 
   getMatch(matchId: string): MatchState | undefined {
