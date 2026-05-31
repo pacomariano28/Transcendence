@@ -19,6 +19,7 @@ declare global {
     roundIndex: number;
     phase: RoundPhase;
     preview: PlaylistItem | null;
+    readyUserIds: string[];
     lockOwnerId: string | null;
     lockAt: number | null;
     guessEndsAt: number | null;
