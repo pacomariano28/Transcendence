@@ -29,12 +29,12 @@ fi
 echo "Detected IP: $LOCAL_IP"
 
 find . -type f -name ".env" | while read -r envfile; do
-    if ! grep -q "127.0.0.1" "$envfile"; then
-        continue
-    fi
-
     echo "Updating $envfile"
     
-    sed -i "s/127\.0\.0\.1/$LOCAL_IP/g" "$envfile"
+    sed -E -i \
+    "s/\b(localhost|127\.0\.0\.1|10\.[0-9.]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9.]+|192\.168\.[0-9.]+)\b/$LOCAL_IP/g" \
+    "$envfile"
 
 done
+
+echo "Open at https://$LOCAL_IP:8443"
