@@ -107,8 +107,7 @@ export class MatchService {
     if (countdownStarted) {
       match.phase = "countdown";
 
-      // Start a 10-second countdown
-      let countdown = 3;
+      let countdown = 5;
       const interval = setInterval(() => {
         countdown -= 1;
         emit("countdown", { matchId: match.matchId, countdown }); // Emit countdown updates
