@@ -6,7 +6,7 @@ import {
   ROUND_COUNTDOWN_SECONDS,
   SECOND_MS,
 } from "./constants.js";
-import { loadPlaylist } from "./playlist.js";
+import { loadPlaylist } from "./playlist.service.js";
 import { createMatchState, createPlayer, ensureScoreEntry } from "./state.js";
 import { getConnectedPlayers } from "./utils.js";
 import {
