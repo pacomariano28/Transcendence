@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
+import type { SpotifySearchTrack } from "../api/spotify";
+import { searchSpotifyTracks } from "../api/spotify";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -13,6 +15,7 @@ function normalizeCode(raw: string) {
 type MatchStatePayload = {
   matchId: string;
   expectedPlayers: number;
+  roundsTotal: number;
   phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
   players: Array<{
     userId: string;
@@ -30,136 +33,73 @@ type MatchPhasePayload = {
   reason?: string;
 };
 
-const phaseMeta: Record<
-  MatchStatePayload["phase"],
-  {
-    title: string;
-    caption: string;
-    accent: string;
-  }
-> = {
-  lobby: {
-    title: "Match staging",
-    caption:
-      "The room is still syncing. The active board will appear once the match begins.",
-    accent: "#f7d046",
-  },
-  countdown: {
-    title: "Transitioning",
-    caption: "The lobby handoff is still in progress.",
-    accent: "#fb7185",
-  },
-  "in-game": {
-    title: "In play",
-    caption: "The arena is live. This page is the external match view.",
-    accent: "#4ade80",
-  },
-  playing: {
-    title: "In play",
-    caption: "The arena is live. This page is the external match view.",
-    accent: "#4ade80",
-  },
-  finished: {
-    title: "Round finished",
-    caption: "Results can be placed here once match resolution is wired up.",
-    accent: "#93c5fd",
-  },
+type ScoreEntry = {
+  userId: string;
+  displayName: string;
+  score: number;
 };
 
-function getPhaseKey(phase?: MatchStatePayload["phase"] | null) {
-  if (!phase) return "lobby";
-  if (phase === "playing") return "in-game";
-  return phase;
-}
+type RoundPreview = {
+  trackId: string;
+  fileName: string;
+};
 
-function useMatchAudio(audioUrl: string, phaseKey: string, matchId: string) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isAudioReady, setIsAudioReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+type RoundSyncPayload = {
+  matchId: string;
+  roundIndex: number;
+  roundsTotal: number;
+  preview: RoundPreview | null;
+  playlistError: string | null;
+};
 
-  // 1. Inicialización y caché del audio
-  useEffect(() => {
-    const audio = new Audio(audioUrl);
-    audio.preload = "auto";
+type RoundCountdownPayload = {
+  matchId: string;
+  roundIndex: number;
+  seconds: number;
+  endsAt: number;
+};
 
-    const handleCanPlayThrough = () => setIsAudioReady(true);
-    audio.addEventListener("canplaythrough", handleCanPlayThrough);
+type RoundLockPayload = {
+  matchId: string;
+  roundIndex: number;
+  lockOwnerId: string;
+  lockAt: number | null;
+  guessEndsAt: number | null;
+};
 
-    // Sincronizar el estado de React con los eventos nativos del audio
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
+type RoundGuessResultPayload = {
+  matchId: string;
+  roundIndex: number;
+  lockOwnerId: string;
+  correct: boolean;
+  reason: "wrong" | "timeout" | null;
+  trackId: string | null;
+  scoreDelta: number;
+  totalScore: number;
+};
 
-    audio.load();
-    audioRef.current = audio;
+type RoundResumePayload = {
+  matchId: string;
+  roundIndex: number;
+  resumeTime: number | null;
+};
 
-    return () => {
-      audio.removeEventListener("canplaythrough", handleCanPlayThrough);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.pause();
-      audio.src = "";
-      audioRef.current = null;
-    };
-  }, [audioUrl]);
+type MatchEndPayload = {
+  matchId: string;
+  scores: ScoreEntry[];
+};
 
-  // 2. Escuchar los eventos del servidor para sincronizar a todos los clientes
-  useEffect(() => {
-    const handleAudioSync = (payload: {
-      action: "play" | "pause";
-      time: number;
-    }) => {
-      if (!audioRef.current) return;
+type RoundPhase =
+  | "idle"
+  | "sync"
+  | "countdown"
+  | "playing"
+  | "guessing"
+  | "resolution-win"
+  | "resolution-fail"
+  | "finished";
 
-      // Sincronizamos el tiempo exacto de la canción
-      // Si la diferencia es mayor a medio segundo, lo ajustamos para evitar saltos bruscos constantes
-      if (Math.abs(audioRef.current.currentTime - payload.time) > 0.5) {
-        audioRef.current.currentTime = payload.time;
-      }
-
-      if (payload.action === "play") {
-        audioRef.current.play().catch(console.warn);
-      } else if (payload.action === "pause") {
-        audioRef.current.pause();
-      }
-    };
-
-    socket.on("match:audio:sync", handleAudioSync);
-    return () => {
-      socket.off("match:audio:sync", handleAudioSync);
-    };
-  }, []);
-
-  // 3. Auto-play al empezar la partida (Fase in-game)
-  useEffect(() => {
-    if (phaseKey === "in-game" && audioRef.current && isAudioReady) {
-      audioRef.current.play().catch(console.warn);
-    }
-  }, [phaseKey, isAudioReady]);
-
-  // 4. Función para que el botón de la UI emita el evento
-  const toggleAudio = () => {
-    if (!audioRef.current) return;
-
-    const isCurrentlyPlaying = !audioRef.current.paused;
-    const action = isCurrentlyPlaying ? "pause" : "play";
-    const time = audioRef.current.currentTime;
-
-    // Pausamos/Reproducimos localmente para una respuesta inmediata (optimista)
-    if (action === "play") audioRef.current.play();
-    else audioRef.current.pause();
-
-    // Avisamos al servidor para que avise a los demás
-    socket.emit("match:audio:toggle", {
-      matchId,
-      action,
-      time,
-    });
-  };
-
-  return { isAudioReady, isPlaying, toggleAudio };
-}
+const SECOND_MS = 1000;
 
 export default function MatchPage() {
   const nav = useNavigate();
@@ -170,14 +110,83 @@ export default function MatchPage() {
 
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [roundInfo, setRoundInfo] = useState<RoundSyncPayload | null>(null);
+  const [roundPhase, setRoundPhase] = useState<RoundPhase>("idle");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioReady, setAudioReady] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
+  const [guessSeconds, setGuessSeconds] = useState<number | null>(null);
+  const [lockOwnerId, setLockOwnerId] = useState<string | null>(null);
+  const [guessEndsAt, setGuessEndsAt] = useState<number | null>(null);
+  const [lastResult, setLastResult] = useState<RoundGuessResultPayload | null>(
+    null,
+  );
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [finalScores, setFinalScores] = useState<ScoreEntry[] | null>(null);
+  const [lockRequested, setLockRequested] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<SpotifySearchTrack[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<SpotifySearchTrack | null>(
+    null,
+  );
 
-  const phaseKey = getPhaseKey(matchState?.phase);
-  const meta = phaseMeta[phaseKey];
-  const me = useMemo(() => {
-    if (!matchState || !user) return null;
-    const userId = String(user.id);
-    return matchState.players.find((player) => player.userId === userId);
-  }, [matchState, user]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const readyRoundRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+
+  const myUserId = user ? String(user.id) : null;
+  const lockOwnerName = useMemo(() => {
+    if (!matchState || !lockOwnerId) return "";
+    return (
+      matchState.players.find((player) => player.userId === lockOwnerId)
+        ?.displayName ?? ""
+    );
+  }, [matchState, lockOwnerId]);
+
+  const scoreboard = useMemo(() => {
+    if (!matchState) return [];
+    return matchState.players.map((player) => ({
+      userId: player.userId,
+      displayName: player.displayName,
+      score: scores[player.userId] ?? 0,
+      connected: player.connected,
+    }));
+  }, [matchState, scores]);
+
+  const isLockOwner = Boolean(lockOwnerId && lockOwnerId === myUserId);
+  const canLock = roundPhase === "playing" && audioReady && !lockOwnerId;
+  const canGuess = roundPhase === "guessing" && isLockOwner;
+
+  const roundLabel = roundInfo
+    ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
+    : "Waiting for round";
+
+  const roundStatus = useMemo(() => {
+    if (roundPhase === "sync") {
+      return audioReady ? "Waiting for players" : "Loading preview";
+    }
+    if (roundPhase === "countdown") {
+      return "Starting";
+    }
+    if (roundPhase === "playing") {
+      return "Playing";
+    }
+    if (roundPhase === "guessing") {
+      return "Guessing";
+    }
+    if (roundPhase === "resolution-win") {
+      return "Correct";
+    }
+    if (roundPhase === "resolution-fail") {
+      return "Wrong";
+    }
+    if (roundPhase === "finished") {
+      return "Finished";
+    }
+    return "Idle";
+  }, [roundPhase, audioReady]);
 
   useEffect(() => {
     if (!user || !code) return;
@@ -201,6 +210,15 @@ export default function MatchPage() {
     socket.on("match:state", (payload: MatchStatePayload) => {
       setMatchState(payload);
       setError(null);
+      setScores((prev) => {
+        const next = { ...prev };
+        payload.players.forEach((player) => {
+          if (next[player.userId] === undefined) {
+            next[player.userId] = 0;
+          }
+        });
+        return next;
+      });
     });
     socket.on("match:phase", (payload: MatchPhasePayload) => {
       if (payload.matchId !== code) return;
@@ -211,235 +229,566 @@ export default function MatchPage() {
       if (payload.phase === "lobby") {
         nav(`/room/${code}`, { replace: true });
       }
+      if (payload.phase === "finished") {
+        setRoundPhase("finished");
+      }
+    });
+    socket.on("round:sync", (payload: RoundSyncPayload) => {
+      if (payload.matchId !== code) return;
+      setRoundInfo(payload);
+      setRoundPhase("sync");
+      setCountdownSeconds(null);
+      setGuessSeconds(null);
+      setGuessEndsAt(null);
+      setLockOwnerId(null);
+      setLastResult(null);
+      setLockRequested(false);
+      readyRoundRef.current = null;
+      setAudioReady(false);
+      setError(payload.playlistError ?? null);
+      setSearchTerm("");
+      setSearchResults([]);
+      setSearching(false);
+      setSearchError(null);
+      setSelectedTrack(null);
+      setAudioUrl(
+        payload.preview ? `/media/previews/${payload.preview.fileName}` : null,
+      );
+    });
+
+    function clearCountdownTimer() {
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    }
+
+    function startCountdown(seconds: number) {
+      clearCountdownTimer();
+      setRoundPhase("countdown");
+      setCountdownSeconds(seconds);
+
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+      }
+
+      let remaining = seconds;
+      countdownTimerRef.current = window.setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearCountdownTimer();
+          setCountdownSeconds(null);
+          setRoundPhase("playing");
+          audioRef.current?.play().catch(() => undefined);
+          return;
+        }
+        setCountdownSeconds(remaining);
+      }, SECOND_MS);
+    }
+
+    socket.on("round:countdown", (payload: RoundCountdownPayload) => {
+      if (payload.matchId !== code) return;
+      startCountdown(payload.seconds);
+    });
+    socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
+      if (payload.matchId !== code) return;
+      setRoundPhase("guessing");
+      setLockOwnerId(payload.lockOwnerId);
+      setGuessEndsAt(payload.guessEndsAt ?? null);
+      setLockRequested(false);
+
+      if (audioRef.current) {
+        if (payload.lockAt !== null) {
+          audioRef.current.currentTime = payload.lockAt;
+        }
+        audioRef.current.pause();
+      }
+    });
+    socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
+      if (payload.matchId !== code) return;
+      setLastResult(payload);
+      setRoundPhase(payload.correct ? "resolution-win" : "resolution-fail");
+      setGuessSeconds(null);
+      setGuessEndsAt(null);
+      setLockOwnerId(payload.lockOwnerId);
+      setScores((prev) => ({
+        ...prev,
+        [payload.lockOwnerId]: payload.totalScore,
+      }));
+      setLockRequested(false);
+    });
+    socket.on("round:resume", (payload: RoundResumePayload) => {
+      if (payload.matchId !== code) return;
+      setRoundPhase("playing");
+      setLockOwnerId(null);
+      setGuessSeconds(null);
+      setGuessEndsAt(null);
+      setLockRequested(false);
+
+      if (audioRef.current) {
+        if (payload.resumeTime !== null) {
+          audioRef.current.currentTime = payload.resumeTime;
+        }
+        audioRef.current.play().catch(() => undefined);
+      }
+    });
+    socket.on("match:end", (payload: MatchEndPayload) => {
+      if (payload.matchId !== code) return;
+      setFinalScores(payload.scores);
+      setRoundPhase("finished");
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
     });
     socket.on("match:error", (err: { message: string }) => {
       setError(err.message);
+      setLockRequested(false);
     });
 
     return () => {
       socket.off("connect", joinMatch);
       socket.off("match:state");
       socket.off("match:phase");
+      socket.off("round:sync");
+      socket.off("round:countdown");
+      socket.off("round:lock_confirmed");
+      socket.off("round:guess_result");
+      socket.off("round:resume");
+      socket.off("match:end");
       socket.off("match:error");
     };
-  }, [code, user, nav]);
+  }, [code, nav, user]);
 
-  const readyCount = useMemo(() => {
-    if (!matchState) return 0;
-    return matchState.players.filter((player) => player.ready).length;
-  }, [matchState]);
+  useEffect(() => {
+    if (!audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+      return;
+    }
 
-  const liveCount = matchState
-    ? matchState.players.filter((player) => player.connected).length
-    : 0;
+    const audio = new Audio(audioUrl);
+    audio.preload = "auto";
 
-  const { isAudioReady, isPlaying, toggleAudio } = useMatchAudio(
-    "../public/media/previews/preview_026.mp3",
-    phaseKey,
-    code,
-  );
+    const handleReady = () => {
+      setAudioReady(true);
+      if (roundInfo && readyRoundRef.current !== roundInfo.roundIndex) {
+        socket.emit("round:ready");
+        readyRoundRef.current = roundInfo.roundIndex;
+      }
+    };
+
+    const handleEnded = () => {
+      if (!roundInfo || !code) return;
+      socket.emit("round:preview_ended", {
+        matchId: code,
+        roundIndex: roundInfo.roundIndex,
+      });
+    };
+
+    const handleError = () => {
+      setError("AUDIO_LOAD_FAILED");
+    };
+
+    audio.addEventListener("canplaythrough", handleReady);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+    audio.load();
+    audioRef.current = audio;
+
+    return () => {
+      audio.removeEventListener("canplaythrough", handleReady);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      audio.pause();
+      audio.src = "";
+      if (audioRef.current === audio) {
+        audioRef.current = null;
+      }
+    };
+  }, [audioUrl, roundInfo, code]);
+
+  useEffect(() => {
+    if (!guessEndsAt) return undefined;
+
+    const update = () => {
+      const remainingMs = Math.max(0, guessEndsAt - Date.now());
+      const remaining = Math.ceil(remainingMs / SECOND_MS);
+      setGuessSeconds(remaining);
+    };
+
+    update();
+    const timerId = window.setInterval(update, 200);
+    return () => window.clearInterval(timerId);
+  }, [guessEndsAt]);
+
+  useEffect(() => {
+    if (!canGuess || selectedTrack) {
+      return;
+    }
+
+    const term = searchTerm.trim();
+    if (term.length < 2) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const timerId = window.setTimeout(() => {
+      setSearching(true);
+      searchSpotifyTracks(term)
+        .then((tracks) => {
+          if (cancelled) return;
+          setSearchResults(tracks);
+          setSearchError(null);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : "SEARCH_FAILED";
+          setSearchError(message);
+          setSearchResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setSearching(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [canGuess, searchTerm, selectedTrack]);
+
+  const requestLock = useCallback(() => {
+    if (!audioRef.current || !canLock || lockRequested) return;
+    setLockRequested(true);
+    socket.emit("round:lock_request", {
+      matchId: code,
+      time: audioRef.current.currentTime,
+    });
+  }, [canLock, code, lockRequested]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!canLock) return;
+      if (event.code !== "Space") return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      requestLock();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canLock, requestLock]);
+
+  function submitGuess() {
+    if (!canGuess || !selectedTrack) return;
+    socket.emit("round:guess_submit", {
+      matchId: code,
+      trackId: selectedTrack.id,
+    });
+  }
+
+  const selectTrack = useCallback((track: SpotifySearchTrack) => {
+    setSelectedTrack(track);
+    setSearchTerm(`${track.track} - ${track.artist}`);
+    setSearchResults([]);
+    setSearchError(null);
+    setSearching(false);
+  }, []);
+
+  function handleBack() {
+    nav(`/room/${code}`, { replace: true });
+  }
 
   return (
     <div className="container-page py-10 fade-in">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.28em] text-zinc-300">
-              Match view
+            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+              Match
             </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              {meta.title}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
-              {meta.caption}
-            </p>
+            <div className="mt-1 text-2xl font-semibold text-white">
+              {roundLabel}
+            </div>
+            <div className="mt-1 text-sm text-zinc-400">
+              Status: {roundStatus}
+            </div>
           </div>
-          <button
-            className="btn-ghost"
-            onClick={() => nav(`/room/${code}`, { replace: true })}
-          >
-            Back to lobby
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
+              {code || "———"}
+            </div>
+            <button className="btn-ghost" onClick={handleBack}>
+              Back to lobby
+            </button>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
+          <div className="rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
             {error}
           </div>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-          <section className="page-card overflow-hidden p-0">
-            <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4 sm:px-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                    Arena
-                  </div>
-                  <div className="mt-1 flex items-center gap-3">
-                    <h2 className="text-xl font-semibold text-white sm:text-2xl">
-                      {phaseKey === "countdown"
-                        ? "Waiting for handoff"
-                        : "Match active"}
-                    </h2>
-                    <span
-                      className="rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.22em]"
-                      style={{
-                        borderColor: `${meta.accent}40`,
-                        color: meta.accent,
-                        background: `${meta.accent}10`,
-                      }}
-                    >
-                      {phaseKey}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Botón de Play/Pause (Solo visible si el audio está listo y estamos jugando) */}
-                  {isAudioReady && phaseKey === "in-game" && (
-                    <button
-                      onClick={toggleAudio}
-                      className="rounded-full border border-white/20 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs text-white transition-colors flex items-center gap-2"
-                    >
-                      {isPlaying ? (
-                        <>
-                          <span>⏸</span> Pause Music
-                        </>
-                      ) : (
-                        <>
-                          <span>▶️</span> Play Music
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
-                    {code || "———"}
-                  </div>
-                </div>
-              </div>
+        {finalScores ? (
+          <section className="card p-6">
+            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+              Final results
             </div>
-
-            <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_rgba(20,20,22,0.96)_60%)] p-6">
-                <div className="text-xs uppercase tracking-[0.26em] text-zinc-400">
-                  Match board
-                </div>
-                <div className="mt-3 min-h-80 rounded-[1.4rem] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.1))] p-6">
-                  <div className="flex h-full min-h-64 flex-col items-center justify-center text-center">
-                    <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">
-                      External match page
-                    </div>
-                    <div className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
-                      Gameplay shell ready
-                    </div>
-                    <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
-                      This screen is separated from the lobby and can host the
-                      actual game canvas later without changing the room flow.
-                    </p>
+            <div className="mt-4 grid gap-3">
+              {finalScores.map((entry) => (
+                <div
+                  key={entry.userId}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
+                >
+                  <div className="text-sm font-medium text-zinc-100">
+                    {entry.displayName}
+                    {entry.userId === myUserId ? (
+                      <span className="text-zinc-500"> (you)</span>
+                    ) : null}
+                  </div>
+                  <div className="text-lg font-semibold text-white">
+                    {entry.score}
                   </div>
                 </div>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                      Match summary
-                    </div>
-                    <div className="mt-1 text-lg font-medium text-white">
-                      {liveCount} connected
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300">
-                    {readyCount} ready
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                      Room
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                      {code || "—"}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                      Phase
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                      {meta.title}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                      You
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                      {me?.ready ? "Ready" : "Playing"}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </section>
-
-          <aside className="section-stack">
-            <div className="card p-6">
-              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                Players
+        ) : (
+          <section className="card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                  Round
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  {roundLabel}
+                </div>
               </div>
-              <div className="mt-1 text-sm text-zinc-400">
-                {matchState
-                  ? `${readyCount} ready / ${liveCount} connected`
-                  : "Connecting to socket..."}
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                {!matchState ? (
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-                    Waiting for match state.
-                  </div>
-                ) : (
-                  matchState.players.map((player) => (
-                    <div
-                      key={player.userId}
-                      className="rounded-2xl border border-white/10 bg-black/20 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-zinc-100">
-                          {player.displayName}
-                          {player.userId === String(user?.id) ? (
-                            <span className="text-zinc-500"> (you)</span>
-                          ) : null}
-                        </div>
-                        <div
-                          className={`h-2.5 w-2.5 rounded-full ${
-                            player.connected
-                              ? player.ready
-                                ? "bg-emerald-400"
-                                : "bg-rose-400"
-                              : "bg-zinc-500"
-                          }`}
-                        />
-                      </div>
-                      <div className="mt-2 text-xs text-zinc-500">
-                        {!player.connected
-                          ? "Disconnected"
-                          : player.ready
-                            ? "Ready"
-                            : "Still loading"}
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="text-xs text-zinc-400">
+                {audioReady ? "Preview ready" : "Loading preview"}
               </div>
             </div>
-          </aside>
-        </div>
+
+            {countdownSeconds !== null && (
+              <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-center">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                  Starts in
+                </div>
+                <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
+                  {countdownSeconds}
+                </div>
+              </div>
+            )}
+
+            {roundInfo?.playlistError && (
+              <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
+                {roundInfo.playlistError}
+              </div>
+            )}
+          </section>
+        )}
+
+        {!finalScores && (
+          <section className="card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                  Lock and guess
+                </div>
+                {lockOwnerId ? (
+                  <div className="mt-1 text-sm text-zinc-300">
+                    Locked by {lockOwnerName || "player"}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm text-zinc-400">
+                    First lock wins
+                  </div>
+                )}
+              </div>
+              <button
+                className="btn-glow"
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                type="button"
+                disabled={!canLock || lockRequested}
+                onClick={requestLock}
+              >
+                <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
+              </button>
+            </div>
+
+            {roundPhase === "guessing" && (
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                  Guess window
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {guessSeconds ?? "—"}s left
+                </div>
+
+                {isLockOwner ? (
+                  <div className="mt-4">
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        className="input flex-1"
+                        placeholder="Search track"
+                        value={searchTerm}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setSearchTerm(nextValue);
+                          if (selectedTrack) {
+                            setSelectedTrack(null);
+                          }
+                          if (nextValue.trim().length < 2) {
+                            setSearchResults([]);
+                            setSearchError(null);
+                            setSearching(false);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter") return;
+                          event.preventDefault();
+                          submitGuess();
+                        }}
+                        disabled={!canGuess}
+                      />
+                      <button
+                        className="btn-glow"
+                        style={
+                          { "--btn-color": "#4ade80" } as React.CSSProperties
+                        }
+                        type="button"
+                        onClick={submitGuess}
+                        disabled={!canGuess || !selectedTrack}
+                      >
+                        <span>Submit guess</span>
+                      </button>
+                    </div>
+
+                    {selectedTrack && (
+                      <div className="mt-3 text-xs text-emerald-300">
+                        Selected: {selectedTrack.track} - {selectedTrack.artist}
+                      </div>
+                    )}
+
+                    {searchError && (
+                      <div className="mt-3 text-xs text-rose-300">
+                        {searchError}
+                      </div>
+                    )}
+
+                    {searching && (
+                      <div className="mt-3 text-xs text-zinc-500">
+                        Searching...
+                      </div>
+                    )}
+
+                    {!searching &&
+                      !searchError &&
+                      searchTerm.trim().length >= 2 &&
+                      searchResults.length === 0 &&
+                      !selectedTrack && (
+                        <div className="mt-3 text-xs text-zinc-500">
+                          No results.
+                        </div>
+                      )}
+
+                    {searchResults.length > 0 &&
+                      !selectedTrack &&
+                      searchTerm.trim().length >= 2 && (
+                        <div className="mt-3 grid gap-2">
+                          {searchResults.map((track) => (
+                            <button
+                              key={track.id}
+                              className="rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
+                              type="button"
+                              onClick={() => selectTrack(track)}
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {track.track}
+                              </div>
+                              <div className="text-xs text-zinc-400">
+                                {track.artist}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                ) : (
+                  <div className="mt-4 text-sm text-zinc-400">
+                    Waiting for the lock owner to submit a guess.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {lastResult && (
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                  Result
+                </div>
+                <div className="mt-2 text-lg font-semibold text-white">
+                  {lastResult.correct
+                    ? "Correct answer"
+                    : lastResult.reason === "timeout"
+                      ? "Time expired"
+                      : "Wrong answer"}
+                </div>
+                {lastResult.trackId && (
+                  <div className="mt-1 text-sm text-zinc-400">
+                    Track id: {lastResult.trackId}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="card p-6">
+          <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+            Scoreboard
+          </div>
+          <div className="mt-4 grid gap-3">
+            {scoreboard.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
+                Waiting for players.
+              </div>
+            ) : (
+              scoreboard.map((entry) => (
+                <div
+                  key={entry.userId}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
+                >
+                  <div className="text-sm font-medium text-zinc-100">
+                    {entry.displayName}
+                    {entry.userId === myUserId ? (
+                      <span className="text-zinc-500"> (you)</span>
+                    ) : null}
+                    {!entry.connected ? (
+                      <span className="text-zinc-500"> (offline)</span>
+                    ) : null}
+                  </div>
+                  <div className="text-lg font-semibold text-white">
+                    {entry.score}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

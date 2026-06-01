@@ -23,6 +23,8 @@ services:
       target: development
     environment:
       NODE_ENV: development
+    env_file:
+      - ./frontend/.env
     container_name: songuess-frontend
     restart: unless-stopped
     depends_on:
