@@ -5,7 +5,7 @@ const PLAYLIST_SERVICE_URL =
   process.env.PLAYLIST_SERVICE_URL || "http://playlist-service:4004";
 const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 5;
-const LOBBY_COUNTDOWN_SECONDS = 5;
+// const LOBBY_COUNTDOWN_SECONDS = 5;
 const ROUND_COUNTDOWN_SECONDS = 5;
 const GUESS_WINDOW_SECONDS = 10;
 const COOLDOWN_SECONDS = 5;
@@ -23,7 +23,7 @@ function clampRounds(rounds: number): number {
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
   private readonly socketToMatch = new Map<string, string>();
-  private readonly countdownTimers = new Map<string, NodeJS.Timeout>();
+  // private readonly countdownTimers = new Map<string, NodeJS.Timeout>();
   private readonly roundCountdownTimers = new Map<string, NodeJS.Timeout>();
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
   private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
@@ -459,26 +459,26 @@ export class MatchService {
     };
   }
 
-  private startLobbyCountdown(
-    match: MatchState,
-    emit: (matchId: string, event: string, data: unknown) => void,
-  ): void {
-    this.clearTimer(this.countdownTimers, match.matchId);
+  // private startLobbyCountdown(
+  //   match: MatchState,
+  //   emit: (matchId: string, event: string, data: unknown) => void,
+  // ): void {
+  //   this.clearTimer(this.countdownTimers, match.matchId);
 
-    const timer = setTimeout(() => {
-      const previousPhase = match.phase;
-      match.phase = "in-game";
-      emit(match.matchId, "match:phase", {
-        matchId: match.matchId,
-        phase: match.phase,
-        previousPhase,
-      });
-      this.startRound(match);
-      emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
-    }, LOBBY_COUNTDOWN_SECONDS * SECOND_MS);
+  //   const timer = setTimeout(() => {
+  //     const previousPhase = match.phase;
+  //     match.phase = "in-game";
+  //     emit(match.matchId, "match:phase", {
+  //       matchId: match.matchId,
+  //       phase: match.phase,
+  //       previousPhase,
+  //     });
+  //     this.startRound(match);
+  //     emit(match.matchId, "round:sync", this.toRoundSyncPayload(match));
+  //   }, LOBBY_COUNTDOWN_SECONDS * SECOND_MS);
 
-    this.countdownTimers.set(match.matchId, timer);
-  }
+  //   this.countdownTimers.set(match.matchId, timer);
+  // }
 
   private startRoundCountdown(match: MatchState): void {
     this.clearTimer(this.roundCountdownTimers, match.matchId);
