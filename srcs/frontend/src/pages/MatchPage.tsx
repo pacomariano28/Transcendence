@@ -408,7 +408,7 @@ export default function MatchPage() {
         audioRef.current = null;
       }
     };
-  }, [audioUrl, roundInfo]);
+  }, [audioUrl, roundInfo, code]);
 
   useEffect(() => {
     if (!guessEndsAt) return undefined;
