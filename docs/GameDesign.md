@@ -1,120 +1,171 @@
 # Game Design Document: Multiplayer Music Trivia
 
-## 1. Game Overview
-A real-time, competitive music guessing game where gameplay is driven by a "Stop & Solve" mechanic. The game aggregates the musical tastes of all players in the lobby to generate a unique playlist for every match.
+## 1. Overview
 
-* **Audio Source:** iTunes Search API (15s Previews).
-* **Auth/Profile Source:** Spotify OAuth (User Taste Data).
+A real-time, competitive music guessing game where gameplay is driven by a "Stop and Solve" mechanic. Each match uses random previews already stored in our database.
 
----
+- **Audio source:** Previews stored in the product database (15 s).
+- **Profile source:** Spotify OAuth (auth only; taste data not used for gameplay).
+- **Target platforms:** Desktop web (keyboard + mouse) and mobile web (touch).
+- **Document scope:** Full product spec (gameplay, UX, matchmaking, monetization, nonfunctional requirements) aligned to current codebase.
 
-## 2. Core Gameplay Loop
-The match consists of *N* Rounds. Each round follows this strict state machine:
+## 2. Product Goals
 
-### Phase A: Synchronization (The Setup)
-* **Aggregation:** Server combines "Top Genres/Artists" from all connected players.
-* **Generation:** AI (OpenAI/Gemini API) generates a playlist balancing these tastes.
-* **Validation:** Server verifies songs exist on iTunes and fetches `.mp3` preview URLs.
-* **Pre-load:** Server sends the round's Song URL to all clients.
-* **Ready Check:** Clients download the audio blob and signal `READY`.
-* **Countdown:** Once 100% ready, Server broadcasts `START_COUNTDOWN` (5s).
+- Deliver a synchronized, low-latency guessing experience where every pause and resume is authoritative.
+- Keep match setup fast: room creation in under 30 s and match start after all players ready.
+- Encourage repeat play via short matches and clear scoring feedback.
 
-### Phase B: The Race (The Active State)
-* **Playback:** At T=0, all clients play audio locally.
-* **Server Timer:** Server tracks elapsed time (0.0s to 15.0s).
-* **Interaction:** Players listen. First to recognize presses `SPACEBAR`.
+## 3. Match Settings
 
-### Phase C: The Lock (The Interruption)
-* **Trigger:** Player A sends `LOCK_REQUEST`.
-* **Server Logic:**
-    * If state == `PLAYING`: Accept lock. Broadcast `GAME_PAUSED` with timestamp (e.g., 4.2s).
-    * If state == `LOCKED`: Reject request.
-* **Client Action:**
-    * **All:** Pause audio immediately at 4.2s.
-    * **Guesser (Player A):** Input field unlocks. Timer set to 10s.
-    * **Spectators:** Input disabled. UI shows "Player A is guessing...".
+- **Rounds per match:** 1 to 5 (set by room host).
+- **Players per room:** 1 to 5. Matches may start with any number of players within this range.
+- **Preview length:** 15 s fixed.
+- **Guess window:** 10 s after lock (timeout triggers resume).
+- **Cooldown on wrong guess:** 5 s.
 
-### Phase D: The Guess
-* **Search:** Player A types. The React Frontend calls the API Gateway (debounced). The server queries iTunes, standardizes the JSON, and returns it to the client.
-* **Selection:** Player A selects a track from the dropdown.
-* **Submission:** Client sends `SUBMIT_GUESS { trackId, trackName }` to Server.
-* **Broadcast:** Server broadcasts `GUESS_REVEAL { trackName }` to all spectators (e.g., "Player A guessed 'Thriller'").
+## 4. Lobby and Matchmaking Flow
 
-### Phase E: Resolution
-* **Scenario 1: Correct**
-    * Server calculates score.
-    * Broadcast `ROUND_WIN` (Player A).
-    * Show Album Art/Details. Wait 5s. Next Round.
-* **Scenario 2: Incorrect / Timeout**
-    * Server broadcasts `WRONG_GUESS`.
-    * Penalty: Player A gets `COOLDOWN` (Input disabled for 5s).
-    * Resume: Server broadcasts `RESUME_PLAYBACK { time: 4.2s }`.
-    * Audio resumes for everyone. Race continues.
+Room creation and pre-game flow follow the canonical lobby lifecycle.
 
----
+### 4.1 Phases
 
-## 3. Scoring System
-Points are awarded to reward speed and accuracy.
+- `lobby`
+- `countdown`
+- `in-game`
+- `finished`
 
-| Metric | Formula | Example |
-| :--- | :--- | :--- |
-| **Base Score** | Fixed value for correct answer. | 100 pts |
-| **Speed Bonus** | (TotalTime - ElapsedTime) * Multiplier | Guess at 2s (13s left) = 13 * 10 = +130 pts |
-| **Wrong Guess** | Flat penalty. | -50 pts |
-| **Max Possible** | Base + Max Bonus. | 250 pts |
+### 4.2 Client to Server Events
 
----
+- `match:create` `{ expectedPlayers, displayName? }`
+- `match:join` `{ matchId, displayName? }`
+- `match:ready` `{}`
+- `match:countdown_abort` `{ matchId, reason }` (host only)
 
-## 4. Technical Architecture
+### 4.3 Server to Client Events
 
-### Frontend (React + Vite + Tailwind CSS)
-* **Build Tool & Environment:** Vite for fast compilation and Hot Module Replacement (HMR).
-* **Styling:** Tailwind CSS for UI design and low-latency game components.
-* **Audio Management:** Web Audio API (`AudioContext`) for precise time control and mitigating pause/resume drift between clients.
-* **Optimistic UI:** When Player A presses the spacebar, the UI immediately shows the "Requesting lock..." state, but audio is not paused locally until the server confirms the action.
-* **Search Component:**
-    * **Input:** Text field.
-    * **Logic:** `onChange` -> `debounce(300ms)` -> GET request to the API Gateway (/api/search) -> update dropdown list.
+- `match:created` `MatchStatePayload`
+- `match:joined` `MatchStatePayload`
+- `match:state` `MatchStatePayload`
+- `match:countdown` `{ matchId, seconds }` (broadcast once)
+- `match:countdown_aborted` `{ matchId, reason }`
+- `match:error` `{ message }`
 
-### Backend (Microservices Architecture with Express.js)
-The system is divided into independent services to isolate resource consumption. Each component runs in its own container.
+### 4.4 Lobby Rules (Closed Loop)
 
-* **Reverse Proxy & SSL (Nginx):**
-    * **Responsibility:** Infrastructure level. Handles HTTPS (SSL/TLS termination), serves compiled React static assets, and proxies all `/api/*` and WebSocket traffic to the API Gateway container.
-* **API Gateway (Express.js):**
-    * **Responsibility:** Application level. Acts as the single entry point for internal routing. Handles global rate limiting, token validation (via Auth Service), and routes REST/WebSocket requests to the underlying microservices. It acts as a proxy for client searches to the iTunes Search API. It applies a caching layer in-memory for identical queries and standardizes the returned metadata.
-* **Game Service (Express.js + Socket.io):**
-    * **Responsibility:** Maintains the "source of truth" for timers, round states, and answer resolution. Stores match state and WebSocket rooms in-memory.
-    * **Logic:** Manages Socket.io channels (rooms) per match. Applies rate limiting on the `LOCK_REQUEST` event.
-* **Auth & User Service (Express.js):**
-    * **Responsibility:** Handles the Spotify OAuth 2.0 flow, stores encrypted tokens, and extracts Spotify API data to build the user's musical profile.
-* **Content Service (Express.js):**
-    * **Responsibility:** Orchestrates playlist generation. Receives aggregated profiles, queries the AI API (OpenAI/Gemini), and validates results against the iTunes API.
-* **Inter-Service Communication:**
-    * **Synchronous HTTP REST:** The Game Service initiates a standard HTTP `POST` request to the Content Service to generate a playlist and waits for the synchronous JSON response before starting the match.
+- **Start conditions:** All expected players are present and ready, or host triggers start.
+- **Countdown:** Server emits `match:countdown { seconds: 5 }`. Clients run a local timer.
+- **Abort conditions:** Ready drops, player leaves, host cancels, or timeout.
+- **Transition to in-game:** Countdown reaches zero; server updates phase to `in-game`.
 
-### Database (PostgreSQL + Prisma ORM)
-The Auth Service and the Game Service have their own logical schemas or separate databases.
+## 5. Round State Machine (In-Game)
 
-* **Prisma Model: User** (Assigned to Auth Service)
-    * `id` (String, PK, UUID)
-    * `spotify_id` (String, Unique)
-    * `access_token` (String, application-level encryption)
-    * `refresh_token` (String, application-level encryption)
-    * `taste_profile` (Json) -> e.g., `{"pop": 0.8, "metal": 0.1}`
-* **Prisma Model: GameHistory** (Assigned to Game Service)
-    * `id` (String, PK, UUID)
-    * `played_at` (DateTime, default: now)
-    * `winner_id` (String)
-    * `playlist_snapshot` (Json) -> Stores the validated song list used in the match.
+Rounds run in a strict state machine within the `in-game` match phase. The Game Service is the authority for time and transitions.
 
-## 5. Edge Cases & Handling
+```mermaid
+stateDiagram-v2
+  [*] --> Sync
+  Sync --> Countdown: allReady
+  Countdown --> Playing: countdownZero
+  Playing --> Locked: lockAccepted
+  Locked --> Guessing: inputEnabled
+  Guessing --> ResolutionWin: guessCorrect
+  Guessing --> ResolutionFail: guessWrongOrTimeout
+  ResolutionFail --> Playing: resumePlayback
+  ResolutionWin --> Sync: nextRound
+  Playing --> ResolutionWin: songEndNoLock
+  Playing --> [*]: matchEnded
+  ResolutionWin --> [*]: matchEnded
+```
 
-* **The "Troll" Pause:** A player pauses but doesn't answer.
-    * **Solution:** Server-side hard timeout (10s). If no answer, apply penalty and auto-resume.
-* **Latency Drift:** Player A pauses at 3.0s, Player B (lagging) receives pause at 3.5s.
-    * **Solution:** Server timestamp is the authority. When resuming, Server sends `seekTo: 3.0s`. Player B's client jumps back 0.5s to sync.
-* **Empty Search Results:**
-    * **Solution:** If iTunes returns no preview for an AI-suggested song during the Generation phase, discard it and request a replacement before the game starts.
-* **Disconnection:**
-    * **Solution:** If the "Guesser" disconnects during the Lock phase, immediately resume the game for the remaining players.
+### 5.1 Transition Table
+
+| Event                  | From           | To             | Condition         | Server Actions                                             | Client Actions                           | Timeout              |
+| ---------------------- | -------------- | -------------- | ----------------- | ---------------------------------------------------------- | ---------------------------------------- | -------------------- |
+| `round:sync`           | -              | Sync           | New round started | Select random preview from DB, expose preview id for round | Request preview for round, preload audio | 15 s download window |
+| `round:ready`          | Sync           | Countdown      | All clients ready | Broadcast `round:countdown`                                | Show countdown                           | 5 s                  |
+| `round:countdown_zero` | Countdown      | Playing        | Timer hits 0      | Start authoritative timer                                  | Play audio at T=0                        | -                    |
+| `round:lock_request`   | Playing        | Locked         | First lock wins   | Broadcast pause time                                       | Pause audio, show lock owner             | -                    |
+| `round:lock_confirmed` | Locked         | Guessing       | Lock accepted     | Start 10 s guess timer                                     | Enable guess input for lock owner        | 10 s                 |
+| `round:guess_submit`   | Guessing       | ResolutionWin  | Correct match     | Score, broadcast win                                       | Show reveal + score                      | 5 s interstitial     |
+| `round:guess_timeout`  | Guessing       | ResolutionFail | Timer hits 0      | Apply penalty, resume                                      | Disable input, resume audio              | 5 s cooldown         |
+| `round:guess_wrong`    | Guessing       | ResolutionFail | Incorrect guess   | Apply penalty, resume                                      | Disable input, resume audio              | 5 s cooldown         |
+| `round:resume`         | ResolutionFail | Playing        | After cooldown    | Broadcast resume time                                      | Seek + play                              | -                    |
+| `round:next`           | ResolutionWin  | Sync           | Rounds remaining  | Pick next track                                            | Preload next                             | -                    |
+| `match:end`            | Any            | -              | Final round done  | Persist results                                            | Show final scoreboard                    | -                    |
+
+## 6. Gameplay Details
+
+### 6.1 Lock and Guess Flow
+
+- First player to lock wins. All other lock attempts are rejected while locked.
+- On lock acceptance, all clients pause at the authoritative timestamp.
+- Guesser gets a 10 s input window; spectators see a locked UI state.
+- Guess submission requires selecting a suggestion from the search dropdown.
+
+### 6.2 Round Preview Fetch
+
+- At the start of each round, the frontend requests the preview for that round using the round identifier.
+- The server returns the preview URL (or signed URL) and the client preloads the audio before countdown.
+
+### 6.3 Guess Resolution
+
+- Correct: apply score, reveal track, show album art, then move to next round.
+- Incorrect or timeout: apply penalty, enforce 5 s cooldown for the guesser, resume playback at the authoritative timestamp.
+
+## 7. UX and Input
+
+### 7.1 Desktop Web
+
+- **Lock input:** Spacebar.
+- **Search:** Text input with debounced suggestions; selection required to submit.
+- **Feedback:** Immediate "requesting lock" state while waiting for server acceptance.
+
+### 7.2 Mobile Web
+
+- **Lock input:** Large "Guess" button with haptic feedback.
+- **Search:** Same suggestion workflow as desktop.
+- **Focus handling:** Input auto-focus on lock acceptance; keyboard dismiss on submit.
+
+### 7.3 Spectator States
+
+- Spectators see the lock owner, remaining guess time, and a read-only search field.
+
+## 8. Scoring System
+
+Points reward speed and accuracy.
+
+| Metric       | Formula                                 | Example                           |
+| ------------ | --------------------------------------- | --------------------------------- |
+| Base score   | Fixed value for correct answer          | 100 pts                           |
+| Speed bonus  | (TotalTime - ElapsedTime) \* Multiplier | Guess at 2 s: 13 \* 10 = +130 pts |
+| Wrong guess  | Flat penalty                            | -50 pts                           |
+| Max possible | Base + Max bonus                        | 250 pts                           |
+
+## 9. Technical Architecture
+
+### 9.1 Frontend
+
+- **Build tool:** Vite.
+- **Styling:** Tailwind CSS.
+- **Audio:** HTML5 Audio for current implementation; move to Web Audio API if drift control becomes insufficient.
+- **Round preview fetch:** Request the preview for the current round before countdown and preload it.
+- **Search input:** `onChange` -> `debounce(300 ms)` -> GET `/api/search` -> render suggestions.
+
+### 9.2 Backend Services
+
+- **Nginx:** SSL termination, static asset serving, proxy for `/api` and socket traffic.
+- **API Gateway:** Rate limit, token validation, search proxy with response normalization and cache.
+- **Game Service:** Match state, lobby flow, socket rooms, audio sync events.
+- **Auth Service:** Spotify OAuth, encrypted tokens.
+- **Preview Service (or DB layer):** Provides random preview selection and round preview lookup.
+
+### 9.3 Socket Events (Current Implementation)
+
+- Lobby: `match:create`, `match:join`, `match:ready`, `match:state`, `match:created`, `match:joined`, `match:countdown`, `match:error`.
+- Audio sync: `match:audio:toggle` (client) and `match:audio:sync` (server broadcast).
+
+## 10. Edge Cases
+
+- **Latency drift:** Server timestamp is the authority; clients seek on resume.
+- **Empty search results:** Replace missing previews before the match starts.
+- **Disconnection during lock:** Immediately resume for remaining players and clear lock owner.
