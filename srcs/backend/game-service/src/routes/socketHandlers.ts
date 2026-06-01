@@ -5,6 +5,7 @@ import { matchService } from "../services/matchService.js";
 type CreateMatchPayload = {
   matchId?: string;
   expectedPlayers: number;
+  roundsTotal?: number;
   displayName?: string;
 };
 
@@ -16,6 +17,7 @@ type JoinMatchPayload = {
 type MatchStatePayload = {
   matchId: string;
   expectedPlayers: number;
+  roundsTotal: number;
   phase: MatchState["phase"];
   players: Array<{
     userId: string;
@@ -32,6 +34,25 @@ type AudioTogglePayload = {
   time: number;
 };
 
+// type RoundReadyPayload = {
+//   matchId: string;
+// };
+
+type RoundLockPayload = {
+  matchId: string;
+  time: number;
+};
+
+type RoundGuessPayload = {
+  matchId: string;
+  trackId: string;
+};
+
+type RoundPreviewEndedPayload = {
+  matchId: string;
+  roundIndex: number;
+};
+
 function readHeader(
   headers: Record<string, string | string[] | undefined>,
   name: string,
@@ -46,6 +67,7 @@ function toPayload(match: MatchState): MatchStatePayload {
   return {
     matchId: match.matchId,
     expectedPlayers: match.expectedPlayers,
+    roundsTotal: match.roundsTotal,
     phase: match.phase,
     players: match.players.map((player) => ({
       userId: player.userId,
@@ -86,6 +108,7 @@ export function registerSocketHandlers(io: Server): void {
           "Guest";
         const match = matchService.createMatch({
           expectedPlayers: payload.expectedPlayers,
+          roundsTotal: payload.roundsTotal,
           userId,
           displayName,
           socketId: socket.id,
@@ -122,23 +145,95 @@ export function registerSocketHandlers(io: Server): void {
         socket.join(match.matchId);
         emitMatchState(socket, match);
         socket.emit("match:joined", toPayload(match));
+
+        if (match.phase === "in-game") {
+          const roundPayload = matchService.getRoundSyncPayload(match.matchId);
+          if (roundPayload) {
+            socket.emit("round:sync", roundPayload);
+          }
+        }
       } catch (error) {
         emitMatchError(socket, error);
       }
     });
 
-    socket.on("match:ready", () => {
+    socket.on("match:ready", async () => {
       try {
-        const result = matchService.markReady(socket.id, () => undefined);
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const result = await matchService.markReady(socket.id, emitToMatch);
 
         emitMatchState(socket, result.match);
+      } catch (error) {
+        emitMatchError(socket, error);
+      }
+    });
 
-        if (result.countdownStarted) {
-          io.to(result.match.matchId).emit("match:countdown", {
+    socket.on("round:ready", () => {
+      try {
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const result = matchService.markRoundReady(socket.id, emitToMatch);
+        emitMatchState(socket, result.match);
+
+        if (result.countdownStarted && result.match.round?.countdownEndsAt) {
+          io.to(result.match.matchId).emit("round:countdown", {
+            matchId: result.match.matchId,
+            roundIndex: result.match.round.roundIndex,
             seconds: 5,
+            endsAt: result.match.round.countdownEndsAt,
           });
-          logInfo(`Match ${result.match.matchId} countdown started`);
         }
+      } catch (error) {
+        emitMatchError(socket, error);
+      }
+    });
+
+    socket.on("round:lock_request", (payload: RoundLockPayload) => {
+      try {
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const match = matchService.requestLock(
+          socket.id,
+          payload.time,
+          emitToMatch,
+        );
+        emitMatchState(socket, match);
+      } catch (error) {
+        emitMatchError(socket, error);
+      }
+    });
+
+    socket.on("round:guess_submit", (payload: RoundGuessPayload) => {
+      try {
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const match = matchService.submitGuess(
+          socket.id,
+          payload.trackId,
+          emitToMatch,
+        );
+        emitMatchState(socket, match);
+      } catch (error) {
+        emitMatchError(socket, error);
+      }
+    });
+
+    socket.on("round:preview_ended", (payload: RoundPreviewEndedPayload) => {
+      try {
+        const emitToMatch = (matchId: string, event: string, data: unknown) => {
+          io.to(matchId).emit(event, data);
+        };
+        const match = matchService.handlePreviewEnded(
+          socket.id,
+          payload.roundIndex,
+          emitToMatch,
+        );
+        emitMatchState(socket, match);
       } catch (error) {
         emitMatchError(socket, error);
       }

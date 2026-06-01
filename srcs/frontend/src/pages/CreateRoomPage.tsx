@@ -46,9 +46,11 @@ export default function CreateRoomPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [isPrivate, setIsPrivate] = useState(true);
-  const [maxPlayers, setMaxPlayers] = useState(6);
+  const [roundsTotal, setRoundsTotal] = useState(3);
   const [isCreating, setIsCreating] = useState(false);
+
+  const clampToRange = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
 
   const disabledReason = useMemo(() => {
     if (!user) return "Login required";
@@ -95,7 +97,8 @@ export default function CreateRoomPage() {
         socket.emit("match:create", {
           matchId,
           displayName: playerName,
-          expectedPlayers: maxPlayers,
+          expectedPlayers: 5,
+          roundsTotal,
         });
       });
 
@@ -127,60 +130,30 @@ export default function CreateRoomPage() {
         </div>
 
         <div className="card p-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="text-xs font-medium text-zinc-400">Privacy</div>
-
-              <button
-                type="button"
-                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left
-                           transition duration-150 ease-out hover:bg-white/10 hover:border-white/20 active:scale-[0.99]"
-                onClick={() => setIsPrivate((v) => !v)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-200">
-                    {isPrivate ? "Private room" : "Public room"}
-                  </span>
-                  <span
-                    className={[
-                      "text-xs px-2 py-1 rounded-lg border",
-                      isPrivate
-                        ? "border-indigo-400/30 bg-indigo-500/10 text-indigo-200"
-                        : "border-emerald-400/30 bg-emerald-500/10 text-emerald-200",
-                    ].join(" ")}
-                  >
-                    {isPrivate ? "Invite only" : "Open"}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-zinc-500">
-                  {isPrivate
-                    ? "Players join using a code."
-                    : "Visible to everyone (later)."}
-                </div>
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex justify-center">
+            <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-black/20 p-4">
               <div className="text-xs font-medium text-zinc-400">
-                Max players
+                Number of rounds
               </div>
 
               <div className="mt-3 flex items-center gap-3">
                 <input
                   className="input"
                   type="number"
-                  min={2}
-                  max={12}
-                  value={maxPlayers}
-                  onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                  min={1}
+                  max={5}
+                  value={roundsTotal}
+                  onChange={(e) =>
+                    setRoundsTotal(clampToRange(Number(e.target.value), 1, 5))
+                  }
                 />
                 <div className="text-xs text-zinc-500 w-24 text-right">
-                  {maxPlayers} players
+                  {roundsTotal} rounds
                 </div>
               </div>
 
               <div className="mt-2 text-xs text-zinc-500">
-                We’ll clamp this server-side once rooms exist.
+                Shorter matches keep the pace fast.
               </div>
             </div>
           </div>

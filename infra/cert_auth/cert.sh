@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 CERTS_DIR="$SCRIPT_DIR/../certs"
 
@@ -11,6 +13,14 @@ openssl req -x509 -new -nodes -key "$SCRIPT_DIR/MyLocalCA.key" \
   -sha256 -days 1825 -out "$SCRIPT_DIR/MyLocalCA.pem" \
   -subj "/C=ES/ST=Malaga/L=Malaga/O=company/OU=IT/CN=MyLocalCA"
 
+
+LOCAL_IP=$(ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}')
+
+if [[ -z "$LOCAL_IP" ]]; then
+    echo "The local IP address could not be determined"
+    exit 1
+fi
+
 echo "authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -19,7 +29,8 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost
 IP.1 = 127.0.0.1
-IP.2 = ::1" > "$SCRIPT_DIR/localhost.ext"
+IP.2 = ::1
+IP.3 = $LOCAL_IP" > "$SCRIPT_DIR/localhost.ext"
 
 openssl genrsa -out "$SCRIPT_DIR/dev.key" 2048
 

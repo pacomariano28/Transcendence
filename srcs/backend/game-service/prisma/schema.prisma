@@ -1,0 +1,19 @@
+// Prisma schema for game-service persistence.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MatchResult {
+  id        String   @id @default(uuid())
+  matchCode String
+  rounds    Int
+  scores    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
