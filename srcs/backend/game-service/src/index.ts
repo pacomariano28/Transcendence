@@ -3,7 +3,7 @@ import express from "express";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
 import { logInfo } from "./lib/logger.js";
-import { registerSocketHandlers } from "./routes/socketHandlers.js";
+import { registerSocketRoutes } from "./routes/socket.routes.js";
 
 const port = process.env.PORT ?? 4001;
 
@@ -19,7 +19,7 @@ const io = new Server(server, {
   },
 });
 
-registerSocketHandlers(io);
+registerSocketRoutes(io);
 
 server.listen(port, () => {
   logInfo(`Game service listening on port ${port}`);
