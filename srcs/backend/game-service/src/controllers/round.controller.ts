@@ -6,6 +6,7 @@ import type {
   RoundPreviewEndedPayload,
 } from "../types/socket.payloads.js";
 import { emitMatchError, emitMatchState } from "./socket.helpers.js";
+import { ROUND_COUNTDOWN_SECONDS } from "../utils/constants.js";
 
 export function registerRoundHandlers(io: Server, socket: Socket): void {
   socket.on("round:ready", () => {
@@ -20,7 +21,7 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
         io.to(result.match.matchId).emit("round:countdown", {
           matchId: result.match.matchId,
           roundIndex: result.match.round.roundIndex,
-          seconds: 5,
+          seconds: ROUND_COUNTDOWN_SECONDS,
           endsAt: result.match.round.countdownEndsAt,
         });
       }
