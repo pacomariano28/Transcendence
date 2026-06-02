@@ -2,47 +2,20 @@ generator client {
   provider = "prisma-client-js"
 }
 
+//Zod here actually is not necesary YET, but if the admin will want to change
+// the songs in the data base, i.e. this service will be reached by the client
+// through PUT, DELETE, etc.
+//Zod generator block:
+generator zod {
+  provider         = "zod-prisma-types"
+  output           = "../src/schemas/generated" // Indicate where Prisma has to put files.
+  useMultipleFiles = false                      // Gather all in one file, not multiple ones.
+  createInputTypes = true                       // Create shemas to to create/update 
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-model RefreshToken {
-  id        String    @id
-  tokenHash String    @unique
-  userId    String
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model SpotifyProfile {
-  id              String    @id
-  userId          String    @unique
-  spotifyUserId   String    @unique
-  displayName     String?
-  email           String?
-  avatarUrl       String?
-  topArtists      Json
-  topGenres       Json
-  topTrackMonth   Json
-  topTrackAllTime Json
-  syncedAt        DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime
-  User            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model User {
-  id             String          @id
-  email          String          @unique
-  username       String          @unique
-  passwordHash   String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime
-  RefreshToken   RefreshToken[]
-  SpotifyProfile SpotifyProfile?
 }
 
 model Song {
