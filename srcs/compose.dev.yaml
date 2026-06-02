@@ -104,6 +104,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && npm run dev"
     ports:
       - "4002:4002"
     networks:
@@ -150,6 +151,10 @@ services:
       - ./backend/playlist-service/.env
     container_name: songuess-playlist-service
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && npm run dev"
     ports:
       - "4004:4004"
     networks:
