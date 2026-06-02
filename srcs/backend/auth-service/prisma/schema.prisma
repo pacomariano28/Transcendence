@@ -7,6 +7,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator zod {
+  provider         = "zod-prisma-types"
+  output           = "../src/schemas/generated" // Путь относительно папки prisma/
+  useMultipleFiles = false
+  createInputTypes = true
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -58,11 +65,3 @@ model SpotifyProfile {
   updatedAt       DateTime @updatedAt
 }
 
-model Song {
-  id        String   @id @default(uuid())
-  trackId   String
-  fileName  String   @unique
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
