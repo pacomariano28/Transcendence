@@ -8,7 +8,6 @@ import {
 } from "../utils/constants.js";
 import { loadPlaylist } from "./playlist.service.js";
 import { createMatchState, createPlayer, ensureScoreEntry } from "./state.js";
-import { getConnectedPlayers } from "../utils/utils.js";
 import {
   resolveGuess,
   startRound,
@@ -23,6 +22,10 @@ export class MatchService {
   private readonly roundCountdownTimers = new Map<string, NodeJS.Timeout>();
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
   private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
+
+  private getConnectedPlayers(match: MatchState): MatchPlayer[] {
+    return match.players.filter((entry) => entry.connected);
+  }
 
   generateMatchCode(length = 6): string {
     let code;
@@ -99,7 +102,7 @@ export class MatchService {
 
     player.ready = !player.ready;
 
-    const connectedPlayers = getConnectedPlayers(match);
+    const connectedPlayers = this.getConnectedPlayers(match);
     const countdownStarted =
       match.phase === "lobby" &&
       connectedPlayers.length > 0 &&
@@ -146,7 +149,7 @@ export class MatchService {
       match.round.readyUserIds.push(player.userId);
     }
 
-    const connectedPlayers = getConnectedPlayers(match);
+    const connectedPlayers = this.getConnectedPlayers(match);
     const countdownStarted = connectedPlayers.every((entry) =>
       match.round?.readyUserIds.includes(entry.userId),
     );
