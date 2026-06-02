@@ -7,25 +7,10 @@ import {
   SECOND_MS,
   SPEED_MULTIPLIER,
   WRONG_GUESS_PENALTY,
-} from "./constants.js";
+} from "../utils/constants.js";
 import { clearTimer, replaceTimer, type MatchTimerMap } from "./timers.js";
 import { createRoundState } from "./state.js";
-
-export type EmitMatchEvent = (
-  matchId: string,
-  event: string,
-  data: unknown,
-) => void;
-
-type ResolveGuessInput = {
-  match: MatchState;
-  lockOwnerId: string;
-  correct: boolean;
-  reason: "wrong" | "timeout" | null;
-  emit: EmitMatchEvent;
-  guessTimers: MatchTimerMap;
-  resumeTimers: MatchTimerMap;
-};
+import type { ResolveGuessInput } from "../types/round.js";
 
 export function startRound(match: MatchState): void {
   match.round = createRoundState(match);
