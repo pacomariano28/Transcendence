@@ -1,9 +1,7 @@
 export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 export const PLAYLIST_SERVICE_URL =
   process.env.PLAYLIST_SERVICE_URL || "http://playlist-service:4004";
-export const MIN_ROUNDS = 1;
-export const MAX_ROUNDS = 5;
-export const LOBBY_COUNTDOWN_SECONDS = 5;
+export const ROUND_NUMBER = 5;
 export const ROUND_COUNTDOWN_SECONDS = 5;
 export const GUESS_WINDOW_SECONDS = 10;
 export const COOLDOWN_SECONDS = 5;

@@ -1,4 +1,4 @@
-import { clampRounds } from "../utils/utils.js";
+import { ROUND_NUMBER } from "../utils/constants.js";
 
 type PlayerInput = Pick<
   CreateMatchInput,
@@ -35,7 +35,7 @@ export function createMatchState(
     expectedPlayers: input.expectedPlayers,
     phase: "lobby",
     players: [player],
-    roundsTotal: clampRounds(input.roundsTotal ?? 1),
+    roundsTotal: ROUND_NUMBER,
     roundIndex: 0,
     scores: [createScoreEntry(player)],
     playlist: [],
