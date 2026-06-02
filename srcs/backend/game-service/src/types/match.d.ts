@@ -74,6 +74,12 @@ declare global {
     match: MatchState;
     countdownStarted: boolean;
   };
+
+  export type EmitMatchEvent = (
+    matchId: string,
+    event: string,
+    data: unknown,
+  ) => void;
 }
 
 export {};
