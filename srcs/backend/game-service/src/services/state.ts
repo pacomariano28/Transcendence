@@ -1,4 +1,4 @@
-import { clampRounds } from "./utils.js";
+import { clampRounds } from "../utils/utils.js";
 
 type PlayerInput = Pick<
   CreateMatchInput,

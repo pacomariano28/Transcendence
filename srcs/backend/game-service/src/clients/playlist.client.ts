@@ -1,7 +1,7 @@
 import {
   PLAYLIST_SERVICE_URL,
   PLAYLIST_TIMEOUT_MS,
-} from "../services/constants.js";
+} from "../utils/constants.js";
 import { PlaylistResponse, PlaylistFetchResult } from "../types/playlist.js";
 
 export async function fetchPlaylist(): Promise<PlaylistFetchResult> {
