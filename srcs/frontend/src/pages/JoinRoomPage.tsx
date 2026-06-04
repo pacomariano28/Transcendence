@@ -110,10 +110,6 @@ export default function JoinRoomPage() {
             >
               <span>Join</span>
             </button>
-
-            <Link className="btn-ghost flex-1" to="/create">
-              Create instead
-            </Link>
           </div>
 
           <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400">

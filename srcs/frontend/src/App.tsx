@@ -9,7 +9,6 @@ import SpotifySuccessPage from "./pages/SpotifySuccessPage";
 import DashboardPage from "./pages/DashboardPage";
 import RouteTransition from "./components/RouteTransition";
 import ProfilePage from "./pages/ProfilePage";
-import CreateRoomPage from "./pages/CreateRoomPage";
 import JoinRoomPage from "./pages/JoinRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
 import MatchPage from "./pages/MatchPage";
@@ -44,7 +43,6 @@ function AppShell() {
             <Route element={<RequireAuth />}>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/create" element={<CreateRoomPage />} />
               <Route path="/join" element={<JoinRoomPage />} />
               <Route path="/room/:code" element={<RoomLobbyPage />} />
               <Route path="/match/:code" element={<MatchPage />} />
