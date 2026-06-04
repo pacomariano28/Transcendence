@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 
 # Songs
 media
+
+# Authority
+authority

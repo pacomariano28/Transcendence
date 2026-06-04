@@ -36,5 +36,3 @@ find . -type f -name ".env" | while read -r envfile; do
     "$envfile"
 
 done
-
-echo "Open at https://$LOCAL_IP:8443"
