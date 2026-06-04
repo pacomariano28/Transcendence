@@ -1,11 +1,98 @@
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import LinkIcon from "../components/icons/LinkIcon";
+import { socket } from "../api/socket";
+
+async function ensureSocketConnected() {
+  if (!socket.connected) {
+    await new Promise<void>((resolve, reject) => {
+      const handleConnect = () => {
+        cleanup();
+        resolve();
+      };
+
+      const handleConnectError = (err: unknown) => {
+        cleanup();
+        console.error("Failed to connect socket:", err);
+        reject(err);
+      };
+
+      const cleanup = () => {
+        socket.off("connect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+      };
+
+      socket.once("connect", handleConnect);
+      socket.once("connect_error", handleConnectError);
+      socket.connect();
+    });
+  }
+}
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const disabledReason = useMemo(() => {
+    if (!user) return "Login required";
+    if (isCreating) return "Creating room...";
+    return "";
+  }, [user, isCreating]);
+
+  async function createRoom() {
+    if (!user || isCreating) return;
+
+    setIsCreating(true);
+
+    try {
+      await ensureSocketConnected();
+
+      let matchId = "";
+      const playerName = user.username ?? user.email ?? "Guest";
+
+      await new Promise<void>((resolve, reject) => {
+        const handleCreated = (payload: { matchId: string }) => {
+          console.log("Event received: match:created", payload);
+          if (payload.matchId) {
+            matchId = payload.matchId;
+            cleanup();
+            resolve();
+          }
+        };
+
+        const handleError = (payload: { message?: string }) => {
+          console.error("Event received: match:error", payload);
+          cleanup();
+          reject(new Error(payload.message || "MATCH_CREATE_FAILED"));
+        };
+
+        const cleanup = () => {
+          socket.off("match:created", handleCreated);
+          socket.off("match:error", handleError);
+        };
+
+        socket.on("match:created", handleCreated);
+        socket.on("match:error", handleError);
+
+        socket.emit("match:create", {
+          matchId,
+          displayName: playerName,
+          expectedPlayers: 5,
+          roundsTotal: 3,
+        });
+      });
+
+      navigate(`/room/${matchId}`);
+    } catch (error) {
+      console.error("Error creating room:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   return (
     <div className="container-page py-8 sm:py-10 lg:py-12 fade-in">
@@ -19,14 +106,17 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row mt-10">
-              <Link
-                to="/create"
+              <button
+                type="button"
                 className="btn-glow w-full sm:flex-1 p-10"
                 style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
+                onClick={createRoom}
+                disabled={!user || isCreating}
+                title={disabledReason}
               >
-                <span>Create room</span>
-              </Link>
+                <span>{isCreating ? "Creating..." : "Create room"}</span>
+              </button>
 
               <Link
                 to="/join"
@@ -116,32 +206,6 @@ export default function HomePage() {
             </a>
           </div>
         </div>
-
-        {/* <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="card card-hover p-5 fade-in">
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
-              Status
-            </div>
-            <div className="mt-2 text-sm text-zinc-200">
-              Auth + UI foundation ready.
-            </div>
-            <div className="mt-2 text-xs text-zinc-500">
-              Next: lobby + room code flow.
-            </div>
-          </div>
-
-          <div className="card card-hover p-5 fade-in">
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
-              Controls
-            </div>
-            <div className="mt-2 text-sm text-zinc-200">
-              Short transitions, low noise.
-            </div>
-            <div className="mt-2 text-xs text-zinc-500">
-              Built with Tailwind v4.
-            </div>
-          </div>
-        </div> */}
       </div>
     </div>
   );
