@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
+import TypingText from "../components/TypingText";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -113,12 +115,11 @@ export default function RoomLobbyPage() {
   }
 
   return (
-    <div className="container-page py-10 fade-in">
+    <div className="container-page py-10 fade-in mt-5">
       <div className="mx-auto max-w-3xl">
-        {/* <div className="card p-6"> */}
-        <>
+        <div>
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            Lobby code
+            <TypingText text="Lobby code" size="md" className="ms-1" />
           </div>
           <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-white sm:text-5xl">
             {code || "———"}
@@ -130,9 +131,9 @@ export default function RoomLobbyPage() {
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex gap-3 sm:flex-row">
             <button
-              className="btn-glow flex-1"
+              className="btn-glow flex-5 p-4"
               style={
                 {
                   "--btn-color": me?.ready ? "#4ade80" : "#f7d046",
@@ -140,6 +141,7 @@ export default function RoomLobbyPage() {
               }
               type="button"
               onClick={toggleReady}
+              onMouseMove={handleMouseMoveToSetFillOrigin}
               disabled={!matchState}
             >
               <span>{me?.ready ? "Ready" : "Mark ready"}</span>
@@ -149,7 +151,7 @@ export default function RoomLobbyPage() {
             </button>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 page-card">
             <div className="flex items-center justify-between">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
                 Connected players
@@ -188,8 +190,7 @@ export default function RoomLobbyPage() {
               )}
             </div>
           </div>
-        </>
-        {/* </div> */}
+        </div>
       </div>
     </div>
   );
