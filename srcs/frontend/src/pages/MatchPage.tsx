@@ -131,10 +131,15 @@ export default function MatchPage() {
   const [selectedTrack, setSelectedTrack] = useState<SpotifySearchTrack | null>(
     null,
   );
+  const [showVisualizer, setShowVisualizer] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const readyRoundRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const myUserId = user ? String(user.id) : null;
   const lockOwnerName = useMemo(() => {
@@ -235,6 +240,7 @@ export default function MatchPage() {
     });
     socket.on("round:sync", (payload: RoundSyncPayload) => {
       if (payload.matchId !== code) return;
+      setShowVisualizer(false);
       setRoundInfo(payload);
       setRoundPhase("sync");
       setCountdownSeconds(null);
@@ -277,9 +283,18 @@ export default function MatchPage() {
         remaining -= 1;
         if (remaining <= 0) {
           clearCountdownTimer();
-          setCountdownSeconds(null);
+
+          setShowVisualizer(true);
+
+          setTimeout(() => {
+            setCountdownSeconds(null);
+          }, 400);
+
           setRoundPhase("playing");
+
+          audioContextRef.current?.resume();
           audioRef.current?.play().catch(() => undefined);
+
           return;
         }
         setCountdownSeconds(remaining);
@@ -329,6 +344,7 @@ export default function MatchPage() {
         if (payload.resumeTime !== null) {
           audioRef.current.currentTime = payload.resumeTime;
         }
+        audioContextRef.current?.resume();
         audioRef.current.play().catch(() => undefined);
       }
     });
@@ -372,6 +388,20 @@ export default function MatchPage() {
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
 
+    const audioContext = new AudioContext();
+
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+
+    const source = audioContext.createMediaElementSource(audio);
+
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    sourceRef.current = source;
+
     const handleReady = () => {
       setAudioReady(true);
       if (roundInfo && readyRoundRef.current !== roundInfo.roundIndex) {
@@ -381,6 +411,7 @@ export default function MatchPage() {
     };
 
     const handleEnded = () => {
+      setShowVisualizer(false);
       if (!roundInfo || !code) return;
       socket.emit("round:preview_ended", {
         matchId: code,
@@ -397,16 +428,23 @@ export default function MatchPage() {
     audio.addEventListener("error", handleError);
     audio.load();
     audioRef.current = audio;
-
     return () => {
       audio.removeEventListener("canplaythrough", handleReady);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
+
       audio.pause();
       audio.src = "";
+
       if (audioRef.current === audio) {
         audioRef.current = null;
       }
+
+      audioContextRef.current?.close();
+
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      sourceRef.current = null;
     };
   }, [audioUrl, roundInfo, code]);
 
@@ -511,6 +549,62 @@ export default function MatchPage() {
     nav(`/room/${code}`, { replace: true });
   }
 
+  useEffect(() => {
+    let animationId: number;
+
+    const draw = () => {
+      const analyser = analyserRef.current;
+      const canvas = canvasRef.current;
+
+      if (!analyser || !canvas) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+
+      const dataArray = new Uint8Array(bufferLength);
+
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = canvas.width / bufferLength;
+
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const height = (dataArray[i] / 255) * canvas.height * 0.6;
+
+        ctx.fillStyle = "#f7d046";
+
+        ctx.fillRect(
+          x,
+          canvas.height - height,
+          Math.max(barWidth - 2, 1),
+          height,
+        );
+
+        x += barWidth;
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
   return (
     <div className="container-page py-10 fade-in">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -576,22 +670,32 @@ export default function MatchPage() {
                 <div className="mt-1 text-lg font-semibold text-white">
                   {roundLabel}
                 </div>
+                {/* aqui */}
+
+                <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+                  {countdownSeconds !== null && (
+                    <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl text-center">
+                      <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                        Starts in
+                      </div>
+                      <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
+                        {countdownSeconds}
+                      </div>
+                    </div>
+                  )}
+
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={180}
+                    className="h-44 w-full"
+                  />
+                </div>
               </div>
               <div className="text-xs text-zinc-400">
                 {audioReady ? "Preview ready" : "Loading preview"}
               </div>
             </div>
-
-            {countdownSeconds !== null && (
-              <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-center">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                  Starts in
-                </div>
-                <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
-                  {countdownSeconds}
-                </div>
-              </div>
-            )}
 
             {roundInfo?.playlistError && (
               <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
