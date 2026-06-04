@@ -4,7 +4,10 @@ COMPOSE_FILE= ./srcs/compose.dev.yaml
 all: up
 
 up:
-	$(COMPOSE) -f $(COMPOSE_FILE) up -d
+	./infra/scripts/certs.sh && \
+	./infra/scripts/env.sh && \
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d && \
+	./infra/scripts/open.sh
 
 down: 
 	$(COMPOSE) -f $(COMPOSE_FILE) down
