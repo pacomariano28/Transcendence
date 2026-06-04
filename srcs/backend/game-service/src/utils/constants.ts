@@ -3,7 +3,7 @@ export const PLAYLIST_SERVICE_URL =
   process.env.PLAYLIST_SERVICE_URL || "http://playlist-service:4004";
 export const ROUND_NUMBER = 5;
 export const ROUND_COUNTDOWN_SECONDS = 5;
-export const GUESS_WINDOW_SECONDS = 10;
+export const GUESS_WINDOW_SECONDS = 20;
 export const COOLDOWN_SECONDS = 5;
 export const RESOLUTION_SECONDS = 5;
 export const BASE_SCORE = 100;
