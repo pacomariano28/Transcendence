@@ -252,7 +252,7 @@ export default function MatchPage() {
       setSearchError(null);
       setSelectedTrack(null);
       setAudioUrl(
-        payload.preview ? `/media/previews/${payload.preview.fileName}` : null,
+        payload.preview ? `/media/${payload.preview.fileName}` : null,
       );
     });
 
