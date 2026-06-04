@@ -36,6 +36,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string>("");
 
   const disabledReason = useMemo(() => {
     if (!user) return "Login required";
@@ -89,6 +90,7 @@ export default function HomePage() {
       navigate(`/room/${matchId}`);
     } catch (error) {
       console.error("Error creating room:", error);
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsCreating(false);
     }
@@ -104,8 +106,7 @@ export default function HomePage() {
 
               <TypingText text="SONGUESS" size="md" className="ms-1" />
             </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row mt-10">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 className="btn-glow w-full sm:flex-1 p-10"
@@ -127,6 +128,12 @@ export default function HomePage() {
                 <span>Join room</span>
               </Link>
             </div>
+
+            {error && (
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
               {loading ? (
