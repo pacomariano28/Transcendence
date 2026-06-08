@@ -662,38 +662,54 @@ export default function MatchPage() {
           </section>
         ) : (
           <section className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                  Round
-                </div>
-                <div className="mt-1 text-lg font-semibold text-white">
-                  {roundLabel}
-                </div>
-                {/* aqui */}
+            <div className="flex items-stretch gap-4">
+              {/* VISUALIZER / COUNTDOWN */}
 
-                <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
-                  {countdownSeconds !== null && (
-                    <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl text-center">
-                      <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                        Starts in
-                      </div>
-                      <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
-                        {countdownSeconds}
-                      </div>
+              <div className="flex-1 min-w-0">
+                <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  {/* CONTADOR */}
+
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
+          ${showVisualizer ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+                  >
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                      Starts in
                     </div>
-                  )}
 
-                  <canvas
-                    ref={canvasRef}
-                    width={800}
-                    height={180}
-                    className="h-44 w-full"
-                  />
+                    <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
+                      {countdownSeconds ?? ""}
+                    </div>
+                  </div>
+
+                  {/* VISUALIZER */}
+
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
+          ${showVisualizer ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+                  >
+                    <canvas
+                      ref={canvasRef}
+                      width={1200}
+                      height={240}
+                      className="h-52 w-full"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="text-xs text-zinc-400">
-                {audioReady ? "Preview ready" : "Loading preview"}
+
+              {/* LOCK BUTTON */}
+
+              <div className="flex items-center">
+                <button
+                  className="btn-glow h-60 w-48 sm:w/44"
+                  style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                  type="button"
+                  disabled={!canLock || lockRequested}
+                  onClick={requestLock}
+                >
+                  <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
+                </button>
               </div>
             </div>
 
@@ -722,15 +738,6 @@ export default function MatchPage() {
                   </div>
                 )}
               </div>
-              <button
-                className="btn-glow"
-                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
-                type="button"
-                disabled={!canLock || lockRequested}
-                onClick={requestLock}
-              >
-                <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
-              </button>
             </div>
 
             {roundPhase === "guessing" && (
