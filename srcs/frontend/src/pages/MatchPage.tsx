@@ -4,6 +4,7 @@ import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -707,6 +708,7 @@ export default function MatchPage() {
                   type="button"
                   disabled={!canLock || lockRequested}
                   onClick={requestLock}
+                  onMouseMove={handleMouseMoveToSetFillOrigin}
                 >
                   <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
                 </button>
