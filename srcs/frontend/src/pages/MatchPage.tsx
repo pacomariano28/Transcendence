@@ -4,6 +4,7 @@ import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
+import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -131,10 +132,19 @@ export default function MatchPage() {
   const [selectedTrack, setSelectedTrack] = useState<SpotifySearchTrack | null>(
     null,
   );
+  const [showVisualizer, setShowVisualizer] = useState(false);
+
+  const [guessStatus, setGuessStatus] = useState<
+    "countdown" | "expired" | "wrong"
+  >("countdown");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const readyRoundRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const myUserId = user ? String(user.id) : null;
   const lockOwnerName = useMemo(() => {
@@ -235,6 +245,8 @@ export default function MatchPage() {
     });
     socket.on("round:sync", (payload: RoundSyncPayload) => {
       if (payload.matchId !== code) return;
+      setGuessStatus("countdown");
+      setShowVisualizer(false);
       setRoundInfo(payload);
       setRoundPhase("sync");
       setCountdownSeconds(null);
@@ -277,9 +289,18 @@ export default function MatchPage() {
         remaining -= 1;
         if (remaining <= 0) {
           clearCountdownTimer();
-          setCountdownSeconds(null);
+
+          setShowVisualizer(true);
+
+          setTimeout(() => {
+            setCountdownSeconds(null);
+          }, 400);
+
           setRoundPhase("playing");
+
+          audioContextRef.current?.resume();
           audioRef.current?.play().catch(() => undefined);
+
           return;
         }
         setCountdownSeconds(remaining);
@@ -293,6 +314,7 @@ export default function MatchPage() {
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
       if (payload.matchId !== code) return;
       setRoundPhase("guessing");
+      setGuessStatus("countdown");
       setLockOwnerId(payload.lockOwnerId);
       setGuessEndsAt(payload.guessEndsAt ?? null);
       setLockRequested(false);
@@ -307,6 +329,21 @@ export default function MatchPage() {
     socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
       if (payload.matchId !== code) return;
       setLastResult(payload);
+
+      // Corregido: Evaluamos la razón real que manda el servidor
+      if (!payload.correct) {
+        if (payload.reason === "timeout") {
+          setGuessStatus("expired");
+        } else {
+          setGuessStatus("wrong");
+        }
+
+        // Devolvemos a countdown tras mostrar el mensaje el tiempo correspondiente
+        setTimeout(() => {
+          setGuessStatus("countdown");
+        }, 1200);
+      }
+
       setRoundPhase(payload.correct ? "resolution-win" : "resolution-fail");
       setGuessSeconds(null);
       setGuessEndsAt(null);
@@ -329,6 +366,7 @@ export default function MatchPage() {
         if (payload.resumeTime !== null) {
           audioRef.current.currentTime = payload.resumeTime;
         }
+        audioContextRef.current?.resume();
         audioRef.current.play().catch(() => undefined);
       }
     });
@@ -373,6 +411,20 @@ export default function MatchPage() {
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
 
+    const audioContext = new AudioContext();
+
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+
+    const source = audioContext.createMediaElementSource(audio);
+
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    sourceRef.current = source;
+
     const handleReady = () => {
       setAudioReady(true);
       if (roundInfo && readyRoundRef.current !== roundInfo.roundIndex) {
@@ -382,6 +434,7 @@ export default function MatchPage() {
     };
 
     const handleEnded = () => {
+      setShowVisualizer(false);
       if (!roundInfo || !code) return;
       socket.emit("round:preview_ended", {
         matchId: code,
@@ -398,16 +451,23 @@ export default function MatchPage() {
     audio.addEventListener("error", handleError);
     audio.load();
     audioRef.current = audio;
-
     return () => {
       audio.removeEventListener("canplaythrough", handleReady);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
+
       audio.pause();
       audio.src = "";
+
       if (audioRef.current === audio) {
         audioRef.current = null;
       }
+
+      audioContextRef.current?.close();
+
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      sourceRef.current = null;
     };
   }, [audioUrl, roundInfo, code]);
 
@@ -417,11 +477,16 @@ export default function MatchPage() {
     const update = () => {
       const remainingMs = Math.max(0, guessEndsAt - Date.now());
       const remaining = Math.ceil(remainingMs / SECOND_MS);
-      setGuessSeconds(remaining);
+
+      // Solo actualizamos los segundos si la fase sigue activa para evitar saltos visuales
+      if (remainingMs > 0) {
+        setGuessSeconds(remaining);
+      }
     };
 
     update();
     const timerId = window.setInterval(update, 200);
+
     return () => window.clearInterval(timerId);
   }, [guessEndsAt]);
 
@@ -512,6 +577,71 @@ export default function MatchPage() {
     nav(`/room/${code}`, { replace: true });
   }
 
+  useEffect(() => {
+    let animationId: number;
+
+    const draw = () => {
+      const analyser = analyserRef.current;
+      const canvas = canvasRef.current;
+
+      if (!analyser || !canvas) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+
+      const dataArray = new Uint8Array(bufferLength);
+
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = canvas.width / bufferLength;
+
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const height = (dataArray[i] / 255) * canvas.height * 0.6;
+
+        ctx.fillStyle = "#f7d046";
+
+        ctx.fillRect(
+          x,
+          canvas.height - height,
+          Math.max(barWidth - 2, 1),
+          height,
+        );
+
+        x += barWidth;
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
+  const showGuessPanel =
+    roundPhase === "guessing" ||
+    guessStatus === "expired" ||
+    guessStatus === "wrong";
+
+  const showCountdown = !showGuessPanel && !showVisualizer;
+
+  const showEq = !showGuessPanel && showVisualizer;
+
   return (
     <div className="container-page py-10 fade-in">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -569,30 +699,125 @@ export default function MatchPage() {
           </section>
         ) : (
           <section className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                  Round
-                </div>
-                <div className="mt-1 text-lg font-semibold text-white">
-                  {roundLabel}
+            <div className="flex items-stretch gap-4">
+              {/* VISUALIZER / COUNTDOWN */}
+
+              <div className="flex-1 min-w-0">
+                <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  {/* COUNTDOWN INICIAL */}
+
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
+    ${
+      showCountdown
+        ? "opacity-100 scale-100"
+        : "opacity-0 scale-95 pointer-events-none"
+    }`}
+                  >
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                      Starts in
+                    </div>
+
+                    <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
+                      {countdownSeconds ?? ""}
+                    </div>
+                  </div>
+
+                  {/* VISUALIZER */}
+
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
+    ${
+      showEq
+        ? "opacity-100 scale-100"
+        : "opacity-0 scale-95 pointer-events-none"
+    }`}
+                  >
+                    <canvas
+                      ref={canvasRef}
+                      width={1200}
+                      height={240}
+                      className="h-52 w-full"
+                    />
+                  </div>
+
+                  {/* GUESS COUNTDOWN */}
+
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
+                    ${
+                      showGuessPanel
+                        ? "opacity-100 scale-100"
+                        : "opacity-0 scale-95 pointer-events-none"
+                    }`}
+                  >
+                    {guessStatus === "countdown" && guessSeconds !== null && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center animate-fade-in">
+                        <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                          Guess time remaining
+                        </div>
+
+                        <div
+                          className={`mt-3 text-7xl font-bold transition-all duration-500
+                          ${
+                            guessSeconds <= 5
+                              ? "text-red-500 animate-pulse scale-110"
+                              : "text-amber-300"
+                          }`}
+                        >
+                          {guessSeconds}
+                        </div>
+
+                        <div className="mt-2 text-sm text-zinc-500">
+                          seconds
+                        </div>
+                      </div>
+                    )}
+
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-700
+                      ${
+                        guessStatus === "expired"
+                          ? "opacity-100 scale-100"
+                          : "opacity-0 scale-95 pointer-events-none"
+                      }`}
+                    >
+                      <div className="text-5xl font-black tracking-wider text-red-500 animate-bounce">
+                        TIME EXPIRED!
+                      </div>
+                    </div>
+
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-700
+                      ${
+                        guessStatus === "wrong"
+                          ? "opacity-100 scale-100"
+                          : "opacity-0 scale-95 pointer-events-none"
+                      }`}
+                    >
+                      <div className="text-4xl font-black tracking-wider text-rose-500 animate-shake">
+                        WRONG ANSWER!
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="text-xs text-zinc-400">
-                {audioReady ? "Preview ready" : "Loading preview"}
+
+              {/* LOCK BUTTON */}
+
+              <div className="flex items-center">
+                <button
+                  className="btn-glow h-60 w-48 sm:w/44"
+                  style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                  type="button"
+                  disabled={!canLock || lockRequested}
+                  onClick={requestLock}
+                  onMouseMove={handleMouseMoveToSetFillOrigin}
+                >
+                  <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
+                </button>
               </div>
             </div>
-
-            {countdownSeconds !== null && (
-              <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-center">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                  Starts in
-                </div>
-                <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
-                  {countdownSeconds}
-                </div>
-              </div>
-            )}
 
             {roundInfo?.playlistError && (
               <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
@@ -609,41 +834,28 @@ export default function MatchPage() {
                 <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
                   Lock and guess
                 </div>
-                {lockOwnerId ? (
-                  <div className="mt-1 text-sm text-zinc-300">
-                    Locked by {lockOwnerName || "player"}
+                {isLockOwner ? (
+                  <div className="mt-1 text-lg text-zinc-300 fade-in fade-out">
+                    Locked by{" "}
+                    <span className="font-extrabold tracking-wider">
+                      {lockOwnerName || "player"}
+                    </span>
                   </div>
                 ) : (
-                  <div className="mt-1 text-sm text-zinc-400">
+                  <div className="mt-1 text-sm text-zinc-400 fade-out">
                     First lock wins
                   </div>
                 )}
               </div>
-              <button
-                className="btn-glow"
-                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
-                type="button"
-                disabled={!canLock || lockRequested}
-                onClick={requestLock}
-              >
-                <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
-              </button>
             </div>
 
             {roundPhase === "guessing" && (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                  Guess window
-                </div>
-                <div className="mt-2 text-2xl font-semibold text-white">
-                  {guessSeconds ?? "—"}s left
-                </div>
-
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 border-[#f7d046]">
                 {isLockOwner ? (
                   <div className="mt-4">
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <input
-                        className="input flex-1"
+                        className="lock-input input flex-1 text-center uppercase"
                         placeholder="Search track"
                         value={searchTerm}
                         onChange={(event) => {
@@ -666,7 +878,7 @@ export default function MatchPage() {
                         disabled={!canGuess}
                       />
                       <button
-                        className="btn-glow"
+                        className={`btn-glow submit-guess w-48 sm:w/44 ${!canGuess || !selectedTrack ? "" : "animate-bounce scale-90"}`}
                         style={
                           { "--btn-color": "#4ade80" } as React.CSSProperties
                         }
@@ -736,7 +948,7 @@ export default function MatchPage() {
               </div>
             )}
 
-            {lastResult && (
+            {/* {lastResult && (
               <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
                   Result
@@ -754,7 +966,7 @@ export default function MatchPage() {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
           </section>
         )}
 
