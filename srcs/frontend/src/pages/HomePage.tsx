@@ -5,6 +5,7 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import LinkIcon from "../components/icons/LinkIcon";
 import { socket } from "../api/socket";
+import { getState } from "../api/state";
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
@@ -96,6 +97,25 @@ export default function HomePage() {
     }
   }
 
+  async function joinRoom() {
+    if (!user || isCreating) return;
+
+    setIsCreating(true);
+
+    try {
+      const res = await getState();
+
+      if (!res.ok) throw new Error("User already in game");
+
+      navigate(`/join`);
+    } catch (error) {
+      console.error("Error joining room:", error);
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   return (
     <div className="container-page py-8 sm:py-10 lg:py-12 fade-in">
       <div className="mx-auto max-w-4xl flex flex-col gap-14">
@@ -119,14 +139,15 @@ export default function HomePage() {
                 <span>{isCreating ? "Creating..." : "Create room"}</span>
               </button>
 
-              <Link
-                to="/join"
+              <button
+                type="button"
                 className="btn-glow w-full sm:flex-1 p-10"
                 style={{ "--btn-color": "#ede9db" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
+                onClick={joinRoom}
               >
                 <span>Join room</span>
-              </Link>
+              </button>
             </div>
 
             {error && (
