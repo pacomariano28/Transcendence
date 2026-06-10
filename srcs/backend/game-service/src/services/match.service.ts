@@ -18,6 +18,7 @@ import { replaceTimer } from "./timers.js";
 
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
+  private readonly userToMatch = new Map<string, string>();
   private readonly socketToMatch = new Map<string, string>();
   private readonly roundCountdownTimers = new Map<string, NodeJS.Timeout>();
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
@@ -41,10 +42,18 @@ export class MatchService {
   }
 
   createMatch(input: CreateMatchInput): MatchState {
+    const existingMatchId = this.userToMatch.get(input.userId);
+    if (existingMatchId) {
+      throw new Error(
+        "You cannot create a new game because you are already in-game",
+      );
+    }
+
     const matchId = this.generateMatchCode();
     const match = createMatchState(matchId, input);
 
     this.matches.set(matchId, match);
+    this.userToMatch.set(input.userId, matchId);
     this.socketToMatch.set(input.socketId, matchId);
 
     return match;
@@ -59,6 +68,14 @@ export class MatchService {
     );
 
     if (existingPlayer) {
+      if (
+        existingPlayer.connected &&
+        existingPlayer.socketId !== input.socketId
+      ) {
+        throw new Error(
+          "You cannot join to a game because you are already in-game",
+        );
+      }
       existingPlayer.socketId = input.socketId;
       existingPlayer.displayName = input.displayName;
       existingPlayer.connected = true;
@@ -81,6 +98,7 @@ export class MatchService {
     match.players.push(player);
     ensureScoreEntry(match, player);
 
+    this.userToMatch.set(input.userId, match.matchId);
     this.socketToMatch.set(input.socketId, match.matchId);
 
     return match;
@@ -330,6 +348,7 @@ export class MatchService {
 
     const player = match.players.find((p) => p.socketId === socketId);
     if (player) {
+      this.userToMatch.delete(player.userId);
       player.socketId = null;
       player.connected = false;
       player.disconnectedAt = new Date().toISOString();
@@ -364,6 +383,7 @@ export class MatchService {
         player.socketId = newSocketId;
         player.connected = true;
         player.disconnectedAt = null;
+        this.userToMatch.set(playerId, match.matchId);
         this.socketToMatch.set(newSocketId, match.matchId);
         console.log(`Player ${playerId} reconnected to match ${match.matchId}`);
         return match;
@@ -371,6 +391,18 @@ export class MatchService {
     }
 
     throw new Error("MATCH_NOT_FOUND");
+  }
+
+  getMatchByUserId(userId: string): MatchState | undefined {
+    for (const match of this.matches.values()) {
+      const player = match.players.find(
+        (p: MatchPlayer) => p.userId === userId,
+      );
+      if (player) {
+        return match;
+      }
+    }
+    return undefined;
   }
 
   private getMatchOrThrow(matchId: string): MatchState {
