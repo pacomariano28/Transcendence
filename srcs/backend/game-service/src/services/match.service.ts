@@ -393,13 +393,13 @@ export class MatchService {
     throw new Error("MATCH_NOT_FOUND");
   }
 
-  getMatchByUserId(userId: string): MatchState | undefined {
+  getPlayerByUserId(userId: string): MatchPlayer | undefined {
     for (const match of this.matches.values()) {
       const player = match.players.find(
         (p: MatchPlayer) => p.userId === userId,
       );
       if (player) {
-        return match;
+        return player.connected ? player : undefined;
       }
     }
     return undefined;

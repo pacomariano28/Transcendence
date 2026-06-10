@@ -11,16 +11,14 @@ export async function getUserState(req: Request, res: Response) {
   console.log(`userId is ${userId}`);
 
   try {
-    const match = matchService.getMatchByUserId(userId);
+    const player = matchService.getPlayerByUserId(userId);
 
-    if (match) {
-      console.log(`match found is:\n ${JSON.stringify(match)}`);
+    if (player) {
+      console.log(`Player '${player.displayName}': is connected to a match`);
       return res
         .status(423)
-        .json({ ok: false, error: "User is already playing", match });
+        .json({ ok: false, error: "User is already playing" });
     }
-
-    console.log("Match not found");
 
     return res.status(200).json({ ok: true });
   } catch (err) {
