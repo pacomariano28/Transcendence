@@ -25,4 +25,4 @@ COPY prisma ./prisma
 RUN npm ci
 # en dev montamos el código desde volumen, por eso no copiamos el resto
 EXPOSE 4004
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npx tsx prisma/seed.ts && npm run dev"]
