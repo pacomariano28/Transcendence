@@ -12,18 +12,9 @@ export const socketProxy = createProxyMiddleware({
   changeOrigin: true,
   ws: true,
   logger: console,
-  pathRewrite: { "^/socket.io": "/socket.io" },
   on: {
     proxyReq: (proxyReq, req) => {
-      console.log(`[PROXY OUT] Proxying to: ${proxyReq.path}`);
       fixRequestBody(proxyReq, req);
-    },
-    proxyRes: (proxyRes, _req) => {
-      void _req;
-      // <--- 3. Log de lo que el game-service contesta
-      console.log(
-        `[PROXY RES] Target responded with status: ${proxyRes.statusCode}`,
-      );
     },
   },
 });
