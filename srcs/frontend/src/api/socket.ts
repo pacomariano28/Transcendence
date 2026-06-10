@@ -6,4 +6,5 @@ export const socket = io(SOCKET_BASE_URL, {
   path: "/socket.io",
   autoConnect: false,
   withCredentials: true,
+  transports: ["websocket"],
 });
