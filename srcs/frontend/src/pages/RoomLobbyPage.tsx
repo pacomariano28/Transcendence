@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import TypingText from "../components/TypingText";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import type {
+  MatchPhasePayload,
+  MatchStatePayload,
+  RoomLobbyLocationState,
+} from "../types/socket.payloads";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -12,36 +17,22 @@ function normalizeCode(raw: string) {
     .slice(0, 6);
 }
 
-// Map the backend payload type
-type MatchStatePayload = {
-  matchId: string;
-  expectedPlayers: number;
-  roundsTotal: number;
-  phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
-  players: Array<{
-    userId: string;
-    displayName: string;
-    ready: boolean;
-    connected: boolean;
-    disconnectedAt: string | null;
-  }>;
-};
-
-type MatchPhasePayload = {
-  matchId: string;
-  phase: MatchStatePayload["phase"];
-  previousPhase?: MatchStatePayload["phase"];
-  reason?: string;
-};
-
 export default function RoomLobbyPage() {
+  const location = useLocation();
+  const createdMatch = (location.state as RoomLobbyLocationState | null)
+    ?.createdMatch;
+
   const nav = useNavigate();
   const { code: codeParam } = useParams();
   const { user } = useAuth();
 
   const code = useMemo(() => normalizeCode(codeParam ?? ""), [codeParam]);
 
-  const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
+  const [matchState, setMatchState] = useState<MatchStatePayload | null>(
+    createdMatch ?? null,
+  );
+  // console.log("RoomLobby: createdMatch from location.state:", createdMatch);
+
   const [error, setError] = useState<string | null>(null);
   const me = useMemo(() => {
     if (!matchState || !user) return null;
@@ -63,6 +54,7 @@ export default function RoomLobbyPage() {
     }
 
     const joinMatch = () => {
+      if (createdMatch?.matchId === code) return;
       socket.emit("match:join", {
         matchId: code,
         displayName: user.username ?? user.email ?? "Guest",
@@ -101,7 +93,7 @@ export default function RoomLobbyPage() {
       socket.off("match:phase");
       socket.off("match:error");
     };
-  }, [code, user, nav]);
+  }, [code, user, nav, createdMatch]);
 
   function toggleReady() {
     socket.emit("match:ready");
