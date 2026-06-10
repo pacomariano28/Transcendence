@@ -356,6 +356,7 @@ export default function MatchPage() {
       socket.off("round:resume");
       socket.off("match:end");
       socket.off("match:error");
+      socket.disconnect();
     };
   }, [code, nav, user]);
 

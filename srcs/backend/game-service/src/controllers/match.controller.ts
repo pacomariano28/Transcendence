@@ -89,10 +89,23 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 
+  socket.on("match:leave", () => {
+    const match = matchService.removeSocket(socket.id);
+
+    if (match) {
+      socket.leave(match.matchId);
+
+      io.to(match.matchId).emit("match:state", toPayload(match));
+    }
+    logInfo(`Socket dejó la partida voluntariamente: ${socket.id}`);
+  });
+
   socket.on("disconnect", () => {
     const match = matchService.removeSocket(socket.id);
 
     if (match) {
+      socket.leave(match.matchId);
+
       io.to(match.matchId).emit("match:state", toPayload(match));
     }
 

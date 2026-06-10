@@ -11,10 +11,9 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
-import { requireAuth } from "./middlewares/auth.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import gameRoutes, { gameProxy } from "./routes/game.routes.js";
+import gameRoutes, { socketProxy } from "./routes/game.routes.js";
 import playlistRoutes from "./routes/playlist.routes.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -58,9 +57,56 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes registration
 app.use("/api/auth", authRoutes);
-app.use("/api/game", requireAuth, gameRoutes);
+app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/playlist", playlistRoutes);
+
+function extractToken(headers: Record<string, string | string[] | undefined>) {
+  const authHeader = headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice("Bearer ".length).trim();
+  }
+
+  const cookieHeader = headers.cookie;
+  if (typeof cookieHeader === "string") {
+    const cookies = cookie.parse(cookieHeader);
+    return cookies.access_token;
+  }
+
+  return undefined;
+}
+
+function sendUnauthorized(socket: NetSocket) {
+  socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+  socket.destroy();
+}
+
+server.on("upgrade", (req, socket, head) => {
+  console.log("Server on upgrade called");
+  if (req.url?.startsWith("/socket.io")) {
+    const token = extractToken(req.headers);
+    if (!token) {
+      sendUnauthorized(socket as NetSocket);
+      return;
+    }
+
+    try {
+      const secret = process.env.JWT_SECRET || "jwt_secret";
+      const decoded = jwt.verify(token, secret) as JwtPayload;
+
+      req.headers["x-user-id"] = decoded.sub;
+      req.headers["x-user-email"] = decoded.email;
+      if (decoded.username) {
+        req.headers["x-user-username"] = decoded.username;
+      }
+      req.headers["x-authenticated-by"] = "api-gateway";
+
+      socketProxy.upgrade(req, socket as NetSocket, head);
+    } catch {
+      sendUnauthorized(socket as NetSocket);
+    }
+  }
+});
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {
@@ -96,52 +142,6 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 };
 
 app.use(globalErrorHandler);
-
-function extractToken(headers: Record<string, string | string[] | undefined>) {
-  const authHeader = headers.authorization;
-  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice("Bearer ".length).trim();
-  }
-
-  const cookieHeader = headers.cookie;
-  if (typeof cookieHeader === "string") {
-    const cookies = cookie.parse(cookieHeader);
-    return cookies.access_token;
-  }
-
-  return undefined;
-}
-
-function sendUnauthorized(socket: NetSocket) {
-  socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
-  socket.destroy();
-}
-
-server.on("upgrade", (req, socket, head) => {
-  if (req.url?.startsWith("/api/game")) {
-    const token = extractToken(req.headers);
-    if (!token) {
-      sendUnauthorized(socket as NetSocket);
-      return;
-    }
-
-    try {
-      const secret = process.env.JWT_SECRET || "jwt_secret";
-      const decoded = jwt.verify(token, secret) as JwtPayload;
-
-      req.headers["x-user-id"] = decoded.sub;
-      req.headers["x-user-email"] = decoded.email;
-      if (decoded.username) {
-        req.headers["x-user-username"] = decoded.username;
-      }
-      req.headers["x-authenticated-by"] = "api-gateway";
-
-      gameProxy.upgrade(req, socket as NetSocket, head);
-    } catch {
-      sendUnauthorized(socket as NetSocket);
-    }
-  }
-});
 
 server.listen(PORT, () => {
   logInfo(`Listening on port ${PORT}`);
