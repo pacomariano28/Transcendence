@@ -15,7 +15,6 @@ function normalizeCode(raw: string) {
 
 type MatchStatePayload = {
   matchId: string;
-  expectedPlayers: number;
   roundsTotal: number;
   phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
   players: Array<{

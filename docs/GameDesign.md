@@ -36,7 +36,7 @@ Room creation and pre-game flow follow the canonical lobby lifecycle.
 
 ### 4.2 Client to Server Events
 
-- `match:create` `{ expectedPlayers, displayName? }`
+- `match:create` `{ displayName? }`
 - `match:join` `{ matchId, displayName? }`
 - `match:ready` `{}`
 - `match:countdown_abort` `{ matchId, reason }` (host only)

@@ -14,7 +14,6 @@ export function readHeader(
 export function toPayload(match: MatchState): MatchStatePayload {
   return {
     matchId: match.matchId,
-    expectedPlayers: match.expectedPlayers,
     roundsTotal: match.roundsTotal,
     phase: match.phase,
     players: match.players.map((player) => ({

@@ -1,7 +1,4 @@
 export type CreateMatchPayload = {
-  matchId?: string;
-  expectedPlayers: number;
-  roundsTotal?: number;
   displayName?: string;
 };
 
@@ -12,7 +9,6 @@ export type JoinMatchPayload = {
 
 export type MatchStatePayload = {
   matchId: string;
-  expectedPlayers: number;
   roundsTotal: number;
   phase: MatchState["phase"];
   players: Array<{

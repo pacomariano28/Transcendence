@@ -43,7 +43,6 @@ declare global {
 
   export type MatchState = {
     matchId: string;
-    expectedPlayers: number;
     phase: MatchPhase;
     players: MatchPlayer[];
     roundsTotal: number;
@@ -59,7 +58,6 @@ declare global {
     socketId: string;
     userId: string;
     displayName: string;
-    expectedPlayers: number;
     roundsTotal?: number;
   };
 

@@ -11,6 +11,7 @@ import {
   emitMatchError,
   emitMatchState,
 } from "./socket.helpers.js";
+import { ROUND_NUMBER } from "../utils/constants.js";
 
 export function registerMatchHandlers(io: Server, socket: Socket): void {
   socket.on("match:create", (payload: CreateMatchPayload) => {
@@ -26,8 +27,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         readHeader(socket.handshake.headers, "x-user-email") ??
         "Guest";
       const match = matchService.createMatch({
-        expectedPlayers: payload.expectedPlayers,
-        roundsTotal: payload.roundsTotal,
+        roundsTotal: ROUND_NUMBER,
         userId,
         displayName,
         socketId: socket.id,

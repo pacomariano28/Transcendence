@@ -31,7 +31,7 @@ This document defines the canonical lobby lifecycle and the Socket.io contracts 
 ### Client -> Server
 
 - `match:create`
-  - Payload: `{ expectedPlayers, displayName? }`
+  - Payload: `{ displayName? }`
   - Result: server joins socket to `matchId`, emits `match:created` and `match:state`.
 
 - `match:join`
@@ -60,7 +60,6 @@ This document defines the canonical lobby lifecycle and the Socket.io contracts 
     ```json
     {
       "matchId": "ABC123",
-      "expectedPlayers": 4,
       "phase": "lobby",
       "players": [
         {
@@ -100,7 +99,7 @@ This document defines the canonical lobby lifecycle and the Socket.io contracts 
 ## Required Server Guards
 
 - Reject `match:ready` if `phase` is not `lobby`.
-- Reject `match:join` if `expectedPlayers` already reached.
+- Reject `match:join` if `MAX_PLAYER` already reached.
 - Reject `match:countdown_abort` unless the requester is host.
 
 ## Discovery Notes (Implementation Alignment)
