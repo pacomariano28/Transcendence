@@ -3,6 +3,7 @@ import {
   ALPHABET,
   DISCONNECT_TTL_MS,
   GUESS_WINDOW_SECONDS,
+  MAX_PLAYER,
   ROUND_COUNTDOWN_SECONDS,
   SECOND_MS,
 } from "../utils/constants.js";
@@ -85,7 +86,7 @@ export class MatchService {
       return match;
     }
 
-    if (match.players.length >= match.expectedPlayers) {
+    if (match.players.length >= MAX_PLAYER) {
       throw new Error("MATCH_FULL");
     }
 
@@ -398,8 +399,8 @@ export class MatchService {
       const player = match.players.find(
         (p: MatchPlayer) => p.userId === userId,
       );
-      if (player) {
-        return player.connected ? player : undefined;
+      if (player && player.connected) {
+        return player;
       }
     }
     return undefined;

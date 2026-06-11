@@ -51,6 +51,10 @@ export default function HomePage() {
     setIsCreating(true);
 
     try {
+      const res = await getState();
+
+      if (!res.ok) throw new Error("User already in game");
+
       await ensureSocketConnected();
 
       let matchId = "";
@@ -81,9 +85,7 @@ export default function HomePage() {
         socket.on("match:error", handleError);
 
         socket.emit("match:create", {
-          matchId,
           displayName: playerName,
-          expectedPlayers: 5,
           roundsTotal: 3,
         });
       });

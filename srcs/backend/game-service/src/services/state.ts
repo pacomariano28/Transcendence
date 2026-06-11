@@ -32,7 +32,6 @@ export function createMatchState(
 
   return {
     matchId,
-    expectedPlayers: input.expectedPlayers,
     phase: "lobby",
     players: [player],
     roundsTotal: ROUND_NUMBER,
