@@ -14,9 +14,6 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "bcryptjs": "3.0.3",
@@ -33,6 +30,7 @@
     "@types/node": "25.9.1",
     "prisma": "6.19.3",
     "tsx": "4.21.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "zod-prisma-types": "^3.3.11"
   }
 }
