@@ -149,14 +149,15 @@ export class MatchService {
   markRoundReady(
     socketId: string,
     emit: EmitMatchEvent,
-  ): { match: MatchState; countdownStarted: boolean } {
+  ): { match: MatchState; countdownStarted: boolean; catchUp?: boolean } {
     void emit;
     const match = this.getMatchBySocketOrThrow(socketId);
     if (match.phase !== "in-game" || !match.round) {
       throw new Error("INVALID_STATE");
     }
+
     if (match.round.phase !== "sync") {
-      throw new Error("ROUND_NOT_READY");
+      return { match, countdownStarted: false, catchUp: true };
     }
 
     const player = match.players.find((entry) => entry.socketId === socketId);

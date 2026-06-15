@@ -92,7 +92,6 @@ export default function RoomLobbyPage() {
       socket.off("match:state");
       socket.off("match:phase");
       socket.off("match:error");
-      socket.disconnect();
     };
   }, [code, user, nav, createdMatch]);
 

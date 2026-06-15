@@ -325,6 +325,8 @@ export default function MatchPage() {
       setGuessEndsAt(null);
       setLockRequested(false);
 
+      setShowVisualizer(true);
+
       if (audioRef.current) {
         if (payload.resumeTime !== null) {
           audioRef.current.currentTime = payload.resumeTime;
@@ -359,7 +361,6 @@ export default function MatchPage() {
       socket.off("round:resume");
       socket.off("match:end");
       socket.off("match:error");
-      socket.disconnect();
     };
   }, [code, nav, user]);
 
@@ -367,10 +368,10 @@ export default function MatchPage() {
     if (!audioUrl) {
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = "";
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
         audioRef.current = null;
       }
-      setSongRemainingSeconds(null);
       return;
     }
 
@@ -435,7 +436,8 @@ export default function MatchPage() {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleTimeUpdate);
       audio.pause();
-      audio.src = "";
+      audio.removeAttribute("src");
+      audio.load();
 
       if (audioRef.current === audio) {
         audioRef.current = null;
