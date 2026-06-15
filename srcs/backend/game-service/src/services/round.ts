@@ -30,7 +30,8 @@ export function startRoundCountdown(
       }
 
       match.round.phase = "playing";
-      match.round.countdownEndsAt = null;
+
+      match.round.countdownEndsAt = Date.now();
     },
   );
 }
@@ -133,6 +134,12 @@ export function resolveGuess({
       match.round.lockOwnerId = null;
       match.round.lockAt = null;
       match.round.guessEndsAt = null;
+
+      if (resumeTime !== null) {
+        match.round.countdownEndsAt = Date.now() - resumeTime * 1000;
+      } else {
+        match.round.countdownEndsAt = Date.now();
+      }
 
       emit(match.matchId, "round:resume", {
         matchId: match.matchId,
