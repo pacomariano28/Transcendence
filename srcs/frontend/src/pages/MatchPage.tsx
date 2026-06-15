@@ -325,6 +325,8 @@ export default function MatchPage() {
       setGuessEndsAt(null);
       setLockRequested(false);
 
+      setShowVisualizer(true);
+
       if (audioRef.current) {
         if (payload.resumeTime !== null) {
           audioRef.current.currentTime = payload.resumeTime;
