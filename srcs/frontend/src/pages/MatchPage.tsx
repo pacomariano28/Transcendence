@@ -5,6 +5,7 @@ import { socket } from "../api/socket";
 import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import TypingText from "../components/TypingText";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -89,16 +90,6 @@ type MatchEndPayload = {
   scores: ScoreEntry[];
 };
 
-type RoundPhase =
-  | "idle"
-  | "sync"
-  | "countdown"
-  | "playing"
-  | "guessing"
-  | "resolution-win"
-  | "resolution-fail"
-  | "finished";
-
 const SECOND_MS = 1000;
 
 export default function MatchPage() {
@@ -111,16 +102,16 @@ export default function MatchPage() {
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [roundInfo, setRoundInfo] = useState<RoundSyncPayload | null>(null);
-  const [roundPhase, setRoundPhase] = useState<RoundPhase>("idle");
+  const [roundPhase, setRoundPhase] = useState("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioReady, setAudioReady] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
   const [guessSeconds, setGuessSeconds] = useState<number | null>(null);
+  const [songRemainingSeconds, setSongRemainingSeconds] = useState<
+    number | null
+  >(null);
   const [lockOwnerId, setLockOwnerId] = useState<string | null>(null);
   const [guessEndsAt, setGuessEndsAt] = useState<number | null>(null);
-  const [lastResult, setLastResult] = useState<RoundGuessResultPayload | null>(
-    null,
-  );
   const [scores, setScores] = useState<Record<string, number>>({});
   const [finalScores, setFinalScores] = useState<ScoreEntry[] | null>(null);
   const [lockRequested, setLockRequested] = useState(false);
@@ -134,8 +125,9 @@ export default function MatchPage() {
   const [showVisualizer, setShowVisualizer] = useState(false);
 
   const [guessStatus, setGuessStatus] = useState<
-    "countdown" | "expired" | "wrong"
+    "countdown" | "expired" | "wrong" | "correct"
   >("countdown");
+  const [showResultText, setShowResultText] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const readyRoundRef = useRef<number | null>(null);
@@ -146,6 +138,7 @@ export default function MatchPage() {
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const myUserId = user ? String(user.id) : null;
+
   const lockOwnerName = useMemo(() => {
     if (!matchState || !lockOwnerId) return "";
     return (
@@ -164,38 +157,14 @@ export default function MatchPage() {
     }));
   }, [matchState, scores]);
 
-  const isLockOwner = Boolean(lockOwnerId && lockOwnerId === myUserId);
   const canLock = roundPhase === "playing" && audioReady && !lockOwnerId;
-  const canGuess = roundPhase === "guessing" && isLockOwner;
+  const canGuess =
+    roundPhase === "guessing" &&
+    Boolean(lockOwnerId && lockOwnerId === myUserId);
 
   const roundLabel = roundInfo
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
-
-  const roundStatus = useMemo(() => {
-    if (roundPhase === "sync") {
-      return audioReady ? "Waiting for players" : "Loading preview";
-    }
-    if (roundPhase === "countdown") {
-      return "Starting";
-    }
-    if (roundPhase === "playing") {
-      return "Playing";
-    }
-    if (roundPhase === "guessing") {
-      return "Guessing";
-    }
-    if (roundPhase === "resolution-win") {
-      return "Correct";
-    }
-    if (roundPhase === "resolution-fail") {
-      return "Wrong";
-    }
-    if (roundPhase === "finished") {
-      return "Finished";
-    }
-    return "Idle";
-  }, [roundPhase, audioReady]);
 
   useEffect(() => {
     if (!user || !code) return;
@@ -216,6 +185,7 @@ export default function MatchPage() {
     }
 
     socket.on("connect", joinMatch);
+
     socket.on("match:state", (payload: MatchStatePayload) => {
       setMatchState(payload);
       setError(null);
@@ -229,6 +199,7 @@ export default function MatchPage() {
         return next;
       });
     });
+
     socket.on("match:phase", (payload: MatchPhasePayload) => {
       if (payload.matchId !== code) return;
       setMatchState((prev) =>
@@ -242,17 +213,17 @@ export default function MatchPage() {
         setRoundPhase("finished");
       }
     });
+
     socket.on("round:sync", (payload: RoundSyncPayload) => {
       if (payload.matchId !== code) return;
-      setGuessStatus("countdown");
       setShowVisualizer(false);
       setRoundInfo(payload);
       setRoundPhase("sync");
       setCountdownSeconds(null);
       setGuessSeconds(null);
+      setSongRemainingSeconds(null);
       setGuessEndsAt(null);
       setLockOwnerId(null);
-      setLastResult(null);
       setLockRequested(false);
       readyRoundRef.current = null;
       setAudioReady(false);
@@ -288,18 +259,11 @@ export default function MatchPage() {
         remaining -= 1;
         if (remaining <= 0) {
           clearCountdownTimer();
-
           setShowVisualizer(true);
-
-          setTimeout(() => {
-            setCountdownSeconds(null);
-          }, 400);
-
+          setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
-
           audioContextRef.current?.resume();
           audioRef.current?.play().catch(() => undefined);
-
           return;
         }
         setCountdownSeconds(remaining);
@@ -310,10 +274,12 @@ export default function MatchPage() {
       if (payload.matchId !== code) return;
       startCountdown(payload.seconds);
     });
+
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
       if (payload.matchId !== code) return;
       setRoundPhase("guessing");
       setGuessStatus("countdown");
+      setShowResultText(false);
       setLockOwnerId(payload.lockOwnerId);
       setGuessEndsAt(payload.guessEndsAt ?? null);
       setLockRequested(false);
@@ -325,26 +291,23 @@ export default function MatchPage() {
         audioRef.current.pause();
       }
     });
+
     socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
       if (payload.matchId !== code) return;
-      setLastResult(payload);
 
-      // Corregido: Evaluamos la razón real que manda el servidor
-      if (!payload.correct) {
+      setShowResultText(false);
+
+      if (payload.correct) {
+        setGuessStatus("correct");
+      } else {
         if (payload.reason === "timeout") {
           setGuessStatus("expired");
         } else {
           setGuessStatus("wrong");
         }
-
-        // Devolvemos a countdown tras mostrar el mensaje el tiempo correspondiente
-        setTimeout(() => {
-          setGuessStatus("countdown");
-        }, 1200);
       }
 
       setRoundPhase(payload.correct ? "resolution-win" : "resolution-fail");
-      setGuessSeconds(null);
       setGuessEndsAt(null);
       setLockOwnerId(payload.lockOwnerId);
       setScores((prev) => ({
@@ -353,6 +316,7 @@ export default function MatchPage() {
       }));
       setLockRequested(false);
     });
+
     socket.on("round:resume", (payload: RoundResumePayload) => {
       if (payload.matchId !== code) return;
       setRoundPhase("playing");
@@ -369,6 +333,7 @@ export default function MatchPage() {
         audioRef.current.play().catch(() => undefined);
       }
     });
+
     socket.on("match:end", (payload: MatchEndPayload) => {
       if (payload.matchId !== code) return;
       setFinalScores(payload.scores);
@@ -377,6 +342,7 @@ export default function MatchPage() {
         audioRef.current.pause();
       }
     });
+
     socket.on("match:error", (err: { message: string }) => {
       setError(err.message);
       setLockRequested(false);
@@ -404,6 +370,7 @@ export default function MatchPage() {
         audioRef.current.src = "";
         audioRef.current = null;
       }
+      setSongRemainingSeconds(null);
       return;
     }
 
@@ -411,12 +378,10 @@ export default function MatchPage() {
     audio.preload = "auto";
 
     const audioContext = new AudioContext();
-
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
 
     const source = audioContext.createMediaElementSource(audio);
-
     source.connect(analyser);
     analyser.connect(audioContext.destination);
 
@@ -445,25 +410,37 @@ export default function MatchPage() {
       setError("AUDIO_LOAD_FAILED");
     };
 
+    const handleTimeUpdate = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil(audio.duration - audio.currentTime),
+      );
+      if (!isNaN(remaining)) {
+        setSongRemainingSeconds(remaining);
+      }
+    };
+
     audio.addEventListener("canplaythrough", handleReady);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleTimeUpdate);
     audio.load();
     audioRef.current = audio;
+
     return () => {
       audio.removeEventListener("canplaythrough", handleReady);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
-
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleTimeUpdate);
       audio.pause();
       audio.src = "";
 
       if (audioRef.current === audio) {
         audioRef.current = null;
       }
-
       audioContextRef.current?.close();
-
       audioContextRef.current = null;
       analyserRef.current = null;
       sourceRef.current = null;
@@ -477,7 +454,6 @@ export default function MatchPage() {
       const remainingMs = Math.max(0, guessEndsAt - Date.now());
       const remaining = Math.ceil(remainingMs / SECOND_MS);
 
-      // Solo actualizamos los segundos si la fase sigue activa para evitar saltos visuales
       if (remainingMs > 0) {
         setGuessSeconds(remaining);
       }
@@ -490,14 +466,13 @@ export default function MatchPage() {
   }, [guessEndsAt]);
 
   useEffect(() => {
-    if (!canGuess || selectedTrack) {
-      return;
-    }
+    const isLocked =
+      roundPhase === "guessing" &&
+      Boolean(lockOwnerId && lockOwnerId === myUserId);
+    if (!isLocked || selectedTrack) return;
 
     const term = searchTerm.trim();
-    if (term.length < 2) {
-      return;
-    }
+    if (term.length < 2) return;
 
     let cancelled = false;
 
@@ -516,9 +491,7 @@ export default function MatchPage() {
           setSearchResults([]);
         })
         .finally(() => {
-          if (!cancelled) {
-            setSearching(false);
-          }
+          if (!cancelled) setSearching(false);
         });
     }, 300);
 
@@ -526,7 +499,7 @@ export default function MatchPage() {
       cancelled = true;
       window.clearTimeout(timerId);
     };
-  }, [canGuess, searchTerm, selectedTrack]);
+  }, [roundPhase, lockOwnerId, myUserId, searchTerm, selectedTrack]);
 
   const requestLock = useCallback(() => {
     if (!audioRef.current || !canLock || lockRequested) return;
@@ -545,9 +518,8 @@ export default function MatchPage() {
       if (
         target &&
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
-      ) {
+      )
         return;
-      }
       event.preventDefault();
       requestLock();
     };
@@ -572,10 +544,6 @@ export default function MatchPage() {
     setSearching(false);
   }, []);
 
-  function handleBack() {
-    nav(`/room/${code}`, { replace: true });
-  }
-
   useEffect(() => {
     let animationId: number;
 
@@ -589,36 +557,28 @@ export default function MatchPage() {
       }
 
       const ctx = canvas.getContext("2d");
-
       if (!ctx) {
         animationId = requestAnimationFrame(draw);
         return;
       }
 
       const bufferLength = analyser.frequencyBinCount;
-
       const dataArray = new Uint8Array(bufferLength);
-
       analyser.getByteFrequencyData(dataArray);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       const barWidth = canvas.width / bufferLength;
-
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
         const height = (dataArray[i] / 255) * canvas.height * 0.6;
-
         ctx.fillStyle = "#f7d046";
-
         ctx.fillRect(
           x,
           canvas.height - height,
           Math.max(barWidth - 2, 1),
           height,
         );
-
         x += barWidth;
       }
 
@@ -634,37 +594,24 @@ export default function MatchPage() {
 
   const showGuessPanel =
     roundPhase === "guessing" ||
-    guessStatus === "expired" ||
-    guessStatus === "wrong";
+    roundPhase === "resolution-win" ||
+    roundPhase === "resolution-fail";
 
   const showCountdown = !showGuessPanel && !showVisualizer;
-
   const showEq = !showGuessPanel && showVisualizer;
 
   return (
-    <div className="container-page py-10 fade-in">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-              Match
-            </div>
-            <div className="mt-1 text-2xl font-semibold text-white">
-              {roundLabel}
-            </div>
-            <div className="mt-1 text-sm text-zinc-400">
-              Status: {roundStatus}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-300">
+    <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
+      <div className="w-full max-w-4xl space-y-6">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
+            <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out tran sm:text-5xl">
               {code || "———"}
-            </div>
-            <button className="btn-ghost" onClick={handleBack}>
-              Back to lobby
-            </button>
+            </h1>
+            <p className="text-sm text-zinc-400">{roundLabel}</p>
+            {/* <p className="text-sm text-zinc-400">Status: {roundStatus}</p> */}
           </div>
-        </div>
+        </header>
 
         {error && (
           <div className="rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
@@ -698,39 +645,46 @@ export default function MatchPage() {
           </section>
         ) : (
           <section className="card p-6">
-            <div className="flex items-stretch gap-4">
-              {/* VISUALIZER / COUNTDOWN */}
-
+            <div className="flex flex-col sm:flex-row items-stretch gap-4">
+              {/* PANTALLA PRINCIPAL */}
               <div className="flex-1 min-w-0">
                 <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                  {/* COUNTDOWN INICIAL */}
+                  {/* CONTADOR TIEMPO RESTANTE DE LA CANCIÓN */}
+                  {songRemainingSeconds !== null &&
+                    (roundPhase === "playing" ||
+                      roundPhase === "guessing" ||
+                      roundPhase === "resolution-win" ||
+                      roundPhase === "resolution-fail") && (
+                      <div className="absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity animate-fade-in">
+                        <span className="relative h-2 w-2 shrink-0">
+                          <span
+                            className={`absolute inset-0 rounded-full bg-amber-400 opacity-75 ${roundPhase === "playing" ? "animate-ping" : ""}`}
+                          ></span>
+                          <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
+                        </span>
+                        <span className="relative transform translate-y-[1px]">
+                          Track: {songRemainingSeconds}s
+                        </span>
+                      </div>
+                    )}
 
+                  {/* COUNTDOWN INICIAL */}
                   <div
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
-    ${
-      showCountdown
-        ? "opacity-100 scale-100"
-        : "opacity-0 scale-95 pointer-events-none"
-    }`}
+                    ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
                       Starts in
                     </div>
-
                     <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
                       {countdownSeconds ?? ""}
                     </div>
                   </div>
 
                   {/* VISUALIZER */}
-
                   <div
                     className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
-    ${
-      showEq
-        ? "opacity-100 scale-100"
-        : "opacity-0 scale-95 pointer-events-none"
-    }`}
+                    ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <canvas
                       ref={canvasRef}
@@ -740,73 +694,83 @@ export default function MatchPage() {
                     />
                   </div>
 
-                  {/* GUESS COUNTDOWN */}
-
+                  {/* CONTENEDOR GUESS PANEL */}
                   <div
+                    onTransitionEnd={() => {
+                      if (
+                        (guessStatus === "wrong" ||
+                          guessStatus === "expired" ||
+                          guessStatus === "correct") &&
+                        !showResultText
+                      ) {
+                        setShowResultText(true);
+                      }
+                    }}
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${
-                      showGuessPanel
-                        ? "opacity-100 scale-100"
-                        : "opacity-0 scale-95 pointer-events-none"
-                    }`}
+                    ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
-                    {guessStatus === "countdown" && guessSeconds !== null && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center animate-fade-in">
-                        <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                          Guess time remaining
-                        </div>
-
-                        <div
-                          className={`mt-3 text-7xl font-bold transition-all duration-500
-                          ${
-                            guessSeconds <= 5
-                              ? "text-red-500 animate-pulse scale-110"
-                              : "text-amber-300"
-                          }`}
-                        >
-                          {guessSeconds}
-                        </div>
-
-                        <div className="mt-2 text-sm text-zinc-500">
-                          seconds
-                        </div>
-                      </div>
-                    )}
-
+                    {/* GUESS COUNTDOWN */}
                     <div
-                      className={`absolute inset-0 flex items-center justify-center transition-all duration-700
-                      ${
-                        guessStatus === "expired"
-                          ? "opacity-100 scale-100"
-                          : "opacity-0 scale-95 pointer-events-none"
-                      }`}
+                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
+                      ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
-                      <div className="text-5xl font-black tracking-wider text-red-500 animate-bounce">
-                        TIME EXPIRED!
+                      <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                        Guess time remaining
                       </div>
+                      <div
+                        className={`mt-3 text-7xl font-bold transition-all duration-500
+                        ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
+                      >
+                        {guessSeconds ?? 0}
+                      </div>
+                      <div className="mt-2 text-sm text-zinc-500">seconds</div>
                     </div>
 
+                    {/* EXPIRADO / TIME OUT */}
                     <div
-                      className={`absolute inset-0 flex items-center justify-center transition-all duration-700
-                      ${
-                        guessStatus === "wrong"
-                          ? "opacity-100 scale-100"
-                          : "opacity-0 scale-95 pointer-events-none"
-                      }`}
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
+                      ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
-                      <div className="text-4xl font-black tracking-wider text-rose-500 animate-shake">
-                        WRONG ANSWER!
-                      </div>
+                      {showResultText && guessStatus === "expired" && (
+                        <TypingText key="timeout" text="TIMEOUT!" size="md" />
+                      )}
+                    </div>
+
+                    {/* ERROR / WRONG ANSWER */}
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
+                      ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    >
+                      {showResultText && guessStatus === "wrong" && (
+                        <TypingText
+                          key="wrong"
+                          text="WRONG ANSWER!"
+                          size="md"
+                        />
+                      )}
+                    </div>
+
+                    {/* ACIERTO / CORRECT ANSWER */}
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
+                      ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    >
+                      {showResultText && guessStatus === "correct" && (
+                        <TypingText
+                          key="correct"
+                          text="CORRECT ANSWER!"
+                          size="md"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* LOCK BUTTON */}
-
-              <div className="flex items-center">
+              <div className="flex items-center justify-center sm:justify-start">
                 <button
-                  className="btn-glow h-60 w-48 sm:w/44"
+                  className="btn-glow h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-50"
                   style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                   type="button"
                   disabled={!canLock || lockRequested}
@@ -827,33 +791,45 @@ export default function MatchPage() {
         )}
 
         {!finalScores && (
-          <section className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                  Lock and guess
+          <section className="card p-6 overflow-hidden">
+            <div className="flex flex-col gap-1">
+              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                Lock and guess
+              </div>
+
+              {/* CONTENEDOR RELATIVO PARA TRANSICIÓN DE TEXTOS */}
+              <div className="relative h-7 mt-1">
+                <div
+                  className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
+                  ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
+                  text-lg text-zinc-300`}
+                >
+                  Locked by{" "}
+                  <span className="font-extrabold tracking-wider">
+                    {lockOwnerName || "player"}
+                  </span>
                 </div>
-                {isLockOwner ? (
-                  <div className="mt-1 text-lg text-zinc-300 fade-in fade-out">
-                    Locked by{" "}
-                    <span className="font-extrabold tracking-wider">
-                      {lockOwnerName || "player"}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-1 text-sm text-zinc-400 fade-out">
-                    First lock wins
-                  </div>
-                )}
+                <div
+                  className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
+                  ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
+                  text-sm text-zinc-400`}
+                >
+                  First lock wins
+                </div>
               </div>
             </div>
 
-            {roundPhase === "guessing" && (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 border-[#f7d046]">
-                {isLockOwner ? (
-                  <div className="mt-4">
+            {/* TRANSICIÓN DEL PANEL DE BÚSQUEDA */}
+            <div
+              className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
+              ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
+            >
+              <div className="rounded-2xl bg-black/20 p-4">
+                {canGuess ? (
+                  <div className="mt-2">
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <input
+                        autoFocus
                         className="lock-input input flex-1 text-center uppercase"
                         placeholder="Search track"
                         value={searchTerm}
@@ -877,7 +853,7 @@ export default function MatchPage() {
                         disabled={!canGuess}
                       />
                       <button
-                        className={`btn-glow submit-guess w-48 sm:w/44 ${!canGuess || !selectedTrack ? "" : "animate-bounce scale-90"}`}
+                        className={`btn-glow submit-guess w-full sm:w-44 transition-all duration-300 ${!canGuess || !selectedTrack ? "opacity-50" : "animate-bounce scale-95"}`}
                         style={
                           { "--btn-color": "#4ade80" } as React.CSSProperties
                         }
@@ -890,19 +866,19 @@ export default function MatchPage() {
                     </div>
 
                     {selectedTrack && (
-                      <div className="mt-3 text-xs text-emerald-300">
+                      <div className="mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
                         Selected: {selectedTrack.track} - {selectedTrack.artist}
                       </div>
                     )}
 
                     {searchError && (
-                      <div className="mt-3 text-xs text-rose-300">
+                      <div className="mt-3 text-xs text-rose-300 animate-fade-in">
                         {searchError}
                       </div>
                     )}
 
                     {searching && (
-                      <div className="mt-3 text-xs text-zinc-500">
+                      <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
                         Searching...
                       </div>
                     )}
@@ -912,7 +888,7 @@ export default function MatchPage() {
                       searchTerm.trim().length >= 2 &&
                       searchResults.length === 0 &&
                       !selectedTrack && (
-                        <div className="mt-3 text-xs text-zinc-500">
+                        <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
                           No results.
                         </div>
                       )}
@@ -920,7 +896,7 @@ export default function MatchPage() {
                     {searchResults.length > 0 &&
                       !selectedTrack &&
                       searchTerm.trim().length >= 2 && (
-                        <div className="mt-3 grid gap-2">
+                        <div className="mt-3 grid gap-2 animate-fade-in">
                           {searchResults.map((track) => (
                             <button
                               key={track.id}
@@ -940,67 +916,49 @@ export default function MatchPage() {
                       )}
                   </div>
                 ) : (
-                  <div className="mt-4 text-sm text-zinc-400">
+                  <div className="mt-2 text-sm text-zinc-400">
                     Waiting for the lock owner to submit a guess.
                   </div>
                 )}
               </div>
-            )}
-
-            {/* {lastResult && (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                  Result
-                </div>
-                <div className="mt-2 text-lg font-semibold text-white">
-                  {lastResult.correct
-                    ? "Correct answer"
-                    : lastResult.reason === "timeout"
-                      ? "Time expired"
-                      : "Wrong answer"}
-                </div>
-                {lastResult.trackId && (
-                  <div className="mt-1 text-sm text-zinc-400">
-                    Track id: {lastResult.trackId}
-                  </div>
-                )}
-              </div>
-            )} */}
+            </div>
           </section>
         )}
 
-        <section className="card p-6">
-          <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            Scoreboard
-          </div>
-          <div className="mt-4 grid gap-3">
-            {scoreboard.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-                Waiting for players.
-              </div>
-            ) : (
-              scoreboard.map((entry) => (
-                <div
-                  key={entry.userId}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <div className="text-sm font-medium text-zinc-100">
-                    {entry.displayName}
-                    {entry.userId === myUserId ? (
-                      <span className="text-zinc-500"> (you)</span>
-                    ) : null}
-                    {!entry.connected ? (
-                      <span className="text-zinc-500"> (offline)</span>
-                    ) : null}
-                  </div>
-                  <div className="text-lg font-semibold text-white">
-                    {entry.score}
-                  </div>
+        {!finalScores && (
+          <section className="card p-6">
+            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+              Scoreboard
+            </div>
+            <div className="mt-4 grid gap-3">
+              {scoreboard.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
+                  Waiting for players.
                 </div>
-              ))
-            )}
-          </div>
-        </section>
+              ) : (
+                scoreboard.map((entry) => (
+                  <div
+                    key={entry.userId}
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <div className="text-sm font-medium text-zinc-100">
+                      {entry.displayName}
+                      {entry.userId === myUserId ? (
+                        <span className="text-zinc-500"> (you)</span>
+                      ) : null}
+                      {!entry.connected ? (
+                        <span className="text-zinc-500"> (offline)</span>
+                      ) : null}
+                    </div>
+                    <div className="text-lg font-semibold text-white">
+                      {entry.score}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
