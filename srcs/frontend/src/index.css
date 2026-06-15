@@ -187,7 +187,12 @@
   }
 }
 
-.submit-guess: {
+.fade-in-initial {
+  opacity: 0;
+}
+
+.fade-in-visible {
+  opacity: 1;
 }
 
 @keyframes fadeIn {

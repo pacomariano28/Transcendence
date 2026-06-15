@@ -48,6 +48,13 @@ export default function TypingText({
   const [charIndex, setCharIndex] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true);
 
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const currentTypingDelay = useMemo(() => {
     if (!text.length) return 180;
     return typingDelays[charIndex % typingDelays.length] ?? 180;
@@ -140,8 +147,10 @@ export default function TypingText({
         BASE_CLASSNAME,
         SIZE_CLASSES[size],
         className,
+        isVisible ? "fade-in-visible" : "fade-in-initial", // Clases para la transición
       ].join(" ")}
       aria-label={text}
+      style={{ transition: "opacity 0.2s ease-in" }}
     >
       <span className="inline-block">{displayText}</span>
       <span
