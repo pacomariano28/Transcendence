@@ -65,6 +65,10 @@ export class MatchService {
   joinMatch(input: JoinMatchInput): MatchState {
     const match = this.getMatchOrThrow(input.matchId);
 
+    // if (match.phase === "finished") {
+    //   throw new Error("MATCH_FINISHED");
+    // }
+
     const existingPlayer = match.players.find(
       (player) =>
         player.socketId === input.socketId || player.userId === input.userId,
@@ -98,6 +102,11 @@ export class MatchService {
       displayName: input.displayName,
     });
 
+    // 🔑 CAMBIO AQUÍ: Si la partida ya está en juego, este nuevo jugador entra "listo"
+    if (match.phase === "in-game") {
+      player.ready = true;
+    }
+
     match.players.push(player);
     ensureScoreEntry(match, player);
 
@@ -112,9 +121,15 @@ export class MatchService {
     emit: EmitMatchEvent,
   ): Promise<ReadyResult> {
     const match = this.getMatchBySocketOrThrow(socketId);
+
+    // 🔑 CAMBIO AQUÍ: Si no está en lobby (está in-game), devolvemos el estado actual sin romper.
     if (match.phase !== "lobby") {
-      throw new Error("INVALID_STATE");
+      return {
+        match,
+        countdownStarted: false,
+      };
     }
+
     const player = match.players.find((entry) => entry.socketId === socketId);
 
     if (!player) {
@@ -450,7 +465,7 @@ export class MatchService {
     return undefined;
   }
 
-  private getMatchOrThrow(matchId: string): MatchState {
+  getMatchOrThrow(matchId: string): MatchState {
     const match = this.matches.get(matchId);
 
     if (!match) {

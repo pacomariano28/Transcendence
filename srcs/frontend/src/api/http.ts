@@ -48,3 +48,29 @@ export async function apiJson<T>(
 
   return data as T;
 }
+
+export async function apiJsonPost<T>(
+  path: string,
+  payload: unknown,
+  init: RequestInit = {},
+): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+    credentials: "include",
+  });
+
+  const data = await readResponseBody(res);
+
+  if (!res.ok)
+    throw new Error(
+      data.message === "MATCH_NOT_FOUND" ? "Match not found" : "",
+    );
+
+  return data as T;
+}

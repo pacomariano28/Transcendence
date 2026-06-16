@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { useAuth } from "../auth/auth-context";
 import TypingText from "../components/TypingText";
+import { getMatchState } from "../api/state";
+import type { MatchStatePayload } from "../types/socket.payloads";
 
 function normalizeCode(raw: string) {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -11,6 +13,7 @@ function normalizeCode(raw: string) {
 export default function JoinRoomPage() {
   const [code, setCode] = useState("");
   const [touched, setTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const normalized = useMemo(() => normalizeCode(code), [code]);
   const isValid = normalized.length >= 4 && normalized.length <= 8;
@@ -34,10 +37,23 @@ export default function JoinRoomPage() {
 
   const nav = useNavigate();
 
-  function onJoin() {
+  async function onJoin() {
     setTouched(true);
     if (!isValid || disabledReason) return;
-    nav(`/room/${normalized}`);
+
+    try {
+      const match: MatchStatePayload = await getMatchState({
+        matchId: normalized,
+      });
+
+      console.log(JSON.stringify(match));
+
+      if (match.phase === "finished") throw new Error("match finished");
+      nav(`/room/${normalized}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      setError(message);
+    }
   }
 
   return (
@@ -114,6 +130,12 @@ export default function JoinRoomPage() {
               <span className="shrink-0">{normalized.length}/8</span>
             </div>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 mt-3 text-sm text-rose-200 nudge">
+              <strong>{error}</strong>
+            </div>
+          )}
 
           {/* FILA DE BOTONES ASIMÉTRICA (ESTILO LOBBY JUEGO) */}
           <div className="mt-6 flex gap-3 sm:flex-row">
