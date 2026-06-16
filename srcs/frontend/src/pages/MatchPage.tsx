@@ -6,6 +6,7 @@ import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
+import { useActiveMatch } from "../context/active.match.context";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -97,6 +98,8 @@ export default function MatchPage() {
   const { code: codeParam } = useParams();
   const { user } = useAuth();
 
+  const { setActiveMatch } = useActiveMatch();
+
   const code = useMemo(() => normalizeCode(codeParam ?? ""), [codeParam]);
 
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
@@ -166,6 +169,51 @@ export default function MatchPage() {
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
 
+  // 1. Este efecto REGISTRA y actualiza la partida en el Header mientras juegas
+  useEffect(() => {
+    if (code) {
+      setActiveMatch({
+        code: code,
+        roundLabel: roundInfo
+          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
+          : undefined,
+      });
+    }
+  }, [code, roundInfo, setActiveMatch]);
+
+  // 2. AJUSTE B: Este efecto LIMPIA el Header si la partida termina (en vivo o al reconectar)
+  useEffect(() => {
+    if (
+      finalScores ||
+      matchState?.phase === "finished" ||
+      roundPhase === "finished"
+    ) {
+      setActiveMatch(null); // Borra el badge verde del Header
+    }
+  }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
+
+  // Cuando sincronizas o cambia la ronda, actualizas el Header
+  useEffect(() => {
+    if (code) {
+      setActiveMatch({
+        code: code,
+        roundLabel: roundInfo
+          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
+          : undefined,
+      });
+    }
+
+    // Si el componente se desmonta (usuario navega a otra sección),
+    // NO la borramos porque queremos que siga saliendo arriba el acceso directo!
+  }, [code, roundInfo, setActiveMatch]);
+
+  // PERO, si la partida TERMINA de verdad, la limpiamos del header:
+  useEffect(() => {
+    if (finalScores) {
+      setActiveMatch(null); // Ya no hay partida en curso
+    }
+  }, [finalScores, setActiveMatch]);
+
   useEffect(() => {
     if (!user || !code) return;
 
@@ -192,12 +240,17 @@ export default function MatchPage() {
       setScores((prev) => {
         const next = { ...prev };
         payload.players.forEach((player) => {
-          if (next[player.userId] === undefined) {
-            next[player.userId] = 0;
-          }
+          // Si el servidor ya nos manda el score consolidado del jugador, lo usamos (ideal para reconexiones)
+          next[player.userId] =
+            (player as any).score ?? prev[player.userId] ?? 0;
         });
         return next;
       });
+
+      // NUEVO: Si nos reconectamos y la partida YA terminó en el servidor, actualizamos la fase local
+      if (payload.phase === "finished") {
+        setRoundPhase("finished");
+      }
     });
 
     socket.on("match:phase", (payload: MatchPhasePayload) => {
@@ -602,19 +655,38 @@ export default function MatchPage() {
   const showCountdown = !showGuessPanel && !showVisualizer;
   const showEq = !showGuessPanel && showVisualizer;
 
+  // --- CONTROL DE RECONEXIÓN PARA PANTALLA FINAL ---
+  // Comprobamos si la partida ha terminado por cualquiera de las dos vías
+  const isMatchFinished =
+    matchState?.phase === "finished" || roundPhase === "finished";
+
+  // Si no tenemos la lista "finalScores" directa del evento, mapeamos los jugadores
+  // actuales ordenados por su puntuación para reconstruir el podio
+  const playersList = matchState?.players || [];
+  const resultsData =
+    finalScores ||
+    playersList
+      .map((player) => ({
+        userId: player.userId,
+        displayName:
+          (player as any).username || (player as any).displayName || "Jugador",
+        score: scores[player.userId] || (player as any).score || 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+
   return (
     <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
       {/* Estilos inyectados locales para la animación de cambio de ronda */}
       <style>{`
-        @keyframes roundPop {
-          0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
-          50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
-          100% { transform: scale(1); opacity: 1; filter: brightness(1); }
-        }
-        .animate-round-change {
-          animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-        }
-      `}</style>
+      @keyframes roundPop {
+        0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
+        50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
+        100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+      }
+      .animate-round-change {
+        animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+    `}</style>
 
       <div className="w-full max-w-4xl space-y-6">
         <header className="flex items-center justify-between">
@@ -643,13 +715,15 @@ export default function MatchPage() {
           </div>
         )}
 
-        {finalScores ? (
-          <section className="card p-6">
+        {/* 1. CAMBIADO: Condicional principal de pantalla mutado a isMatchFinished */}
+        {isMatchFinished ? (
+          <section className="card p-6 animate-fade-in">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Final results
             </div>
             <div className="mt-4 grid gap-3">
-              {finalScores.map((entry) => (
+              {/* CAMBIADO: Ahora itera sobre resultsData */}
+              {resultsData.map((entry) => (
                 <div
                   key={entry.userId}
                   className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
@@ -665,6 +739,19 @@ export default function MatchPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* NUEVO: Botón arcade para regresar cómodamente al home tras acabar */}
+            <div className="mt-6 text-center">
+              <button
+                className="btn-glow px-6"
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                type="button"
+                onClick={() => nav("/")}
+                onMouseMove={handleMouseMoveToSetFillOrigin}
+              >
+                <span>back home</span>
+              </button>
             </div>
           </section>
         ) : (
@@ -695,7 +782,7 @@ export default function MatchPage() {
                   {/* COUNTDOWN INICIAL */}
                   <div
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
-                    ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
                       Starts in
@@ -708,7 +795,7 @@ export default function MatchPage() {
                   {/* VISUALIZER */}
                   <div
                     className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
-                    ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <canvas
                       ref={canvasRef}
@@ -731,19 +818,19 @@ export default function MatchPage() {
                       }
                     }}
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     {/* GUESS COUNTDOWN */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
                         Guess time remaining
                       </div>
                       <div
                         className={`mt-3 text-7xl font-bold transition-all duration-500
-                        ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
+                      ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
                       >
                         {guessSeconds ?? 0}
                       </div>
@@ -753,7 +840,7 @@ export default function MatchPage() {
                     {/* EXPIRADO / TIME OUT */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "expired" && (
                         <TypingText key="timeout" text="TIMEOUT!" size="md" />
@@ -763,7 +850,7 @@ export default function MatchPage() {
                     {/* ERROR / WRONG ANSWER */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "wrong" && (
                         <TypingText
@@ -777,7 +864,7 @@ export default function MatchPage() {
                     {/* ACIERTO / CORRECT ANSWER */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "correct" && (
                         <TypingText
@@ -814,7 +901,8 @@ export default function MatchPage() {
           </section>
         )}
 
-        {!finalScores && (
+        {/* 2. CAMBIADO: Ocultar panel de búsqueda mediante isMatchFinished si se reconecta */}
+        {!isMatchFinished && (
           <section className="card p-6 overflow-hidden">
             <div className="flex flex-col gap-1">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
@@ -825,8 +913,8 @@ export default function MatchPage() {
               <div className="relative h-7 mt-1">
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                  ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
-                  text-lg text-zinc-300`}
+                ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
+                text-lg text-zinc-300`}
                 >
                   Locked by{" "}
                   <span className="font-extrabold tracking-wider">
@@ -835,8 +923,8 @@ export default function MatchPage() {
                 </div>
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                  ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
-                  text-sm text-zinc-400`}
+                ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
+                text-sm text-zinc-400`}
                 >
                   First lock wins
                 </div>
@@ -846,7 +934,7 @@ export default function MatchPage() {
             {/* TRANSICIÓN DEL PANEL DE BÚSQUEDA */}
             <div
               className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
-              ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
+            ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
             >
               <div className="rounded-2xl bg-black/20 p-4">
                 {canGuess ? (
@@ -949,7 +1037,8 @@ export default function MatchPage() {
           </section>
         )}
 
-        {!finalScores && (
+        {/* 3. CAMBIADO: Ocultar el marcador en vivo intermedio si isMatchFinished es true */}
+        {!isMatchFinished && (
           <section className="card p-6">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Scoreboard
@@ -971,13 +1060,13 @@ export default function MatchPage() {
                     <div
                       key={entry.userId}
                       className={`flex items-center justify-between rounded-2xl border p-4 transition-all duration-500 ease-in-out
-                        ${
-                          isWinRow
-                            ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
-                            : isFailRow
-                              ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-                              : "border-white/10 bg-black/20"
-                        }`}
+                      ${
+                        isWinRow
+                          ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
+                          : isFailRow
+                            ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                            : "border-white/10 bg-black/20"
+                      }`}
                     >
                       <div className="text-sm font-medium text-zinc-100 flex items-center gap-2">
                         {entry.displayName}
@@ -997,7 +1086,7 @@ export default function MatchPage() {
 
                       <div
                         className={`text-lg font-semibold transition-all duration-300
-                          ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
+                        ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
                       >
                         {entry.score}
                       </div>

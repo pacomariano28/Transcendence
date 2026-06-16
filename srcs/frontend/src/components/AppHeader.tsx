@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
+import { useActiveMatch } from "../context/active.match.context"; // Importamos el nuevo contexto
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -63,6 +64,7 @@ function LogoutIcon() {
 export default function AppHeader() {
   const nav = useNavigate();
   const { user, loading, clear } = useAuth();
+  const { activeMatch } = useActiveMatch(); // Consumimos el estado de la partida activa
 
   async function onLogout() {
     try {
@@ -92,6 +94,35 @@ export default function AppHeader() {
             <NavItem to="/dashboard" label="Dashboard" />
           </nav>
         </div>
+
+        {/* --- VENTANA / BADGE DE LA PARTIDA EN SEGUNDO PLANO --- */}
+        {activeMatch && (
+          <div className="animate-fade-in mx-2 hidden sm:block">
+            <Link
+              to={`/match/${activeMatch.code}`}
+              // Añadidas clases de hover:scale, hover:shadow y transiciones mejoradas
+              className="group flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 font-mono text-xs font-bold tracking-wider text-emerald-400 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2)]"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </span>
+
+              <span className="block group-hover:hidden">
+                LIVE: {activeMatch.code}{" "}
+                {activeMatch.roundLabel ? `(${activeMatch.roundLabel})` : ""}
+              </span>
+
+              {/* Animación de la flecha deslizante al hacer hover */}
+              <span className="hidden group-hover:block text-emerald-300 animate-fade-in">
+                Return to Match{" "}
+                <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
+                  &rarr;
+                </span>
+              </span>
+            </Link>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           {loading ? (
@@ -148,6 +179,19 @@ export default function AppHeader() {
           )}
         </div>
       </div>
+
+      {/* Badge responsivo para móviles debajo de la barra si la pantalla es muy pequeña */}
+      {activeMatch && (
+        <div className="sm:hidden border-t border-emerald-500/10 bg-emerald-950/40 px-4 py-1.5 text-center">
+          <Link
+            to={`/match/${activeMatch.code}`}
+            className="inline-flex items-center gap-2 font-mono text-xs font-bold tracking-wider text-emerald-400"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Partida activa ({activeMatch.code}) &rarr;
+          </Link>
+        </div>
+      )}
     </header>
   );
 }

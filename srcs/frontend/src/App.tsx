@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { useAuth } from "./auth/auth-context";
 import { RequireAuth } from "./auth/RequireAuth";
+import { ActiveMatchProvider } from "./context/active.match.context"; // 1. Importa el proveedor (ajusta la ruta si es necesario)
 import AppHeader from "./components/AppHeader";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -45,6 +46,7 @@ function AppShell() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/join" element={<JoinRoomPage />} />
               <Route path="/room/:code" element={<RoomLobbyPage />} />
+              {/* Nota: si tu ruta de juego usa /match/ en vez de /room/, asegúrate de que coincida con el Link del Header */}
               <Route path="/match/:code" element={<MatchPage />} />
             </Route>
           </Routes>
@@ -60,7 +62,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppShell />
+        {/* 2. Envolvemos AppShell para que AppHeader y todas las páginas tengan acceso */}
+        <ActiveMatchProvider>
+          <AppShell />
+        </ActiveMatchProvider>
       </AuthProvider>
     </BrowserRouter>
   );
