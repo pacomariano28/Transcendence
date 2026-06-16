@@ -298,34 +298,54 @@ export default function MatchPage() {
       }
     }
 
-    function startCountdown(seconds: number) {
+    // MODIFICADO: Ahora calcula el tiempo real usando el 'endsAt' absoluto del servidor
+    function startCountdown(initialSeconds: number, endsAt: number) {
       clearCountdownTimer();
       setRoundPhase("countdown");
-      setCountdownSeconds(seconds);
 
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
       }
 
-      let remaining = seconds;
-      countdownTimerRef.current = window.setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
+      const updateCountdown = () => {
+        const now = Date.now();
+        const remainingMs = endsAt - now;
+
+        // Si el tiempo ya ha vencido (el contador llegó a 0 o te reconectas tarde)
+        if (remainingMs <= 0) {
           clearCountdownTimer();
           setShowVisualizer(true);
           setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
           audioContextRef.current?.resume();
-          audioRef.current?.play().catch(() => undefined);
+
+          if (audioRef.current) {
+            // SINCRONIZADOR ABSOLUTO: Si remainingMs es negativo (ej. -450ms)
+            // significa que la pestaña se congeló y despertó tarde.
+            // Forzamos al reproductor a saltar exactamente ese delay.
+            const delaySeconds = Math.abs(remainingMs) / 1000;
+            audioRef.current.currentTime = delaySeconds;
+            audioRef.current.play().catch(() => undefined);
+          }
           return;
         }
-        setCountdownSeconds(remaining);
-      }, SECOND_MS);
+
+        // Seteamos los segundos redondeando hacia arriba
+        setCountdownSeconds(Math.ceil(remainingMs / SECOND_MS));
+      };
+
+      // Ejecución inmediata inicial
+      updateCountdown();
+
+      // Consultamos cada 100ms para asegurar precisión milimétrica
+      // (así, si el navegador ralentiza los intervalos por estar en background, recupera el tiempo real rápido)
+      countdownTimerRef.current = window.setInterval(updateCountdown, 100);
     }
 
     socket.on("round:countdown", (payload: RoundCountdownPayload) => {
       if (payload.matchId !== code) return;
-      startCountdown(payload.seconds);
+      // MODIFICADO: Pasamos también el timestamp 'endsAt' que envía el backend
+      startCountdown(payload.seconds, payload.endsAt);
     });
 
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
@@ -414,6 +434,7 @@ export default function MatchPage() {
       socket.off("round:resume");
       socket.off("match:end");
       socket.off("match:error");
+      clearCountdownTimer();
     };
   }, [code, nav, user]);
 
@@ -750,7 +771,7 @@ export default function MatchPage() {
                 onClick={() => nav("/")}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
               >
-                <span>back home</span>
+                <span>back</span>
               </button>
             </div>
           </section>
