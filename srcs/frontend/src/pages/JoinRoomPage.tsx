@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { useAuth } from "../auth/auth-context";
+import TypingText from "../components/TypingText";
 
 function normalizeCode(raw: string) {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -36,85 +36,111 @@ export default function JoinRoomPage() {
 
   function onJoin() {
     setTouched(true);
-    if (!isValid) return;
+    if (!isValid || disabledReason) return;
     nav(`/room/${normalized}`);
   }
 
   return (
-    <div className="container-page py-10 fade-in">
+    <div className="container-page py-10 fade-in mt-5">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Join room
-            </h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Enter a code to join a private room.
-            </p>
+        <div>
+          {/* INDICADOR SUPERIOR CON TYPING EFFECT */}
+          <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+            <TypingText text="LOBBY PAGE" size="md" />
           </div>
 
-          <Link className="btn-ghost" to="/">
-            Back
-          </Link>
-        </div>
+          {/* CÓDIGO EN TIEMPO REAL (ESTILO LOBBY) */}
+          <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-zinc-500 sm:text-5xl uppercase">
+            {normalized || "———"}
+          </div>
 
-        <div className="card p-6">
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-medium text-zinc-400">Room code</div>
+          {/* CONTROL DE ERRORES/LOGIN */}
+          {disabledReason && (
+            <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200 text-sm animate-fade-in">
+              {disabledReason}
+            </div>
+          )}
+
+          {/* PANEL DE CREDENCIALES (ESTILO PAGE-CARD DEL LOBBY) */}
+          <div className="mt-8 page-card">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                Room credentials
+              </div>
               <button
                 type="button"
-                className="btn-ghost px-3 py-1.5 text-xs"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300 transition hover:bg-white/10"
                 onClick={pasteFromClipboard}
               >
                 Paste
               </button>
             </div>
 
-            <input
-              className={[
-                "input mt-3 font-mono tracking-widest",
-                touched && !isValid
-                  ? "ring-2 ring-rose-500/20 border-rose-500/30"
-                  : "",
-              ].join(" ")}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="AB12CD"
-              maxLength={16}
-              onBlur={() => setTouched(true)}
-            />
+            <div className="mt-4">
+              <input
+                autoFocus
+                className={[
+                  "lock-input input w-full text-center uppercase font-mono tracking-[0.25em] text-xl py-4 transition-all duration-300",
+                  touched && !isValid
+                    ? "border-rose-500/50 bg-rose-500/10 text-rose-200 focus:border-rose-500"
+                    : "border-white/10 bg-black/20 text-white",
+                ].join(" ")}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="AB12CD"
+                maxLength={16}
+                onBlur={() => setTouched(true)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  onJoin();
+                }}
+              />
+            </div>
 
-            <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
-              <span>
+            {/* ERROR INLINE DE VALIDACIÓN */}
+            <div className="mt-3 flex items-center justify-between text-xs font-mono text-zinc-500">
+              <div className="relative h-4 flex-1">
                 {touched && !isValid ? (
-                  <span className="text-rose-200 nudge">
+                  <span className="absolute left-0 text-rose-400 animate-fade-in font-sans tracking-wide">
                     Code must be 4–8 chars (A–Z, 0–9).
                   </span>
                 ) : (
-                  <span>Use 4–8 characters.</span>
+                  <span className="absolute left-0 text-zinc-500 font-sans tracking-wide">
+                    Use 4–8 characters.
+                  </span>
                 )}
-              </span>
-              <span>{normalized.length}/8</span>
+              </div>
+              <span className="shrink-0">{normalized.length}/8</span>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          {/* FILA DE BOTONES ASIMÉTRICA (ESTILO LOBBY JUEGO) */}
+          <div className="mt-6 flex gap-3 sm:flex-row">
             <button
-              className="btn-glow flex-1"
+              className="btn-glow flex-5 p-4 transition-all duration-500"
               style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
               type="button"
+              disabled={!isValid || !!disabledReason}
               onClick={onJoin}
               title={disabledReason}
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              <span>Join</span>
+              <span>Join room</span>
             </button>
+
+            <Link
+              className="btn-ghost flex-1 flex items-center justify-center p-4 text-center"
+              to="/"
+            >
+              Back
+            </Link>
           </div>
 
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400">
+          {/* COMENTARIO INFERIOR LIMPIO */}
+          <div className="mt-8 text-center text-xs text-zinc-500 font-sans">
             Tip: we’ll auto-normalize to{" "}
-            <span className="text-zinc-200">UPPERCASE</span>.
+            <span className="text-zinc-400 font-mono">UPPERCASE</span>.
           </div>
         </div>
       </div>

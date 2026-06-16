@@ -370,7 +370,6 @@ export default function MatchPage() {
         audioRef.current.src = "";
         audioRef.current = null;
       }
-      setSongRemainingSeconds(null);
       return;
     }
 
@@ -602,14 +601,36 @@ export default function MatchPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
+      {/* Estilos inyectados locales para la animación de cambio de ronda */}
+      <style>{`
+        @keyframes roundPop {
+          0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
+          50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
+          100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+        }
+        .animate-round-change {
+          animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+      `}</style>
+
       <div className="w-full max-w-4xl space-y-6">
         <header className="flex items-center justify-between">
           <div className="flex items-center justify-between w-full">
-            <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out tran sm:text-5xl">
+            <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out sm:text-5xl">
               {code || "———"}
             </h1>
-            <p className="text-sm text-zinc-400">{roundLabel}</p>
-            {/* <p className="text-sm text-zinc-400">Status: {roundStatus}</p> */}
+
+            {/* Indicador de Ronda animado con efecto Pop y Ping en vivo */}
+            <div
+              key={roundInfo?.roundIndex ?? "idle"}
+              className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
+              </span>
+              {roundLabel}
+            </div>
           </div>
         </header>
 
@@ -752,7 +773,7 @@ export default function MatchPage() {
 
                     {/* ACIERTO / CORRECT ANSWER */}
                     <div
-                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
+                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                       ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "correct" && (
@@ -770,7 +791,7 @@ export default function MatchPage() {
               {/* LOCK BUTTON */}
               <div className="flex items-center justify-center sm:justify-start">
                 <button
-                  className="btn-glow h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-50"
+                  className="btn-glow h-16 sm:h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-50"
                   style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                   type="button"
                   disabled={!canLock || lockRequested}
@@ -936,25 +957,50 @@ export default function MatchPage() {
                   Waiting for players.
                 </div>
               ) : (
-                scoreboard.map((entry) => (
-                  <div
-                    key={entry.userId}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
-                  >
-                    <div className="text-sm font-medium text-zinc-100">
-                      {entry.displayName}
-                      {entry.userId === myUserId ? (
-                        <span className="text-zinc-500"> (you)</span>
-                      ) : null}
-                      {!entry.connected ? (
-                        <span className="text-zinc-500"> (offline)</span>
-                      ) : null}
+                scoreboard.map((entry) => {
+                  const isCurrentLockOwner = entry.userId === lockOwnerId;
+                  const isWinRow =
+                    roundPhase === "resolution-win" && isCurrentLockOwner;
+                  const isFailRow =
+                    roundPhase === "resolution-fail" && isCurrentLockOwner;
+
+                  return (
+                    <div
+                      key={entry.userId}
+                      className={`flex items-center justify-between rounded-2xl border p-4 transition-all duration-500 ease-in-out
+                        ${
+                          isWinRow
+                            ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
+                            : isFailRow
+                              ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                              : "border-white/10 bg-black/20"
+                        }`}
+                    >
+                      <div className="text-sm font-medium text-zinc-100 flex items-center gap-2">
+                        {entry.displayName}
+                        {entry.userId === myUserId ? (
+                          <span className="text-zinc-500 font-normal">
+                            {" "}
+                            (you)
+                          </span>
+                        ) : null}
+                        {!entry.connected ? (
+                          <span className="text-zinc-500 font-normal text-xs">
+                            {" "}
+                            (offline)
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div
+                        className={`text-lg font-semibold transition-all duration-300
+                          ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
+                      >
+                        {entry.score}
+                      </div>
                     </div>
-                    <div className="text-lg font-semibold text-white">
-                      {entry.score}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>
