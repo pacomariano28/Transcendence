@@ -30,8 +30,10 @@ ports:
 ❌ navegador NO
 
 **Ver tabla Song**
+OLD
 `docker exec -it songuess-postgres psql -U postgres_user -d postgres_db -c 'SELECT * FROM "Song";'`
-
+NEW
+docker exec -it songuess-postgres psql -U playlist_db -c 'SELECT \* FROM "Song";'
 **PASOS PARA DESCARGAR LAS CANCIONES**
 
 1. Pegar el link de una playlist de spotify en esta web y descargar el _csv_:
