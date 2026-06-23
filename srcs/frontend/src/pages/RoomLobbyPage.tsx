@@ -70,6 +70,10 @@ export default function RoomLobbyPage() {
     socket.on("match:state", (payload: MatchStatePayload) => {
       setMatchState(payload);
       setError(null);
+
+      if (payload.phase === "in-game") {
+        nav(`/match/${code}`, { replace: true });
+      }
     });
 
     socket.on("match:phase", (payload: MatchPhasePayload) => {
@@ -117,12 +121,6 @@ export default function RoomLobbyPage() {
             {code || "———"}
           </div>
 
-          {error && (
-            <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
-              {error}
-            </div>
-          )}
-
           <div className="mt-6 flex gap-3 sm:flex-row">
             <button
               className="btn-glow flex-5 p-4"
@@ -142,6 +140,12 @@ export default function RoomLobbyPage() {
               Leave room
             </button>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
 
           <div className="mt-8 page-card">
             <div className="flex items-center justify-between">

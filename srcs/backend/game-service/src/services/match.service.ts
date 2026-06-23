@@ -25,6 +25,8 @@ export class MatchService {
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
   private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
 
+  private readonly syncTimers = new Map<string, NodeJS.Timeout>();
+
   private getConnectedPlayers(match: MatchState): MatchPlayer[] {
     return match.players.filter((entry) => entry.connected);
   }
@@ -63,6 +65,10 @@ export class MatchService {
   joinMatch(input: JoinMatchInput): MatchState {
     const match = this.getMatchOrThrow(input.matchId);
 
+    // if (match.phase === "finished") {
+    //   throw new Error("MATCH_FINISHED");
+    // }
+
     const existingPlayer = match.players.find(
       (player) =>
         player.socketId === input.socketId || player.userId === input.userId,
@@ -96,6 +102,11 @@ export class MatchService {
       displayName: input.displayName,
     });
 
+    // 🔑 CAMBIO AQUÍ: Si la partida ya está en juego, este nuevo jugador entra "listo"
+    if (match.phase === "in-game") {
+      player.ready = true;
+    }
+
     match.players.push(player);
     ensureScoreEntry(match, player);
 
@@ -110,9 +121,15 @@ export class MatchService {
     emit: EmitMatchEvent,
   ): Promise<ReadyResult> {
     const match = this.getMatchBySocketOrThrow(socketId);
+
+    // 🔑 CAMBIO AQUÍ: Si no está en lobby (está in-game), devolvemos el estado actual sin romper.
     if (match.phase !== "lobby") {
-      throw new Error("INVALID_STATE");
+      return {
+        match,
+        countdownStarted: false,
+      };
     }
+
     const player = match.players.find((entry) => entry.socketId === socketId);
 
     if (!player) {
@@ -150,7 +167,6 @@ export class MatchService {
     socketId: string,
     emit: EmitMatchEvent,
   ): { match: MatchState; countdownStarted: boolean; catchUp?: boolean } {
-    void emit;
     const match = this.getMatchBySocketOrThrow(socketId);
     if (match.phase !== "in-game" || !match.round) {
       throw new Error("INVALID_STATE");
@@ -175,10 +191,45 @@ export class MatchService {
     );
 
     if (countdownStarted) {
+      // Usamos global.clearTimeout para evitar el error de TypeScript
+      const syncTimer = this.syncTimers.get(match.matchId);
+      if (syncTimer) {
+        global.clearTimeout(syncTimer);
+        this.syncTimers.delete(match.matchId);
+      }
+
       match.round.phase = "countdown";
       match.round.countdownEndsAt =
         Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
       startRoundCountdown(match, this.roundCountdownTimers);
+    } else {
+      if (!this.syncTimers.has(match.matchId)) {
+        const FORCE_COUNTDOWN_MS = 150;
+
+        // Usamos global.setTimeout para evitar el error de TypeScript
+        const timer = global.setTimeout(() => {
+          this.syncTimers.delete(match.matchId);
+
+          if (
+            match.phase === "in-game" &&
+            match.round &&
+            match.round.phase === "sync"
+          ) {
+            console.log(
+              `[Match ${match.matchId}] Forzando inicio de ronda por jugador ausente.`,
+            );
+
+            match.round.phase = "countdown";
+            match.round.countdownEndsAt =
+              Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
+            startRoundCountdown(match, this.roundCountdownTimers);
+
+            emit(match.matchId, "round:sync", toRoundSyncPayload(match));
+          }
+        }, FORCE_COUNTDOWN_MS);
+
+        this.syncTimers.set(match.matchId, timer);
+      }
     }
 
     return { match, countdownStarted };
@@ -359,22 +410,29 @@ export class MatchService {
       );
     }
 
+    this.socketToMatch.delete(socketId);
+
+    // Corregido: Unificado en un único bloque limpio controlado por 'allDisconnected'
     const allDisconnected = match.players.every((p) => !p.connected);
     if (allDisconnected) {
       console.log(
         `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
       );
 
-      setTimeout(() => {
+      global.setTimeout(() => {
         const stillDisconnected = match.players.every((p) => !p.connected);
         if (stillDisconnected) {
           console.log(`Match ${match.matchId} removed due to inactivity.`);
+
+          const syncTimer = this.syncTimers.get(match.matchId);
+          if (syncTimer) global.clearTimeout(syncTimer);
+          this.syncTimers.delete(match.matchId);
+
           this.matches.delete(match.matchId);
         }
       }, DISCONNECT_TTL_MS);
     }
 
-    this.socketToMatch.delete(socketId);
     return match;
   }
 
@@ -407,7 +465,7 @@ export class MatchService {
     return undefined;
   }
 
-  private getMatchOrThrow(matchId: string): MatchState {
+  getMatchOrThrow(matchId: string): MatchState {
     const match = this.matches.get(matchId);
 
     if (!match) {

@@ -6,6 +6,8 @@ import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
+import { useActiveMatch } from "../context/active.match.context";
+import { getMatchState } from "../api/state";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -24,7 +26,10 @@ type MatchStatePayload = {
     ready: boolean;
     connected: boolean;
     disconnectedAt: string | null;
+    score?: number; // 🟢 Añadido para dar soporte tipado
+    totalScore?: number; // 🟢 Añadido por si el backend usa este nombre
   }>;
+  scores?: Record<string, number>; // 🟢 Añadido por si el backend los manda mapeados en la raíz
 };
 
 type MatchPhasePayload = {
@@ -97,6 +102,8 @@ export default function MatchPage() {
   const { code: codeParam } = useParams();
   const { user } = useAuth();
 
+  const { setActiveMatch } = useActiveMatch();
+
   const code = useMemo(() => normalizeCode(codeParam ?? ""), [codeParam]);
 
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
@@ -149,12 +156,23 @@ export default function MatchPage() {
 
   const scoreboard = useMemo(() => {
     if (!matchState) return [];
-    return matchState.players.map((player) => ({
-      userId: player.userId,
-      displayName: player.displayName,
-      score: scores[player.userId] ?? 0,
-      connected: player.connected,
-    }));
+    return matchState.players.map((player) => {
+      const backupScore =
+        (player as any).score ??
+        (player as any).totalScore ??
+        (player as any).points ??
+        0;
+      const liveScore = scores[player.userId];
+
+      return {
+        userId: player.userId,
+        displayName: player.displayName,
+        // 🟢 SOLUCIÓN: Usamos la evaluación lógica idéntica a la pantalla final.
+        // Si liveScore es 0 (falsy), mirará el backupScore del servidor antes de rendirse.
+        score: liveScore || backupScore || 0,
+        connected: player.connected,
+      };
+    });
   }, [matchState, scores]);
 
   const canLock = roundPhase === "playing" && audioReady && !lockOwnerId;
@@ -165,6 +183,154 @@ export default function MatchPage() {
   const roundLabel = roundInfo
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
+
+  useEffect(() => {
+    if (!code) return;
+
+    async function loadMatchScores() {
+      try {
+        const response = await fetch(`/match/${code}`);
+        const data = await response.json();
+
+        if (data && data.ok && data.match) {
+          const currentMatch = data.match;
+
+          setScores((prev) => {
+            const next = { ...prev };
+
+            if (currentMatch.scores) {
+              if (Array.isArray(currentMatch.scores)) {
+                currentMatch.scores.forEach((entry: any) => {
+                  const s = entry.score ?? entry.totalScore ?? entry.points;
+                  if (entry.userId && s !== undefined && s !== null)
+                    next[entry.userId] = s;
+                });
+              } else {
+                Object.keys(currentMatch.scores).forEach((key) => {
+                  const s = currentMatch.scores[key];
+                  if (s !== undefined && s !== null) next[key] = s;
+                });
+              }
+            }
+
+            if (currentMatch.players) {
+              currentMatch.players.forEach((player: any) => {
+                const serverScore =
+                  player.score ?? player.totalScore ?? player.points;
+                if (serverScore !== undefined && serverScore !== null) {
+                  next[player.userId] = serverScore;
+                } else if (next[player.userId] === undefined) {
+                  next[player.userId] = 0;
+                }
+              });
+            }
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("Error al hidratar marcadores por HTTP:", err);
+      }
+    }
+
+    loadMatchScores();
+  }, [code]);
+
+  // 1. Este efecto REGISTRA y actualiza la partida en el Header mientras juegas
+  useEffect(() => {
+    if (code) {
+      setActiveMatch({
+        code: code,
+        roundLabel: roundInfo
+          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
+          : undefined,
+      });
+    }
+  }, [code, roundInfo, setActiveMatch]);
+
+  // 2. AJUSTE B: Este efecto LIMPIA el Header si la partida termina (en vivo o al reconectar)
+  useEffect(() => {
+    if (
+      finalScores ||
+      matchState?.phase === "finished" ||
+      roundPhase === "finished"
+    ) {
+      setActiveMatch(null); // Borra el badge verde del Header
+    }
+  }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
+
+  useEffect(() => {
+    if (!code) return;
+
+    async function hydrateMatch() {
+      try {
+        const match = await getMatchState({ matchId: code });
+
+        if (match) {
+          setMatchState(match);
+          setScores((prev) => {
+            const next = { ...prev };
+
+            if (match.scores) {
+              if (Array.isArray(match.scores)) {
+                match.scores.forEach((entry: any) => {
+                  const s = entry.score ?? entry.totalScore ?? entry.points;
+                  if (entry.userId && s !== undefined && s !== null)
+                    next[entry.userId] = s;
+                });
+              } else {
+                Object.keys(match.scores).forEach((key) => {
+                  const s = (match.scores as any)[key];
+                  if (s !== undefined && s !== null) next[key] = s;
+                });
+              }
+            }
+
+            if (match.players) {
+              match.players.forEach((player) => {
+                const serverScore =
+                  player.score ?? player.totalScore ?? (player as any).points;
+                if (serverScore !== undefined && serverScore !== null) {
+                  next[player.userId] = serverScore;
+                } else if (next[player.userId] === undefined) {
+                  next[player.userId] = 0;
+                }
+              });
+            }
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Error al sincronizar puntuaciones por HTTP al montar:",
+          err,
+        );
+      }
+    }
+
+    hydrateMatch();
+  }, [code]);
+
+  // Cuando sincronizas o cambia la ronda, actualizas el Header
+  useEffect(() => {
+    if (code) {
+      setActiveMatch({
+        code: code,
+        roundLabel: roundInfo
+          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
+          : undefined,
+      });
+    }
+
+    // Si el componente se desmonta (usuario navega a otra sección),
+    // NO la borramos porque queremos que siga saliendo arriba el acceso directo!
+  }, [code, roundInfo, setActiveMatch]);
+
+  // PERO, si la partida TERMINA de verdad, la limpiamos del header:
+  useEffect(() => {
+    if (finalScores) {
+      setActiveMatch(null); // Ya no hay partida en curso
+    }
+  }, [finalScores, setActiveMatch]);
 
   useEffect(() => {
     if (!user || !code) return;
@@ -191,13 +357,40 @@ export default function MatchPage() {
       setError(null);
       setScores((prev) => {
         const next = { ...prev };
+
+        // A. Extraer si el backend manda un diccionario o array "scores" en la raíz
+        if (payload.scores) {
+          if (Array.isArray(payload.scores)) {
+            payload.scores.forEach((entry: any) => {
+              const s = entry.score ?? entry.totalScore ?? entry.points;
+              if (entry.userId && s !== undefined && s !== null)
+                next[entry.userId] = s;
+            });
+          } else {
+            Object.keys(payload.scores).forEach((key) => {
+              const s = (payload.scores as any)[key];
+              if (s !== undefined && s !== null) next[key] = s;
+            });
+          }
+        }
+
+        // B. Extraer desde el listado de jugadores
         payload.players.forEach((player) => {
-          if (next[player.userId] === undefined) {
+          const serverScore =
+            player.score ?? player.totalScore ?? (player as any).points;
+
+          if (serverScore !== undefined && serverScore !== null) {
+            next[player.userId] = serverScore;
+          } else if (next[player.userId] === undefined) {
             next[player.userId] = 0;
           }
         });
         return next;
       });
+
+      if (payload.phase === "finished") {
+        setRoundPhase("finished");
+      }
     });
 
     socket.on("match:phase", (payload: MatchPhasePayload) => {
@@ -245,34 +438,54 @@ export default function MatchPage() {
       }
     }
 
-    function startCountdown(seconds: number) {
+    // MODIFICADO: Ahora calcula el tiempo real usando el 'endsAt' absoluto del servidor
+    function startCountdown(initialSeconds: number, endsAt: number) {
       clearCountdownTimer();
       setRoundPhase("countdown");
-      setCountdownSeconds(seconds);
 
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
       }
 
-      let remaining = seconds;
-      countdownTimerRef.current = window.setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
+      const updateCountdown = () => {
+        const now = Date.now();
+        const remainingMs = endsAt - now;
+
+        // Si el tiempo ya ha vencido (el contador llegó a 0 o te reconectas tarde)
+        if (remainingMs <= 0) {
           clearCountdownTimer();
           setShowVisualizer(true);
           setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
           audioContextRef.current?.resume();
-          audioRef.current?.play().catch(() => undefined);
+
+          if (audioRef.current) {
+            // SINCRONIZADOR ABSOLUTO: Si remainingMs es negativo (ej. -450ms)
+            // significa que la pestaña se congeló y despertó tarde.
+            // Forzamos al reproductor a saltar exactamente ese delay.
+            const delaySeconds = Math.abs(remainingMs) / 1000;
+            audioRef.current.currentTime = delaySeconds;
+            audioRef.current.play().catch(() => undefined);
+          }
           return;
         }
-        setCountdownSeconds(remaining);
-      }, SECOND_MS);
+
+        // Seteamos los segundos redondeando hacia arriba
+        setCountdownSeconds(Math.ceil(remainingMs / SECOND_MS));
+      };
+
+      // Ejecución inmediata inicial
+      updateCountdown();
+
+      // Consultamos cada 100ms para asegurar precisión milimétrica
+      // (así, si el navegador ralentiza los intervalos por estar en background, recupera el tiempo real rápido)
+      countdownTimerRef.current = window.setInterval(updateCountdown, 100);
     }
 
     socket.on("round:countdown", (payload: RoundCountdownPayload) => {
       if (payload.matchId !== code) return;
-      startCountdown(payload.seconds);
+      // MODIFICADO: Pasamos también el timestamp 'endsAt' que envía el backend
+      startCountdown(payload.seconds, payload.endsAt);
     });
 
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
@@ -361,6 +574,7 @@ export default function MatchPage() {
       socket.off("round:resume");
       socket.off("match:end");
       socket.off("match:error");
+      clearCountdownTimer();
     };
   }, [code, nav, user]);
 
@@ -602,19 +816,38 @@ export default function MatchPage() {
   const showCountdown = !showGuessPanel && !showVisualizer;
   const showEq = !showGuessPanel && showVisualizer;
 
+  // --- CONTROL DE RECONEXIÓN PARA PANTALLA FINAL ---
+  // Comprobamos si la partida ha terminado por cualquiera de las dos vías
+  const isMatchFinished =
+    matchState?.phase === "finished" || roundPhase === "finished";
+
+  // Si no tenemos la lista "finalScores" directa del evento, mapeamos los jugadores
+  // actuales ordenados por su puntuación para reconstruir el podio
+  const playersList = matchState?.players || [];
+  const resultsData =
+    finalScores ||
+    playersList
+      .map((player) => ({
+        userId: player.userId,
+        displayName:
+          (player as any).username || (player as any).displayName || "Jugador",
+        score: scores[player.userId] || (player as any).score || 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+
   return (
     <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
       {/* Estilos inyectados locales para la animación de cambio de ronda */}
       <style>{`
-        @keyframes roundPop {
-          0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
-          50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
-          100% { transform: scale(1); opacity: 1; filter: brightness(1); }
-        }
-        .animate-round-change {
-          animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-        }
-      `}</style>
+      @keyframes roundPop {
+        0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
+        50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
+        100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+      }
+      .animate-round-change {
+        animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+    `}</style>
 
       <div className="w-full max-w-4xl space-y-6">
         <header className="flex items-center justify-between">
@@ -643,13 +876,15 @@ export default function MatchPage() {
           </div>
         )}
 
-        {finalScores ? (
-          <section className="card p-6">
+        {/* 1. CAMBIADO: Condicional principal de pantalla mutado a isMatchFinished */}
+        {isMatchFinished ? (
+          <section className="card p-6 animate-fade-in">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Final results
             </div>
             <div className="mt-4 grid gap-3">
-              {finalScores.map((entry) => (
+              {/* CAMBIADO: Ahora itera sobre resultsData */}
+              {resultsData.map((entry) => (
                 <div
                   key={entry.userId}
                   className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
@@ -665,6 +900,19 @@ export default function MatchPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* NUEVO: Botón arcade para regresar cómodamente al home tras acabar */}
+            <div className="mt-6 text-center">
+              <button
+                className="btn-glow px-6"
+                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                type="button"
+                onClick={() => nav("/")}
+                onMouseMove={handleMouseMoveToSetFillOrigin}
+              >
+                <span>back</span>
+              </button>
             </div>
           </section>
         ) : (
@@ -695,7 +943,7 @@ export default function MatchPage() {
                   {/* COUNTDOWN INICIAL */}
                   <div
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
-                    ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
                       Starts in
@@ -708,7 +956,7 @@ export default function MatchPage() {
                   {/* VISUALIZER */}
                   <div
                     className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
-                    ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     <canvas
                       ref={canvasRef}
@@ -731,19 +979,19 @@ export default function MatchPage() {
                       }
                     }}
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                  ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
                     {/* GUESS COUNTDOWN */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
                         Guess time remaining
                       </div>
                       <div
                         className={`mt-3 text-7xl font-bold transition-all duration-500
-                        ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
+                      ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
                       >
                         {guessSeconds ?? 0}
                       </div>
@@ -753,7 +1001,7 @@ export default function MatchPage() {
                     {/* EXPIRADO / TIME OUT */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "expired" && (
                         <TypingText key="timeout" text="TIMEOUT!" size="md" />
@@ -763,7 +1011,7 @@ export default function MatchPage() {
                     {/* ERROR / WRONG ANSWER */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "wrong" && (
                         <TypingText
@@ -777,7 +1025,7 @@ export default function MatchPage() {
                     {/* ACIERTO / CORRECT ANSWER */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                      ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+                    ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "correct" && (
                         <TypingText
@@ -814,7 +1062,8 @@ export default function MatchPage() {
           </section>
         )}
 
-        {!finalScores && (
+        {/* 2. CAMBIADO: Ocultar panel de búsqueda mediante isMatchFinished si se reconecta */}
+        {!isMatchFinished && (
           <section className="card p-6 overflow-hidden">
             <div className="flex flex-col gap-1">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
@@ -825,8 +1074,8 @@ export default function MatchPage() {
               <div className="relative h-7 mt-1">
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                  ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
-                  text-lg text-zinc-300`}
+                ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
+                text-lg text-zinc-300`}
                 >
                   Locked by{" "}
                   <span className="font-extrabold tracking-wider">
@@ -835,8 +1084,8 @@ export default function MatchPage() {
                 </div>
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                  ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
-                  text-sm text-zinc-400`}
+                ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
+                text-sm text-zinc-400`}
                 >
                   First lock wins
                 </div>
@@ -846,7 +1095,7 @@ export default function MatchPage() {
             {/* TRANSICIÓN DEL PANEL DE BÚSQUEDA */}
             <div
               className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
-              ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
+            ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
             >
               <div className="rounded-2xl bg-black/20 p-4">
                 {canGuess ? (
@@ -949,7 +1198,8 @@ export default function MatchPage() {
           </section>
         )}
 
-        {!finalScores && (
+        {/* 3. CAMBIADO: Ocultar el marcador en vivo intermedio si isMatchFinished es true */}
+        {!isMatchFinished && (
           <section className="card p-6">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Scoreboard
@@ -971,13 +1221,13 @@ export default function MatchPage() {
                     <div
                       key={entry.userId}
                       className={`flex items-center justify-between rounded-2xl border p-4 transition-all duration-500 ease-in-out
-                        ${
-                          isWinRow
-                            ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
-                            : isFailRow
-                              ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-                              : "border-white/10 bg-black/20"
-                        }`}
+                      ${
+                        isWinRow
+                          ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
+                          : isFailRow
+                            ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                            : "border-white/10 bg-black/20"
+                      }`}
                     >
                       <div className="text-sm font-medium text-zinc-100 flex items-center gap-2">
                         {entry.displayName}
@@ -997,7 +1247,7 @@ export default function MatchPage() {
 
                       <div
                         className={`text-lg font-semibold transition-all duration-300
-                          ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
+                        ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
                       >
                         {entry.score}
                       </div>

@@ -31,5 +31,6 @@ const proxyOptions = createProxyMiddleware({
 });
 
 router.get("/state", requireAuth, proxyOptions);
+router.post("/match-state", requireAuth, proxyOptions);
 
 export default router;

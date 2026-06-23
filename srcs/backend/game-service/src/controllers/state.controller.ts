@@ -26,3 +26,16 @@ export async function getUserState(req: Request, res: Response) {
     return res.status(500).json({ ok: false, message });
   }
 }
+
+export async function getMatchState(req: Request, res: Response) {
+  try {
+    const payload = req.body as { matchId: string };
+    const match = matchService.getMatchOrThrow(payload?.matchId);
+    return res.status(200).json({ ok: true, match });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid user";
+    if (message === "MATCH_NOT_FOUND")
+      return res.status(551).json({ ok: false, message });
+    return res.status(500).json({ ok: false, message });
+  }
+}

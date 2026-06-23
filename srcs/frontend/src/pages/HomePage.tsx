@@ -154,7 +154,7 @@ export default function HomePage() {
 
             {error && (
               <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
-                <strong>Error:</strong> {error}
+                <strong>{error}</strong>
               </div>
             )}
 

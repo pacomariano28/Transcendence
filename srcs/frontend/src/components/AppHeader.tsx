@@ -1,6 +1,7 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
+import { useActiveMatch } from "../context/active.match.context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -62,7 +63,9 @@ function LogoutIcon() {
 
 export default function AppHeader() {
   const nav = useNavigate();
+  const { pathname } = useLocation();
   const { user, loading, clear } = useAuth();
+  const { activeMatch } = useActiveMatch();
 
   async function onLogout() {
     try {
@@ -75,8 +78,12 @@ export default function AppHeader() {
 
   const avatarUrl = user?.spotifyProfile?.avatarUrl ?? null;
 
+  // 👁️ Solo se muestra si hay partida activa Y NO estamos dentro de una pantalla de partida (/match/...)
+  const showLiveBar = activeMatch && !pathname.startsWith("/match");
+
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/60 backdrop-blur">
+      {/* 1. Contenedor del contenido principal (Logo, Nav, Usuario) */}
       <div className="container-page flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -148,6 +155,40 @@ export default function AppHeader() {
           )}
         </div>
       </div>
+
+      {/* 2. 🟢 BARRA DE LIVE COMPLETA Y CLICKABLE (Oculta automáticamente en la pantalla de juego) */}
+      {showLiveBar && (
+        <Link
+          to={`/match/${activeMatch.code}`}
+          className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer select-none animate-fade-in"
+        >
+          {/* Lado izquierdo: Indicador de En Vivo */}
+          <div className="flex items-center gap-2">
+            {/* Ajuste óptico: -translate-y-[1px] eleva la bolita exactamente al centro visual de las mayúsculas */}
+            <span className="relative flex h-2 w-2 -translate-y-[1px]">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-60"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600"></span>
+            </span>
+            {/* leading-none quita los márgenes invisibles de la tipografía por arriba y abajo */}
+            <span className="leading-none">LIVE MATCH IN PROGRESS</span>
+          </div>
+
+          {/* Lado derecho: Datos de la sala y ronda */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            <span className="opacity-90">ROOM: {activeMatch.code}</span>
+            {activeMatch.roundLabel && (
+              /* Cambiamos inline-flex por inline-block y controlamos el padding píxel a píxel */
+              <span
+                className="inline-block bg-zinc-950 text-emerald-400 px-1.5 rounded-md text-[9px] sm:text-xs font-bold tracking-wide shadow-sm font-mono text-center
+      pt-[2px] pb-[3px]
+      sm:pt-[3px] sm:pb-[3px]"
+              >
+                {activeMatch.roundLabel}
+              </span>
+            )}
+          </div>
+        </Link>
+      )}
     </header>
   );
 }
