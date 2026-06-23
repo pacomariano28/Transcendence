@@ -7,6 +7,7 @@ import { searchSpotifyTracks } from "../api/spotify";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
+import { getMatchState } from "../api/state";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -25,7 +26,10 @@ type MatchStatePayload = {
     ready: boolean;
     connected: boolean;
     disconnectedAt: string | null;
+    score?: number; // 🟢 Añadido para dar soporte tipado
+    totalScore?: number; // 🟢 Añadido por si el backend usa este nombre
   }>;
+  scores?: Record<string, number>; // 🟢 Añadido por si el backend los manda mapeados en la raíz
 };
 
 type MatchPhasePayload = {
@@ -152,12 +156,23 @@ export default function MatchPage() {
 
   const scoreboard = useMemo(() => {
     if (!matchState) return [];
-    return matchState.players.map((player) => ({
-      userId: player.userId,
-      displayName: player.displayName,
-      score: scores[player.userId] ?? 0,
-      connected: player.connected,
-    }));
+    return matchState.players.map((player) => {
+      const backupScore =
+        (player as any).score ??
+        (player as any).totalScore ??
+        (player as any).points ??
+        0;
+      const liveScore = scores[player.userId];
+
+      return {
+        userId: player.userId,
+        displayName: player.displayName,
+        // 🟢 SOLUCIÓN: Usamos la evaluación lógica idéntica a la pantalla final.
+        // Si liveScore es 0 (falsy), mirará el backupScore del servidor antes de rendirse.
+        score: liveScore || backupScore || 0,
+        connected: player.connected,
+      };
+    });
   }, [matchState, scores]);
 
   const canLock = roundPhase === "playing" && audioReady && !lockOwnerId;
@@ -168,6 +183,57 @@ export default function MatchPage() {
   const roundLabel = roundInfo
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
+
+  useEffect(() => {
+    if (!code) return;
+
+    async function loadMatchScores() {
+      try {
+        const response = await fetch(`/match/${code}`);
+        const data = await response.json();
+
+        if (data && data.ok && data.match) {
+          const currentMatch = data.match;
+
+          setScores((prev) => {
+            const next = { ...prev };
+
+            if (currentMatch.scores) {
+              if (Array.isArray(currentMatch.scores)) {
+                currentMatch.scores.forEach((entry: any) => {
+                  const s = entry.score ?? entry.totalScore ?? entry.points;
+                  if (entry.userId && s !== undefined && s !== null)
+                    next[entry.userId] = s;
+                });
+              } else {
+                Object.keys(currentMatch.scores).forEach((key) => {
+                  const s = currentMatch.scores[key];
+                  if (s !== undefined && s !== null) next[key] = s;
+                });
+              }
+            }
+
+            if (currentMatch.players) {
+              currentMatch.players.forEach((player: any) => {
+                const serverScore =
+                  player.score ?? player.totalScore ?? player.points;
+                if (serverScore !== undefined && serverScore !== null) {
+                  next[player.userId] = serverScore;
+                } else if (next[player.userId] === undefined) {
+                  next[player.userId] = 0;
+                }
+              });
+            }
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("Error al hidratar marcadores por HTTP:", err);
+      }
+    }
+
+    loadMatchScores();
+  }, [code]);
 
   // 1. Este efecto REGISTRA y actualiza la partida en el Header mientras juegas
   useEffect(() => {
@@ -191,6 +257,58 @@ export default function MatchPage() {
       setActiveMatch(null); // Borra el badge verde del Header
     }
   }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
+
+  useEffect(() => {
+    if (!code) return;
+
+    async function hydrateMatch() {
+      try {
+        const match = await getMatchState({ matchId: code });
+
+        if (match) {
+          setMatchState(match);
+          setScores((prev) => {
+            const next = { ...prev };
+
+            if (match.scores) {
+              if (Array.isArray(match.scores)) {
+                match.scores.forEach((entry: any) => {
+                  const s = entry.score ?? entry.totalScore ?? entry.points;
+                  if (entry.userId && s !== undefined && s !== null)
+                    next[entry.userId] = s;
+                });
+              } else {
+                Object.keys(match.scores).forEach((key) => {
+                  const s = (match.scores as any)[key];
+                  if (s !== undefined && s !== null) next[key] = s;
+                });
+              }
+            }
+
+            if (match.players) {
+              match.players.forEach((player) => {
+                const serverScore =
+                  player.score ?? player.totalScore ?? (player as any).points;
+                if (serverScore !== undefined && serverScore !== null) {
+                  next[player.userId] = serverScore;
+                } else if (next[player.userId] === undefined) {
+                  next[player.userId] = 0;
+                }
+              });
+            }
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Error al sincronizar puntuaciones por HTTP al montar:",
+          err,
+        );
+      }
+    }
+
+    hydrateMatch();
+  }, [code]);
 
   // Cuando sincronizas o cambia la ronda, actualizas el Header
   useEffect(() => {
@@ -239,15 +357,37 @@ export default function MatchPage() {
       setError(null);
       setScores((prev) => {
         const next = { ...prev };
+
+        // A. Extraer si el backend manda un diccionario o array "scores" en la raíz
+        if (payload.scores) {
+          if (Array.isArray(payload.scores)) {
+            payload.scores.forEach((entry: any) => {
+              const s = entry.score ?? entry.totalScore ?? entry.points;
+              if (entry.userId && s !== undefined && s !== null)
+                next[entry.userId] = s;
+            });
+          } else {
+            Object.keys(payload.scores).forEach((key) => {
+              const s = (payload.scores as any)[key];
+              if (s !== undefined && s !== null) next[key] = s;
+            });
+          }
+        }
+
+        // B. Extraer desde el listado de jugadores
         payload.players.forEach((player) => {
-          // Si el servidor ya nos manda el score consolidado del jugador, lo usamos (ideal para reconexiones)
-          next[player.userId] =
-            (player as any).score ?? prev[player.userId] ?? 0;
+          const serverScore =
+            player.score ?? player.totalScore ?? (player as any).points;
+
+          if (serverScore !== undefined && serverScore !== null) {
+            next[player.userId] = serverScore;
+          } else if (next[player.userId] === undefined) {
+            next[player.userId] = 0;
+          }
         });
         return next;
       });
 
-      // NUEVO: Si nos reconectamos y la partida YA terminó en el servidor, actualizamos la fase local
       if (payload.phase === "finished") {
         setRoundPhase("finished");
       }
