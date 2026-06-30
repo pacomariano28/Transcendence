@@ -57,6 +57,12 @@ export async function login(email: string, password: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+  localStorage.setItem("isLoggedIn", "true"); // 🟢 Listo para el próximo F5
+}
+
+export async function logout(): Promise<void> {
+  await apiJson("/api/auth/logout", { method: "POST" });
+  localStorage.removeItem("isLoggedIn"); // 🟢 Limpieza absoluta
 }
 
 export async function register(
@@ -68,8 +74,4 @@ export async function register(
     method: "POST",
     body: JSON.stringify({ email, username, password }),
   });
-}
-
-export async function logout(): Promise<void> {
-  await apiJson("/api/auth/logout", { method: "POST" });
 }
