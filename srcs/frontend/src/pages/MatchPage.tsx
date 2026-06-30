@@ -856,17 +856,20 @@ export default function MatchPage() {
               {code || "———"}
             </h1>
 
+            {!isMatchFinished && (
+              <div
+                key={roundInfo?.roundIndex ?? "idle"}
+                className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
+                </span>
+                {roundLabel}
+              </div>
+            )}
+
             {/* Indicador de Ronda animado con efecto Pop y Ping en vivo */}
-            <div
-              key={roundInfo?.roundIndex ?? "idle"}
-              className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
-              </span>
-              {roundLabel}
-            </div>
           </div>
         </header>
 
