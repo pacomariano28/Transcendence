@@ -1,10 +1,14 @@
 import { createContext, useContext } from "react";
-import type { AuthedUser } from "../api/auth";
+import { type AuthedUser } from "../api/auth";
 
 export type AuthState = {
   user: AuthedUser | null;
   loading: boolean;
-  reload: () => Promise<void>;
+  // 🟢 Añadimos parámetros opcionales para controlar cómo recargar la sesión
+  reload: (options?: {
+    silent?: boolean;
+    forceFetch?: boolean;
+  }) => Promise<void>;
   clear: () => void;
 };
 

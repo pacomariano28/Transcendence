@@ -8,6 +8,7 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
 import { getMatchState } from "../api/state";
+import { apiJson } from "../api/http";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -184,56 +185,57 @@ export default function MatchPage() {
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
 
-  useEffect(() => {
-    if (!code) return;
+  // useEffect(() => {
+  //   if (!code) return;
 
-    async function loadMatchScores() {
-      try {
-        const response = await fetch(`/match/${code}`);
-        const data = await response.json();
+  //   async function loadMatchScores() {
+  //     try {
+  //       // 🟢 Usamos tu utilidad apiJson apuntando al endpoint real del BACKEND (/api/...)
+  //       // apiJson ya hace el await response.json() por dentro de forma segura.
+  //       const response = await apiJson(`/api/matches/${matchId}/scores`);
 
-        if (data && data.ok && data.match) {
-          const currentMatch = data.match;
+  //       if (data && data.ok && data.match) {
+  //         const currentMatch = data.match;
 
-          setScores((prev) => {
-            const next = { ...prev };
+  //         setScores((prev) => {
+  //           const next = { ...prev };
 
-            if (currentMatch.scores) {
-              if (Array.isArray(currentMatch.scores)) {
-                currentMatch.scores.forEach((entry: any) => {
-                  const s = entry.score ?? entry.totalScore ?? entry.points;
-                  if (entry.userId && s !== undefined && s !== null)
-                    next[entry.userId] = s;
-                });
-              } else {
-                Object.keys(currentMatch.scores).forEach((key) => {
-                  const s = currentMatch.scores[key];
-                  if (s !== undefined && s !== null) next[key] = s;
-                });
-              }
-            }
+  //           if (currentMatch.scores) {
+  //             if (Array.isArray(currentMatch.scores)) {
+  //               currentMatch.scores.forEach((entry: any) => {
+  //                 const s = entry.score ?? entry.totalScore ?? entry.points;
+  //                 if (entry.userId && s !== undefined && s !== null)
+  //                   next[entry.userId] = s;
+  //               });
+  //             } else {
+  //               Object.keys(currentMatch.scores).forEach((key) => {
+  //                 const s = currentMatch.scores[key];
+  //                 if (s !== undefined && s !== null) next[key] = s;
+  //               });
+  //             }
+  //           }
 
-            if (currentMatch.players) {
-              currentMatch.players.forEach((player: any) => {
-                const serverScore =
-                  player.score ?? player.totalScore ?? player.points;
-                if (serverScore !== undefined && serverScore !== null) {
-                  next[player.userId] = serverScore;
-                } else if (next[player.userId] === undefined) {
-                  next[player.userId] = 0;
-                }
-              });
-            }
-            return next;
-          });
-        }
-      } catch (err) {
-        console.error("Error al hidratar marcadores por HTTP:", err);
-      }
-    }
+  //           if (currentMatch.players) {
+  //             currentMatch.players.forEach((player: any) => {
+  //               const serverScore =
+  //                 player.score ?? player.totalScore ?? player.points;
+  //               if (serverScore !== undefined && serverScore !== null) {
+  //                 next[player.userId] = serverScore;
+  //               } else if (next[player.userId] === undefined) {
+  //                 next[player.userId] = 0;
+  //               }
+  //             });
+  //           }
+  //           return next;
+  //         });
+  //       }
+  //     } catch (err) {
+  //       console.error("Error al hidratar marcadores por HTTP:", err);
+  //     }
+  //   }
 
-    loadMatchScores();
-  }, [code]);
+  //   loadMatchScores();
+  // }, [code]);
 
   // 1. Este efecto REGISTRA y actualiza la partida en el Header mientras juegas
   useEffect(() => {
@@ -856,17 +858,20 @@ export default function MatchPage() {
               {code || "———"}
             </h1>
 
+            {!isMatchFinished && (
+              <div
+                key={roundInfo?.roundIndex ?? "idle"}
+                className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
+                </span>
+                {roundLabel}
+              </div>
+            )}
+
             {/* Indicador de Ronda animado con efecto Pop y Ping en vivo */}
-            <div
-              key={roundInfo?.roundIndex ?? "idle"}
-              className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
-              </span>
-              {roundLabel}
-            </div>
           </div>
         </header>
 

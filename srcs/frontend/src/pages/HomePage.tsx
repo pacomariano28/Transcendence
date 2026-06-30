@@ -147,6 +147,7 @@ export default function HomePage() {
                 style={{ "--btn-color": "#ede9db" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 onClick={joinRoom}
+                disabled={!user}
               >
                 <span>Join room</span>
               </button>
