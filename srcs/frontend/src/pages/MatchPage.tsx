@@ -8,6 +8,17 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
 import { getMatchState } from "../api/state";
+import {
+  activateCooldownOnResume,
+  clearPendingCooldown,
+  clearStoredCooldown,
+  readPendingCooldown,
+  readStoredCooldown,
+  readStoredCooldownEnd,
+  shouldClearCooldownForRound,
+  startCooldownPenalty,
+  writePendingCooldown,
+} from "../utils/matchCooldown";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -96,7 +107,6 @@ type MatchEndPayload = {
 };
 
 const SECOND_MS = 1000;
-const COOLDOWN_DURATION = 5; // ⏱️ Segundos de penalización al fallar o agotar el tiempo
 
 export default function MatchPage() {
   const nav = useNavigate();
@@ -132,9 +142,10 @@ export default function MatchPage() {
   );
   const [showVisualizer, setShowVisualizer] = useState(false);
 
-  // ⏱️ NUEVOS ESTADOS PARA LA PENALIZACIÓN DE TIEMPO
-  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
-  const [isCooldownActive, setIsCooldownActive] = useState<boolean>(false);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<number | null>(() =>
+    readStoredCooldownEnd(normalizeCode(codeParam ?? "")),
+  );
+  const [cooldownUiTick, setCooldownUiTick] = useState(0);
 
   const [guessStatus, setGuessStatus] = useState<
     "countdown" | "expired" | "wrong" | "correct"
@@ -144,7 +155,6 @@ export default function MatchPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const readyRoundRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
-  const cooldownTimerRef = useRef<number | null>(null); // Ref para limpiar el intervalo del cooldown
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -191,7 +201,19 @@ export default function MatchPage() {
     });
   }, [matchState, scores]);
 
-  // MODIFICADO: El usuario no puede bloquear si está bajo el efecto de la penalización (cooldown)
+  const { isCooldownActive, cooldownSeconds } = useMemo(() => {
+    const active =
+      cooldownEndsAt !== null && cooldownEndsAt > Date.now();
+    return {
+      isCooldownActive: active,
+      cooldownSeconds: active
+        ? Math.ceil((cooldownEndsAt - Date.now()) / SECOND_MS)
+        : 0,
+    };
+  }, [cooldownEndsAt, cooldownUiTick]);
+
+  const showCooldownUi = isCooldownActive && roundPhase === "playing";
+
   const canLock =
     roundPhase === "playing" && audioReady && !lockOwnerId && !isCooldownActive;
   const canGuess =
@@ -202,14 +224,37 @@ export default function MatchPage() {
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
 
-  // Efecto para limpiar el intervalo del cooldown si el componente se desmonta
   useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current !== null) {
-        window.clearInterval(cooldownTimerRef.current);
+    if (!code) {
+      setCooldownEndsAt(null);
+      return;
+    }
+    setCooldownEndsAt(readStoredCooldownEnd(code));
+  }, [code]);
+
+  useEffect(() => {
+    if (!code || cooldownEndsAt === null) return undefined;
+
+    const tick = () => {
+      const now = Date.now();
+      if (now >= cooldownEndsAt) {
+        clearStoredCooldown(code);
+        setCooldownEndsAt(null);
+        return;
       }
+      setCooldownUiTick((value) => value + 1);
     };
-  }, []);
+
+    if (Date.now() >= cooldownEndsAt) {
+      clearStoredCooldown(code);
+      setCooldownEndsAt(null);
+      return undefined;
+    }
+
+    tick();
+    const timerId = window.setInterval(tick, SECOND_MS);
+    return () => window.clearInterval(timerId);
+  }, [code, cooldownEndsAt]);
 
   useEffect(() => {
     if (code) {
@@ -394,12 +439,23 @@ export default function MatchPage() {
       setSearchError(null);
       setSelectedTrack(null);
 
-      // Reseteamos penalizaciones al iniciar una nueva ronda limpia
-      setIsCooldownActive(false);
-      setCooldownSeconds(0);
-      if (cooldownTimerRef.current !== null) {
-        window.clearInterval(cooldownTimerRef.current);
-        cooldownTimerRef.current = null;
+      const storedCooldown = readStoredCooldown(code);
+      const pendingRound = readPendingCooldown(code);
+
+      if (
+        storedCooldown &&
+        shouldClearCooldownForRound(storedCooldown, payload.roundIndex)
+      ) {
+        clearStoredCooldown(code);
+        setCooldownEndsAt(null);
+      } else if (storedCooldown) {
+        setCooldownEndsAt(storedCooldown.endTime);
+      } else {
+        setCooldownEndsAt(null);
+      }
+
+      if (pendingRound !== null && pendingRound !== payload.roundIndex) {
+        clearPendingCooldown(code);
       }
 
       setAudioUrl(
@@ -493,34 +549,25 @@ export default function MatchPage() {
         [payload.lockOwnerId]: payload.totalScore,
       }));
       setLockRequested(false);
+
+      if (
+        !payload.correct &&
+        String(payload.lockOwnerId) === String(myUserIdRef.current)
+      ) {
+        writePendingCooldown(code, payload.roundIndex);
+      }
     });
 
     socket.on("round:resume", (payload: RoundResumePayload) => {
-      if (payload.matchId !== code) return;
+      if (normalizeCode(payload.matchId) !== code) return;
 
-      if (lockOwnerIdRef.current === myUserIdRef.current) {
-        const endTime = Date.now() + COOLDOWN_DURATION * 1000;
-        localStorage.setItem(`cooldown_end_${code}`, endTime.toString());
-
-        setIsCooldownActive(true);
-        setCooldownSeconds(COOLDOWN_DURATION);
-
-        if (cooldownTimerRef.current !== null) {
-          window.clearInterval(cooldownTimerRef.current);
-        }
-
-        cooldownTimerRef.current = window.setInterval(() => {
-          const remaining = Math.ceil((endTime - Date.now()) / 1000);
-          if (remaining <= 0) {
-            window.clearInterval(cooldownTimerRef.current!);
-            cooldownTimerRef.current = null;
-            setIsCooldownActive(false);
-            localStorage.removeItem(`cooldown_end_${code}`);
-          } else {
-            setCooldownSeconds(remaining);
-          }
-        }, 1000);
+      let endTime: number | null = null;
+      if (String(lockOwnerIdRef.current) === String(myUserIdRef.current)) {
+        endTime = startCooldownPenalty(code, payload.roundIndex);
+      } else {
+        endTime = activateCooldownOnResume(code, payload.roundIndex);
       }
+      setCooldownEndsAt(endTime);
 
       setRoundPhase("playing");
       setLockOwnerId(null);
@@ -1019,7 +1066,7 @@ export default function MatchPage() {
                   className="btn-glow h-16 sm:h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-40"
                   style={
                     {
-                      "--btn-color": isCooldownActive ? "#f43f5e" : "#f7d046",
+                      "--btn-color": showCooldownUi ? "#f43f5e" : "#f7d046",
                     } as React.CSSProperties
                   }
                   type="button"
@@ -1030,7 +1077,7 @@ export default function MatchPage() {
                   <span>
                     {lockRequested
                       ? "Locking..."
-                      : isCooldownActive
+                      : showCooldownUi
                         ? `Cooldown (${cooldownSeconds}s)`
                         : "Lock (Space)"}
                   </span>

@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useAuth } from "../auth/auth-context";
+import { registerMatchCooldownSocketHandlers } from "../utils/matchCooldown";
 
 type ActiveMatch = {
   code: string;
-  roundLabel?: string; // Opcional, por si quieres pasar el "Round 1 / 5" al header
+  roundLabel?: string;
 };
 
 type ActiveMatchContextType = {
@@ -20,6 +28,16 @@ export function ActiveMatchProvider({
   children: React.ReactNode;
 }) {
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
+  const { user } = useAuth();
+  const userIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    userIdRef.current = user ? String(user.id) : null;
+  }, [user]);
+
+  useEffect(() => {
+    return registerMatchCooldownSocketHandlers(() => userIdRef.current);
+  }, []);
 
   return (
     <ActiveMatchContext.Provider value={{ activeMatch, setActiveMatch }}>
