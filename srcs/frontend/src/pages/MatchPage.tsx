@@ -96,7 +96,7 @@ type MatchEndPayload = {
 };
 
 const SECOND_MS = 1000;
-const COOLDOWN_DURATION = 3; // ⏱️ Segundos de penalización al fallar o agotar el tiempo
+const COOLDOWN_DURATION = 5; // ⏱️ Segundos de penalización al fallar o agotar el tiempo
 
 export default function MatchPage() {
   const nav = useNavigate();
@@ -498,8 +498,10 @@ export default function MatchPage() {
     socket.on("round:resume", (payload: RoundResumePayload) => {
       if (payload.matchId !== code) return;
 
-      // ⏱️ APLICACIÓN DE LA PENALIZACIÓN DE COOLDOWN (Corregido)
       if (lockOwnerIdRef.current === myUserIdRef.current) {
+        const endTime = Date.now() + COOLDOWN_DURATION * 1000;
+        localStorage.setItem(`cooldown_end_${code}`, endTime.toString());
+
         setIsCooldownActive(true);
         setCooldownSeconds(COOLDOWN_DURATION);
 
@@ -507,23 +509,17 @@ export default function MatchPage() {
           window.clearInterval(cooldownTimerRef.current);
         }
 
-        let remaining = COOLDOWN_DURATION;
-
-        // Ejecutamos el intervalo cada 1 SEGUNDO real
         cooldownTimerRef.current = window.setInterval(() => {
-          remaining -= 1;
-
+          const remaining = Math.ceil((endTime - Date.now()) / 1000);
           if (remaining <= 0) {
-            if (cooldownTimerRef.current !== null) {
-              window.clearInterval(cooldownTimerRef.current);
-              cooldownTimerRef.current = null;
-            }
+            window.clearInterval(cooldownTimerRef.current!);
+            cooldownTimerRef.current = null;
             setIsCooldownActive(false);
-            setCooldownSeconds(0);
+            localStorage.removeItem(`cooldown_end_${code}`);
           } else {
             setCooldownSeconds(remaining);
           }
-        }, 1000); // <--- CAMBIADO A 1000ms
+        }, 1000);
       }
 
       setRoundPhase("playing");

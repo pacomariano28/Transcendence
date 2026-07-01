@@ -156,6 +156,6 @@ export async function spotifyCallback(req: Request, res: Response) {
       return res.status(502).json({ error: msg, details });
     }
 
-    return res.status(500).json({ error: "INTERNAL_ERROR" });
+    return res.status(500).json({ error: msg, details });
   }
 }
