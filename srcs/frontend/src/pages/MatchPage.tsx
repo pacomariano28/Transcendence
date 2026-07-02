@@ -8,7 +8,17 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
 import { getMatchState } from "../api/state";
-import { apiJson } from "../api/http";
+import {
+  activateCooldownOnResume,
+  clearPendingCooldown,
+  clearStoredCooldown,
+  readPendingCooldown,
+  readStoredCooldown,
+  readStoredCooldownEnd,
+  shouldClearCooldownForRound,
+  startCooldownPenalty,
+  writePendingCooldown,
+} from "../utils/matchCooldown";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -27,10 +37,10 @@ type MatchStatePayload = {
     ready: boolean;
     connected: boolean;
     disconnectedAt: string | null;
-    score?: number; // 🟢 Añadido para dar soporte tipado
-    totalScore?: number; // 🟢 Añadido por si el backend usa este nombre
+    score?: number;
+    totalScore?: number;
   }>;
-  scores?: Record<string, number>; // 🟢 Añadido por si el backend los manda mapeados en la raíz
+  scores?: Record<string, number>;
 };
 
 type MatchPhasePayload = {
@@ -132,6 +142,11 @@ export default function MatchPage() {
   );
   const [showVisualizer, setShowVisualizer] = useState(false);
 
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<number | null>(() =>
+    readStoredCooldownEnd(normalizeCode(codeParam ?? "")),
+  );
+  const [cooldownUiTick, setCooldownUiTick] = useState(0);
+
   const [guessStatus, setGuessStatus] = useState<
     "countdown" | "expired" | "wrong" | "correct"
   >("countdown");
@@ -146,6 +161,18 @@ export default function MatchPage() {
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const myUserId = user ? String(user.id) : null;
+
+  // Creamos una referencia al ID actual para leerlo de forma segura dentro de closures/eventos de Socket
+  const myUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    myUserIdRef.current = myUserId;
+  }, [myUserId]);
+
+  // Guardamos también el lockOwnerId en un ref para capturarlo justamente antes de que se limpie en el evento resume
+  const lockOwnerIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    lockOwnerIdRef.current = lockOwnerId;
+  }, [lockOwnerId]);
 
   const lockOwnerName = useMemo(() => {
     if (!matchState || !lockOwnerId) return "";
@@ -168,15 +195,27 @@ export default function MatchPage() {
       return {
         userId: player.userId,
         displayName: player.displayName,
-        // 🟢 SOLUCIÓN: Usamos la evaluación lógica idéntica a la pantalla final.
-        // Si liveScore es 0 (falsy), mirará el backupScore del servidor antes de rendirse.
         score: liveScore || backupScore || 0,
         connected: player.connected,
       };
     });
   }, [matchState, scores]);
 
-  const canLock = roundPhase === "playing" && audioReady && !lockOwnerId;
+  const { isCooldownActive, cooldownSeconds } = useMemo(() => {
+    const active =
+      cooldownEndsAt !== null && cooldownEndsAt > Date.now();
+    return {
+      isCooldownActive: active,
+      cooldownSeconds: active
+        ? Math.ceil((cooldownEndsAt - Date.now()) / SECOND_MS)
+        : 0,
+    };
+  }, [cooldownEndsAt, cooldownUiTick]);
+
+  const showCooldownUi = isCooldownActive && roundPhase === "playing";
+
+  const canLock =
+    roundPhase === "playing" && audioReady && !lockOwnerId && !isCooldownActive;
   const canGuess =
     roundPhase === "guessing" &&
     Boolean(lockOwnerId && lockOwnerId === myUserId);
@@ -185,59 +224,38 @@ export default function MatchPage() {
     ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
     : "Waiting for round";
 
-  // useEffect(() => {
-  //   if (!code) return;
+  useEffect(() => {
+    if (!code) {
+      setCooldownEndsAt(null);
+      return;
+    }
+    setCooldownEndsAt(readStoredCooldownEnd(code));
+  }, [code]);
 
-  //   async function loadMatchScores() {
-  //     try {
-  //       // 🟢 Usamos tu utilidad apiJson apuntando al endpoint real del BACKEND (/api/...)
-  //       // apiJson ya hace el await response.json() por dentro de forma segura.
-  //       const response = await apiJson(`/api/matches/${matchId}/scores`);
+  useEffect(() => {
+    if (!code || cooldownEndsAt === null) return undefined;
 
-  //       if (data && data.ok && data.match) {
-  //         const currentMatch = data.match;
+    const tick = () => {
+      const now = Date.now();
+      if (now >= cooldownEndsAt) {
+        clearStoredCooldown(code);
+        setCooldownEndsAt(null);
+        return;
+      }
+      setCooldownUiTick((value) => value + 1);
+    };
 
-  //         setScores((prev) => {
-  //           const next = { ...prev };
+    if (Date.now() >= cooldownEndsAt) {
+      clearStoredCooldown(code);
+      setCooldownEndsAt(null);
+      return undefined;
+    }
 
-  //           if (currentMatch.scores) {
-  //             if (Array.isArray(currentMatch.scores)) {
-  //               currentMatch.scores.forEach((entry: any) => {
-  //                 const s = entry.score ?? entry.totalScore ?? entry.points;
-  //                 if (entry.userId && s !== undefined && s !== null)
-  //                   next[entry.userId] = s;
-  //               });
-  //             } else {
-  //               Object.keys(currentMatch.scores).forEach((key) => {
-  //                 const s = currentMatch.scores[key];
-  //                 if (s !== undefined && s !== null) next[key] = s;
-  //               });
-  //             }
-  //           }
+    tick();
+    const timerId = window.setInterval(tick, SECOND_MS);
+    return () => window.clearInterval(timerId);
+  }, [code, cooldownEndsAt]);
 
-  //           if (currentMatch.players) {
-  //             currentMatch.players.forEach((player: any) => {
-  //               const serverScore =
-  //                 player.score ?? player.totalScore ?? player.points;
-  //               if (serverScore !== undefined && serverScore !== null) {
-  //                 next[player.userId] = serverScore;
-  //               } else if (next[player.userId] === undefined) {
-  //                 next[player.userId] = 0;
-  //               }
-  //             });
-  //           }
-  //           return next;
-  //         });
-  //       }
-  //     } catch (err) {
-  //       console.error("Error al hidratar marcadores por HTTP:", err);
-  //     }
-  //   }
-
-  //   loadMatchScores();
-  // }, [code]);
-
-  // 1. Este efecto REGISTRA y actualiza la partida en el Header mientras juegas
   useEffect(() => {
     if (code) {
       setActiveMatch({
@@ -249,14 +267,13 @@ export default function MatchPage() {
     }
   }, [code, roundInfo, setActiveMatch]);
 
-  // 2. AJUSTE B: Este efecto LIMPIA el Header si la partida termina (en vivo o al reconectar)
   useEffect(() => {
     if (
       finalScores ||
       matchState?.phase === "finished" ||
       roundPhase === "finished"
     ) {
-      setActiveMatch(null); // Borra el badge verde del Header
+      setActiveMatch(null);
     }
   }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
 
@@ -312,7 +329,6 @@ export default function MatchPage() {
     hydrateMatch();
   }, [code]);
 
-  // Cuando sincronizas o cambia la ronda, actualizas el Header
   useEffect(() => {
     if (code) {
       setActiveMatch({
@@ -322,15 +338,11 @@ export default function MatchPage() {
           : undefined,
       });
     }
-
-    // Si el componente se desmonta (usuario navega a otra sección),
-    // NO la borramos porque queremos que siga saliendo arriba el acceso directo!
   }, [code, roundInfo, setActiveMatch]);
 
-  // PERO, si la partida TERMINA de verdad, la limpiamos del header:
   useEffect(() => {
     if (finalScores) {
-      setActiveMatch(null); // Ya no hay partida en curso
+      setActiveMatch(null);
     }
   }, [finalScores, setActiveMatch]);
 
@@ -360,7 +372,6 @@ export default function MatchPage() {
       setScores((prev) => {
         const next = { ...prev };
 
-        // A. Extraer si el backend manda un diccionario o array "scores" en la raíz
         if (payload.scores) {
           if (Array.isArray(payload.scores)) {
             payload.scores.forEach((entry: any) => {
@@ -376,7 +387,6 @@ export default function MatchPage() {
           }
         }
 
-        // B. Extraer desde el listado de jugadores
         payload.players.forEach((player) => {
           const serverScore =
             player.score ?? player.totalScore ?? (player as any).points;
@@ -428,6 +438,26 @@ export default function MatchPage() {
       setSearching(false);
       setSearchError(null);
       setSelectedTrack(null);
+
+      const storedCooldown = readStoredCooldown(code);
+      const pendingRound = readPendingCooldown(code);
+
+      if (
+        storedCooldown &&
+        shouldClearCooldownForRound(storedCooldown, payload.roundIndex)
+      ) {
+        clearStoredCooldown(code);
+        setCooldownEndsAt(null);
+      } else if (storedCooldown) {
+        setCooldownEndsAt(storedCooldown.endTime);
+      } else {
+        setCooldownEndsAt(null);
+      }
+
+      if (pendingRound !== null && pendingRound !== payload.roundIndex) {
+        clearPendingCooldown(code);
+      }
+
       setAudioUrl(
         payload.preview ? `/media/${payload.preview.fileName}` : null,
       );
@@ -440,7 +470,6 @@ export default function MatchPage() {
       }
     }
 
-    // MODIFICADO: Ahora calcula el tiempo real usando el 'endsAt' absoluto del servidor
     function startCountdown(initialSeconds: number, endsAt: number) {
       clearCountdownTimer();
       setRoundPhase("countdown");
@@ -453,7 +482,6 @@ export default function MatchPage() {
         const now = Date.now();
         const remainingMs = endsAt - now;
 
-        // Si el tiempo ya ha vencido (el contador llegó a 0 o te reconectas tarde)
         if (remainingMs <= 0) {
           clearCountdownTimer();
           setShowVisualizer(true);
@@ -462,9 +490,6 @@ export default function MatchPage() {
           audioContextRef.current?.resume();
 
           if (audioRef.current) {
-            // SINCRONIZADOR ABSOLUTO: Si remainingMs es negativo (ej. -450ms)
-            // significa que la pestaña se congeló y despertó tarde.
-            // Forzamos al reproductor a saltar exactamente ese delay.
             const delaySeconds = Math.abs(remainingMs) / 1000;
             audioRef.current.currentTime = delaySeconds;
             audioRef.current.play().catch(() => undefined);
@@ -472,21 +497,15 @@ export default function MatchPage() {
           return;
         }
 
-        // Seteamos los segundos redondeando hacia arriba
         setCountdownSeconds(Math.ceil(remainingMs / SECOND_MS));
       };
 
-      // Ejecución inmediata inicial
       updateCountdown();
-
-      // Consultamos cada 100ms para asegurar precisión milimétrica
-      // (así, si el navegador ralentiza los intervalos por estar en background, recupera el tiempo real rápido)
       countdownTimerRef.current = window.setInterval(updateCountdown, 100);
     }
 
     socket.on("round:countdown", (payload: RoundCountdownPayload) => {
       if (payload.matchId !== code) return;
-      // MODIFICADO: Pasamos también el timestamp 'endsAt' que envía el backend
       startCountdown(payload.seconds, payload.endsAt);
     });
 
@@ -530,10 +549,26 @@ export default function MatchPage() {
         [payload.lockOwnerId]: payload.totalScore,
       }));
       setLockRequested(false);
+
+      if (
+        !payload.correct &&
+        String(payload.lockOwnerId) === String(myUserIdRef.current)
+      ) {
+        writePendingCooldown(code, payload.roundIndex);
+      }
     });
 
     socket.on("round:resume", (payload: RoundResumePayload) => {
-      if (payload.matchId !== code) return;
+      if (normalizeCode(payload.matchId) !== code) return;
+
+      let endTime: number | null = null;
+      if (String(lockOwnerIdRef.current) === String(myUserIdRef.current)) {
+        endTime = startCooldownPenalty(code, payload.roundIndex);
+      } else {
+        endTime = activateCooldownOnResume(code, payload.roundIndex);
+      }
+      setCooldownEndsAt(endTime);
+
       setRoundPhase("playing");
       setLockOwnerId(null);
       setGuessSeconds(null);
@@ -730,7 +765,7 @@ export default function MatchPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!canLock) return;
+      if (!canLock) return; // Si canLock es false (incluyendo si estás en cooldown), el espacio se ignora
       if (event.code !== "Space") return;
       const target = event.target as HTMLElement | null;
       if (
@@ -818,13 +853,9 @@ export default function MatchPage() {
   const showCountdown = !showGuessPanel && !showVisualizer;
   const showEq = !showGuessPanel && showVisualizer;
 
-  // --- CONTROL DE RECONEXIÓN PARA PANTALLA FINAL ---
-  // Comprobamos si la partida ha terminado por cualquiera de las dos vías
   const isMatchFinished =
     matchState?.phase === "finished" || roundPhase === "finished";
 
-  // Si no tenemos la lista "finalScores" directa del evento, mapeamos los jugadores
-  // actuales ordenados por su puntuación para reconstruir el podio
   const playersList = matchState?.players || [];
   const resultsData =
     finalScores ||
@@ -839,7 +870,6 @@ export default function MatchPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
-      {/* Estilos inyectados locales para la animación de cambio de ronda */}
       <style>{`
       @keyframes roundPop {
         0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
@@ -870,8 +900,6 @@ export default function MatchPage() {
                 {roundLabel}
               </div>
             )}
-
-            {/* Indicador de Ronda animado con efecto Pop y Ping en vivo */}
           </div>
         </header>
 
@@ -881,14 +909,12 @@ export default function MatchPage() {
           </div>
         )}
 
-        {/* 1. CAMBIADO: Condicional principal de pantalla mutado a isMatchFinished */}
         {isMatchFinished ? (
           <section className="card p-6 animate-fade-in">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Final results
             </div>
             <div className="mt-4 grid gap-3">
-              {/* CAMBIADO: Ahora itera sobre resultsData */}
               {resultsData.map((entry) => (
                 <div
                   key={entry.userId}
@@ -907,7 +933,6 @@ export default function MatchPage() {
               ))}
             </div>
 
-            {/* NUEVO: Botón arcade para regresar cómodamente al home tras acabar */}
             <div className="mt-6 text-center">
               <button
                 className="btn-glow px-6"
@@ -923,10 +948,8 @@ export default function MatchPage() {
         ) : (
           <section className="card p-6">
             <div className="flex flex-col sm:flex-row items-stretch gap-4">
-              {/* PANTALLA PRINCIPAL */}
               <div className="flex-1 min-w-0">
                 <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                  {/* CONTADOR TIEMPO RESTANTE DE LA CANCIÓN */}
                   {songRemainingSeconds !== null &&
                     (roundPhase === "playing" ||
                       roundPhase === "guessing" ||
@@ -945,7 +968,6 @@ export default function MatchPage() {
                       </div>
                     )}
 
-                  {/* COUNTDOWN INICIAL */}
                   <div
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
                   ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -958,7 +980,6 @@ export default function MatchPage() {
                     </div>
                   </div>
 
-                  {/* VISUALIZER */}
                   <div
                     className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
                   ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -971,7 +992,6 @@ export default function MatchPage() {
                     />
                   </div>
 
-                  {/* CONTENEDOR GUESS PANEL */}
                   <div
                     onTransitionEnd={() => {
                       if (
@@ -986,7 +1006,6 @@ export default function MatchPage() {
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                   ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                   >
-                    {/* GUESS COUNTDOWN */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                     ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -1003,7 +1022,6 @@ export default function MatchPage() {
                       <div className="mt-2 text-sm text-zinc-500">seconds</div>
                     </div>
 
-                    {/* EXPIRADO / TIME OUT */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
                     ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -1013,7 +1031,6 @@ export default function MatchPage() {
                       )}
                     </div>
 
-                    {/* ERROR / WRONG ANSWER */}
                     <div
                       className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
                     ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -1027,7 +1044,6 @@ export default function MatchPage() {
                       )}
                     </div>
 
-                    {/* ACIERTO / CORRECT ANSWER */}
                     <div
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                     ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
@@ -1044,17 +1060,27 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              {/* LOCK BUTTON */}
+              {/* ⏱️ MODIFICADO: LOCK BUTTON CON SOPORTE PARA COOLDOWN VISUAL */}
               <div className="flex items-center justify-center sm:justify-start">
                 <button
-                  className="btn-glow h-16 sm:h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-50"
-                  style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                  className="btn-glow h-16 sm:h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-40"
+                  style={
+                    {
+                      "--btn-color": showCooldownUi ? "#f43f5e" : "#f7d046",
+                    } as React.CSSProperties
+                  }
                   type="button"
                   disabled={!canLock || lockRequested}
                   onClick={requestLock}
                   onMouseMove={handleMouseMoveToSetFillOrigin}
                 >
-                  <span>{lockRequested ? "Locking..." : "Lock (Space)"}</span>
+                  <span>
+                    {lockRequested
+                      ? "Locking..."
+                      : showCooldownUi
+                        ? `Cooldown (${cooldownSeconds}s)`
+                        : "Lock (Space)"}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1067,7 +1093,6 @@ export default function MatchPage() {
           </section>
         )}
 
-        {/* 2. CAMBIADO: Ocultar panel de búsqueda mediante isMatchFinished si se reconecta */}
         {!isMatchFinished && (
           <section className="card p-6 overflow-hidden">
             <div className="flex flex-col gap-1">
@@ -1075,7 +1100,6 @@ export default function MatchPage() {
                 Lock and guess
               </div>
 
-              {/* CONTENEDOR RELATIVO PARA TRANSICIÓN DE TEXTOS */}
               <div className="relative h-7 mt-1">
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
@@ -1097,7 +1121,6 @@ export default function MatchPage() {
               </div>
             </div>
 
-            {/* TRANSICIÓN DEL PANEL DE BÚSQUEDA */}
             <div
               className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
             ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
@@ -1203,7 +1226,6 @@ export default function MatchPage() {
           </section>
         )}
 
-        {/* 3. CAMBIADO: Ocultar el marcador en vivo intermedio si isMatchFinished es true */}
         {!isMatchFinished && (
           <section className="card p-6">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
