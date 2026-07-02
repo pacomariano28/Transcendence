@@ -10,6 +10,7 @@ import {
   getTopTracks,
   type SpotifyArtist,
 } from "../clients/spotify.client.js";
+import { consumeOAuthState } from "../lib/oauthStateStore.js";
 
 export type SpotifyCallbackInput = {
   code: string;
@@ -55,7 +56,7 @@ function buildTopGenres(
 export async function handleSpotifyCallback(
   input: SpotifyCallbackInput,
 ): Promise<SpotifyCallbackResult> {
-  if (!input.cookieState || input.cookieState !== input.returnedState) {
+  if (!consumeOAuthState(input.returnedState)) {
     throw new Error("INVALID_STATE");
   }
 
