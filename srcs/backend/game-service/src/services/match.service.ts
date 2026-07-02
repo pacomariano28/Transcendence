@@ -282,6 +282,7 @@ export class MatchService {
           lockOwnerId: player.userId,
           correct: false,
           reason: "timeout",
+          selectedTrack: null,
           emit,
           guessTimers: this.guessTimers,
           resumeTimers: this.resumeTimers,
@@ -295,6 +296,8 @@ export class MatchService {
   submitGuess(
     socketId: string,
     trackId: string,
+    track: string,
+    artist: string,
     emit: EmitMatchEvent,
   ): MatchState {
     const match = this.getMatchBySocketOrThrow(socketId);
@@ -322,6 +325,7 @@ export class MatchService {
       lockOwnerId: player.userId,
       correct: isCorrect,
       reason: isCorrect ? null : "wrong",
+      selectedTrack: { id: trackId, track, artist },
       emit,
       guessTimers: this.guessTimers,
       resumeTimers: this.resumeTimers,

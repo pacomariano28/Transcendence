@@ -34,6 +34,14 @@ export type RoundLockPayload = {
 export type RoundGuessPayload = {
   matchId: string;
   trackId: string;
+  track: string;
+  artist: string;
+};
+
+export type GuessSelectedTrack = {
+  id: string;
+  track: string;
+  artist: string;
 };
 
 export type RoundPreviewEndedPayload = {
