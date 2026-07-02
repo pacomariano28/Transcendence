@@ -84,6 +84,12 @@ type RoundLockPayload = {
   guessEndsAt: number | null;
 };
 
+type GuessSelectedTrack = {
+  id: string;
+  track: string;
+  artist: string;
+};
+
 type RoundGuessResultPayload = {
   matchId: string;
   roundIndex: number;
@@ -91,6 +97,7 @@ type RoundGuessResultPayload = {
   correct: boolean;
   reason: "wrong" | "timeout" | null;
   trackId: string | null;
+  selectedTrack: GuessSelectedTrack | null;
   scoreDelta: number;
   totalScore: number;
 };
@@ -151,6 +158,8 @@ export default function MatchPage() {
     "countdown" | "expired" | "wrong" | "correct"
   >("countdown");
   const [showResultText, setShowResultText] = useState(false);
+  const [guessResultTrack, setGuessResultTrack] =
+    useState<GuessSelectedTrack | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const readyRoundRef = useRef<number | null>(null);
@@ -438,6 +447,7 @@ export default function MatchPage() {
       setSearching(false);
       setSearchError(null);
       setSelectedTrack(null);
+      setGuessResultTrack(null);
 
       const storedCooldown = readStoredCooldown(code);
       const pendingRound = readPendingCooldown(code);
@@ -514,6 +524,7 @@ export default function MatchPage() {
       setRoundPhase("guessing");
       setGuessStatus("countdown");
       setShowResultText(false);
+      setGuessResultTrack(null);
       setLockOwnerId(payload.lockOwnerId);
       setGuessEndsAt(payload.guessEndsAt ?? null);
       setLockRequested(false);
@@ -530,6 +541,7 @@ export default function MatchPage() {
       if (payload.matchId !== code) return;
 
       setShowResultText(false);
+      setGuessResultTrack(payload.selectedTrack ?? null);
 
       if (payload.correct) {
         setGuessStatus("correct");
@@ -786,6 +798,8 @@ export default function MatchPage() {
     socket.emit("round:guess_submit", {
       matchId: code,
       trackId: selectedTrack.id,
+      track: selectedTrack.track,
+      artist: selectedTrack.artist,
     });
   }
 
@@ -1032,15 +1046,22 @@ export default function MatchPage() {
                     </div>
 
                     <div
-                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
+                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                     ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "wrong" && (
-                        <TypingText
-                          key="wrong"
-                          text="WRONG ANSWER!"
-                          size="md"
-                        />
+                        <>
+                          <TypingText
+                            key="wrong"
+                            text="WRONG ANSWER!"
+                            size="md"
+                          />
+                          {guessResultTrack && (
+                            <div className="mt-4 max-w-md px-4 text-sm font-medium text-rose-400">
+                              {guessResultTrack.track} - {guessResultTrack.artist}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -1049,11 +1070,18 @@ export default function MatchPage() {
                     ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
                     >
                       {showResultText && guessStatus === "correct" && (
-                        <TypingText
-                          key="correct"
-                          text="CORRECT ANSWER!"
-                          size="md"
-                        />
+                        <>
+                          <TypingText
+                            key="correct"
+                            text="CORRECT ANSWER!"
+                            size="md"
+                          />
+                          {guessResultTrack && (
+                            <div className="mt-4 max-w-md px-4 text-sm font-medium text-emerald-400">
+                              {guessResultTrack.track} - {guessResultTrack.artist}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
