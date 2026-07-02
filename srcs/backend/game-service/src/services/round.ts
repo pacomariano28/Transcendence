@@ -51,6 +51,7 @@ export function resolveGuess({
   lockOwnerId,
   correct,
   reason,
+  selectedTrack,
   emit,
   guessTimers,
   resumeTimers,
@@ -87,6 +88,7 @@ export function resolveGuess({
     correct,
     reason,
     trackId: round.preview?.trackId ?? null,
+    selectedTrack,
     scoreDelta,
     totalScore: scoreEntry?.score ?? scoreDelta,
   });
