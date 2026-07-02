@@ -79,5 +79,10 @@ export function setSpotifyStateCookie(res: Response, state: string) {
  * clearSpotifyStateCookie(res);
  */
 export function clearSpotifyStateCookie(res: Response) {
-  res.clearCookie("spotify_oauth_state", { path: "/" });
+  res.clearCookie("spotify_oauth_state", {
+    path: "/",
+    secure: true,
+    sameSite: "lax",
+    httpOnly: true,
+  });
 }

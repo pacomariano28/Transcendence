@@ -6,6 +6,7 @@ import {
   setAuthCookies,
   setSpotifyStateCookie,
 } from "../services/sessionCookies.service.js";
+import { storeOAuthState } from "../lib/oauthStateStore.js";
 
 /**
  *
@@ -55,7 +56,8 @@ export async function spotifyLogin(_req: Request, res: Response) {
 
   const state = base64Url(crypto.randomBytes(16));
 
-  // Store state in a cookie so we can validate it during the callback (CSRF protection).
+  storeOAuthState(state);
+  // Keep cookie for backwards compatibility; validation uses server-side store.
   setSpotifyStateCookie(res, state);
 
   const scope = ["user-read-email", "user-read-private", "user-top-read"].join(
