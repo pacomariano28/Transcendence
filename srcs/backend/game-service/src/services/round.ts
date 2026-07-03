@@ -55,6 +55,7 @@ export function resolveGuess({
   emit,
   guessTimers,
   resumeTimers,
+  onMatchFinished,
 }: ResolveGuessInput): void {
   clearTimer(guessTimers, match.matchId);
   clearTimer(resumeTimers, match.matchId);
@@ -111,6 +112,7 @@ export function resolveGuess({
             matchId: match.matchId,
             scores: match.scores,
           });
+          onMatchFinished?.(match);
           return;
         }
 
