@@ -1,4 +1,4 @@
-import { apiJson } from "./http";
+import { apiJson, markSessionValidated, refreshSessionCookie, resetSessionValidation } from "./http";
 
 export type SpotifyArtist = {
   id: string;
@@ -49,7 +49,7 @@ export async function getMe(): Promise<AuthedUser> {
 }
 
 export async function refreshCookie(): Promise<void> {
-  await apiJson("/api/auth/refresh-cookie", { method: "POST" });
+  await refreshSessionCookie();
 }
 
 export async function login(email: string, password: string): Promise<void> {
@@ -57,12 +57,14 @@ export async function login(email: string, password: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  localStorage.setItem("isLoggedIn", "true"); // 🟢 Listo para el próximo F5
+  localStorage.setItem("isLoggedIn", "true");
+  markSessionValidated();
 }
 
 export async function logout(): Promise<void> {
   await apiJson("/api/auth/logout", { method: "POST" });
-  localStorage.removeItem("isLoggedIn"); // 🟢 Limpieza absoluta
+  localStorage.removeItem("isLoggedIn");
+  resetSessionValidation();
 }
 
 export async function register(

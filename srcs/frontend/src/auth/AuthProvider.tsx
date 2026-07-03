@@ -1,43 +1,79 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AuthContext, type AuthState } from "./auth-context";
 import { getMe, refreshCookie, type AuthedUser } from "../api/auth";
+import {
+  markSessionValidated,
+  resetSessionValidation,
+} from "../api/http";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthedUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadSeqRef = useRef(0);
+  const inFlightLoadRef = useRef<Promise<void> | null>(null);
 
-  async function load() {
-    setLoading(true);
-
-    const isSpotifyRedirect = window.location.pathname.includes(
-      "/auth/spotify/success",
-    );
-    const hasLoginFlag = localStorage.getItem("isLoggedIn") === "true";
-
-    // 🟢 Si es un invitado común en el Home, salimos corriendo sin llamar al servidor (CERO 401s)
-    // 🟢 Pero si venimos rebotados de Spotify, la URL coincidirá y el IF nos dejará pasar a validar la cookie
-    if (!hasLoginFlag && !isSpotifyRedirect) {
-      setUser(null);
-      setLoading(false);
-      return;
+  async function load(options?: {
+    silent?: boolean;
+    forceFetch?: boolean;
+  }) {
+    if (inFlightLoadRef.current) {
+      return inFlightLoadRef.current;
     }
 
-    try {
-      const u = await getMe();
-      setUser(u);
-      localStorage.setItem("isLoggedIn", "true"); // Aseguramos el flag tras el éxito
-    } catch {
+    const seq = ++loadSeqRef.current;
+    const silent = options?.silent ?? false;
+    const forceFetch = options?.forceFetch ?? false;
+
+    const run = async () => {
+      if (!silent) setLoading(true);
+
+      const isSpotifyRedirect = window.location.pathname.includes(
+        "/auth/spotify/success",
+      );
+      const hasLoginFlag = localStorage.getItem("isLoggedIn") === "true";
+
+      // Si es un invitado común en el Home, salimos sin llamar al servidor (CERO 401s)
+      // Pero si venimos rebotados de Spotify, la URL coincidirá y el IF nos dejará pasar a validar la cookie
+      if (!forceFetch && !hasLoginFlag && !isSpotifyRedirect) {
+        if (seq === loadSeqRef.current) {
+          setUser(null);
+          if (!silent) setLoading(false);
+        }
+        return;
+      }
+
       try {
-        await refreshCookie();
         const u = await getMe();
+        if (seq !== loadSeqRef.current) return;
         setUser(u);
         localStorage.setItem("isLoggedIn", "true");
+        markSessionValidated();
       } catch {
-        setUser(null);
-        localStorage.removeItem("isLoggedIn");
+        try {
+          await refreshCookie();
+          const u = await getMe();
+          if (seq !== loadSeqRef.current) return;
+          setUser(u);
+          localStorage.setItem("isLoggedIn", "true");
+          markSessionValidated();
+        } catch {
+          if (seq !== loadSeqRef.current) return;
+          setUser(null);
+          localStorage.removeItem("isLoggedIn");
+          resetSessionValidation();
+        }
+      } finally {
+        if (seq === loadSeqRef.current && !silent) {
+          setLoading(false);
+        }
       }
+    };
+
+    inFlightLoadRef.current = run();
+    try {
+      await inFlightLoadRef.current;
     } finally {
-      setLoading(false);
+      inFlightLoadRef.current = null;
     }
   }
 
@@ -53,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clear: () => {
         setUser(null);
         localStorage.removeItem("isLoggedIn");
+        resetSessionValidation();
       },
     }),
     [user, loading],
