@@ -48,13 +48,27 @@ export class MatchService {
     const existingMatchId = this.userToMatch.get(input.userId);
     if (existingMatchId) {
       const existingMatch = this.matches.get(existingMatchId);
-      if (existingMatch?.phase === "finished") {
-        this.releasePlayersFromMatch(existingMatch);
+      if (!existingMatch || existingMatch.phase === "finished") {
+        if (existingMatch) {
+          this.releasePlayersFromMatch(existingMatch);
+        }
       } else {
-        throw new Error(
-          "You cannot create a new game because you are already in-game",
+        const existingPlayer = existingMatch.players.find(
+          (player) => player.userId === input.userId,
         );
+        if (existingPlayer?.connected) {
+          throw new Error(
+            "You cannot create a new game because you are already in-game",
+          );
+        }
       }
+      this.userToMatch.delete(input.userId);
+    }
+
+    if (this.getPlayerByUserId(input.userId)) {
+      throw new Error(
+        "You cannot create a new game because you are already in-game",
+      );
     }
 
     const matchId = this.generateMatchCode();
@@ -93,6 +107,7 @@ export class MatchService {
       existingPlayer.connected = true;
       existingPlayer.disconnectedAt = null;
       ensureScoreEntry(match, existingPlayer);
+      this.userToMatch.set(input.userId, match.matchId);
       this.socketToMatch.set(input.socketId, match.matchId);
       return match;
     }
@@ -415,39 +430,37 @@ export class MatchService {
 
     const player = match.players.find((p) => p.socketId === socketId);
     if (player) {
-      this.userToMatch.delete(player.userId);
-      player.socketId = null;
-      player.connected = false;
-      player.disconnectedAt = new Date().toISOString();
-      console.log(
-        `Player ${player.userId} disconnected from match ${match.matchId}`,
-      );
+      this.detachPlayerFromMatch(player, match);
     }
 
     this.socketToMatch.delete(socketId);
 
-    // Corregido: Unificado en un único bloque limpio controlado por 'allDisconnected'
-    const allDisconnected = match.players.every((p) => !p.connected);
-    if (allDisconnected) {
-      console.log(
-        `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
-      );
+    return match;
+  }
 
-      global.setTimeout(() => {
-        const stillDisconnected = match.players.every((p) => !p.connected);
-        if (stillDisconnected) {
-          console.log(`Match ${match.matchId} removed due to inactivity.`);
-
-          const syncTimer = this.syncTimers.get(match.matchId);
-          if (syncTimer) global.clearTimeout(syncTimer);
-          this.syncTimers.delete(match.matchId);
-
-          this.matches.delete(match.matchId);
-        }
-      }, DISCONNECT_TTL_MS);
+  leaveMatch(input: { socketId: string; userId?: string }): MatchState | undefined {
+    const match = this.removeSocket(input.socketId);
+    if (match) {
+      return match;
     }
 
-    return match;
+    if (!input.userId) {
+      return undefined;
+    }
+
+    for (const currentMatch of this.matches.values()) {
+      const player = currentMatch.players.find(
+        (entry) => entry.userId === input.userId && entry.connected,
+      );
+      if (!player) {
+        continue;
+      }
+
+      this.detachPlayerFromMatch(player, currentMatch);
+      return currentMatch;
+    }
+
+    return undefined;
   }
 
   reconnectSocket(playerId: string, newSocketId: string): MatchState {
@@ -487,6 +500,49 @@ export class MatchService {
     for (const player of match.players) {
       this.userToMatch.delete(player.userId);
     }
+  }
+
+  private detachPlayerFromMatch(
+    player: MatchPlayer,
+    match: MatchState,
+  ): void {
+    if (player.socketId) {
+      this.socketToMatch.delete(player.socketId);
+    }
+
+    this.userToMatch.delete(player.userId);
+    player.socketId = null;
+    player.connected = false;
+    player.disconnectedAt = new Date().toISOString();
+    console.log(
+      `Player ${player.userId} disconnected from match ${match.matchId}`,
+    );
+
+    this.scheduleMatchRemovalIfEmpty(match);
+  }
+
+  private scheduleMatchRemovalIfEmpty(match: MatchState): void {
+    const allDisconnected = match.players.every((p) => !p.connected);
+    if (!allDisconnected) {
+      return;
+    }
+
+    console.log(
+      `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
+    );
+
+    global.setTimeout(() => {
+      const stillDisconnected = match.players.every((p) => !p.connected);
+      if (stillDisconnected) {
+        console.log(`Match ${match.matchId} removed due to inactivity.`);
+
+        const syncTimer = this.syncTimers.get(match.matchId);
+        if (syncTimer) global.clearTimeout(syncTimer);
+        this.syncTimers.delete(match.matchId);
+
+        this.matches.delete(match.matchId);
+      }
+    }, DISCONNECT_TTL_MS);
   }
 
   getMatchOrThrow(matchId: string): MatchState {

@@ -90,7 +90,11 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   });
 
   socket.on("match:leave", () => {
-    const match = matchService.removeSocket(socket.id);
+    const userId = readHeader(socket.handshake.headers, "x-user-id");
+    const match = matchService.leaveMatch({
+      socketId: socket.id,
+      userId: userId ?? undefined,
+    });
 
     if (match) {
       socket.leave(match.matchId);

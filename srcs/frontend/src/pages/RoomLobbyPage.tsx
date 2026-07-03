@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
@@ -31,9 +31,15 @@ export default function RoomLobbyPage() {
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(
     createdMatch ?? null,
   );
-  // console.log("RoomLobby: createdMatch from location.state:", createdMatch);
 
   const [error, setError] = useState<string | null>(null);
+  const navigatingToMatchRef = useRef(false);
+
+  function leaveLobby() {
+    if (!socket.connected) return;
+    socket.emit("match:leave");
+  }
+
   const me = useMemo(() => {
     if (!matchState || !user) return null;
     const userId = String(user.id);
@@ -48,7 +54,8 @@ export default function RoomLobbyPage() {
   useEffect(() => {
     if (!user || !code) return;
 
-    // Connect if the socket is currently disconnected
+    navigatingToMatchRef.current = false;
+
     if (!socket.connected) {
       socket.connect();
     }
@@ -72,6 +79,7 @@ export default function RoomLobbyPage() {
       setError(null);
 
       if (payload.phase === "in-game") {
+        navigatingToMatchRef.current = true;
         nav(`/match/${code}`, { replace: true });
       }
     });
@@ -83,6 +91,7 @@ export default function RoomLobbyPage() {
       );
       setError(null);
       if (payload.phase === "in-game") {
+        navigatingToMatchRef.current = true;
         nav(`/match/${code}`, { replace: true });
       }
     });
@@ -96,6 +105,10 @@ export default function RoomLobbyPage() {
       socket.off("match:state");
       socket.off("match:phase");
       socket.off("match:error");
+
+      if (!navigatingToMatchRef.current) {
+        leaveLobby();
+      }
     };
   }, [code, user, nav, createdMatch]);
 
@@ -104,9 +117,7 @@ export default function RoomLobbyPage() {
   }
 
   function leave() {
-    if (socket.connected) {
-      socket.disconnect();
-    }
+    leaveLobby();
     nav("/", { replace: true });
   }
 
