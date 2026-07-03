@@ -9,4 +9,5 @@ export type ResolveGuessInput = {
   emit: EmitMatchEvent;
   guessTimers: MatchTimerMap;
   resumeTimers: MatchTimerMap;
+  onMatchFinished?: (match: MatchState) => void;
 };

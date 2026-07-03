@@ -47,9 +47,14 @@ export class MatchService {
   createMatch(input: CreateMatchInput): MatchState {
     const existingMatchId = this.userToMatch.get(input.userId);
     if (existingMatchId) {
-      throw new Error(
-        "You cannot create a new game because you are already in-game",
-      );
+      const existingMatch = this.matches.get(existingMatchId);
+      if (existingMatch?.phase === "finished") {
+        this.releasePlayersFromMatch(existingMatch);
+      } else {
+        throw new Error(
+          "You cannot create a new game because you are already in-game",
+        );
+      }
     }
 
     const matchId = this.generateMatchCode();
@@ -286,6 +291,8 @@ export class MatchService {
           emit,
           guessTimers: this.guessTimers,
           resumeTimers: this.resumeTimers,
+          onMatchFinished: (finishedMatch) =>
+            this.releasePlayersFromMatch(finishedMatch),
         });
       },
     );
@@ -329,6 +336,8 @@ export class MatchService {
       emit,
       guessTimers: this.guessTimers,
       resumeTimers: this.resumeTimers,
+      onMatchFinished: (finishedMatch) =>
+        this.releasePlayersFromMatch(finishedMatch),
     });
     return match;
   }
@@ -364,6 +373,7 @@ export class MatchService {
         matchId: match.matchId,
         scores: match.scores,
       });
+      this.releasePlayersFromMatch(match);
       return match;
     }
 
@@ -459,6 +469,10 @@ export class MatchService {
 
   getPlayerByUserId(userId: string): MatchPlayer | undefined {
     for (const match of this.matches.values()) {
+      if (match.phase === "finished") {
+        continue;
+      }
+
       const player = match.players.find(
         (p: MatchPlayer) => p.userId === userId,
       );
@@ -467,6 +481,12 @@ export class MatchService {
       }
     }
     return undefined;
+  }
+
+  private releasePlayersFromMatch(match: MatchState): void {
+    for (const player of match.players) {
+      this.userToMatch.delete(player.userId);
+    }
   }
 
   getMatchOrThrow(matchId: string): MatchState {
