@@ -157,7 +157,7 @@ export default function AppHeader() {
       </div>
 
       {/* 2. 🟢 BARRA DE LIVE COMPLETA Y CLICKABLE (Oculta automáticamente en la pantalla de juego) */}
-      {showLiveBar && (
+      {showLiveBar && user && (
         <Link
           to={`/match/${activeMatch.code}`}
           className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer select-none animate-fade-in"

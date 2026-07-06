@@ -6,7 +6,10 @@ import {
   setAuthCookies,
   setSpotifyStateCookie,
 } from "../services/sessionCookies.service.js";
-import { storeOAuthState } from "../lib/oauthStateStore.js";
+import {
+  consumeOAuthState,
+  storeOAuthState,
+} from "../lib/oauthStateStore.js";
 
 /**
  *
@@ -105,6 +108,14 @@ export async function spotifyCallback(req: Request, res: Response) {
   const code = typeof req.query.code === "string" ? req.query.code : null;
   const returnedState =
     typeof req.query.state === "string" ? req.query.state : null;
+  const oauthError =
+    typeof req.query.error === "string" ? req.query.error : null;
+
+  if (oauthError === "access_denied") {
+    if (returnedState) consumeOAuthState(returnedState);
+    clearSpotifyStateCookie(res);
+    return res.redirect(`${frontendUrl}/login?spotify=cancelled`);
+  }
 
   if (!code) return res.status(400).json({ error: "MISSING_CODE" });
   if (!returnedState) return res.status(400).json({ error: "MISSING_STATE" });
