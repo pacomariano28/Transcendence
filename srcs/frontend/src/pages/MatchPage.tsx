@@ -167,9 +167,94 @@ export default function MatchPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const playbackSyncRef = useRef<{ anchorAt: number; offsetSec: number } | null>(
+    null,
+  );
+
+  const [showAudioRestoreNotice, setShowAudioRestoreNotice] = useState(false);
+  const showAudioRestoreNoticeRef = useRef(false);
+
+  useEffect(() => {
+    showAudioRestoreNoticeRef.current = showAudioRestoreNotice;
+    if (showAudioRestoreNotice) {
+      setSongRemainingSeconds(null);
+    }
+  }, [showAudioRestoreNotice]);
 
   const myUserId = user ? String(user.id) : null;
+
+  const updateTrackTimerDisplay = useCallback((offsetSec: number) => {
+    playbackSyncRef.current = { anchorAt: Date.now(), offsetSec };
+    const duration = audioRef.current?.duration;
+    if (!duration || isNaN(duration)) return;
+    setSongRemainingSeconds(Math.max(0, Math.ceil(duration - offsetSec)));
+  }, []);
+
+  const applySyncedPlaybackPosition = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const sync = playbackSyncRef.current;
+    const elapsed = sync ? (Date.now() - sync.anchorAt) / SECOND_MS : 0;
+    const position = sync ? sync.offsetSec + elapsed : audio.currentTime;
+    const duration = audio.duration;
+    const playbackTime =
+      duration && !isNaN(duration)
+        ? Math.min(Math.max(0, position), duration)
+        : Math.max(0, position);
+
+    audio.currentTime = playbackTime;
+    updateTrackTimerDisplay(playbackTime);
+  }, [updateTrackTimerDisplay]);
+
+  const tryPlayAudio = useCallback(
+    (resumeTime: number | null) => {
+      const audio = audioRef.current;
+
+      if (resumeTime !== null) {
+        playbackSyncRef.current = { anchorAt: Date.now(), offsetSec: resumeTime };
+        if (audio) {
+          audio.currentTime = resumeTime;
+        }
+      }
+
+      if (!audio) return;
+
+      audio
+        .play()
+        .then(() => {
+          setShowAudioRestoreNotice(false);
+          applySyncedPlaybackPosition();
+        })
+        .catch(() => setShowAudioRestoreNotice(true));
+    },
+    [applySyncedPlaybackPosition],
+  );
+
+  const resumeAudioFromUserGesture = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const ctx = audioContextRef.current;
+    if (ctx?.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        setShowAudioRestoreNotice(true);
+        return;
+      }
+    }
+
+    applySyncedPlaybackPosition();
+
+    try {
+      await audio.play();
+      setShowAudioRestoreNotice(false);
+      setShowVisualizer(true);
+    } catch {
+      setShowAudioRestoreNotice(true);
+    }
+  }, [applySyncedPlaybackPosition]);
 
   // Creamos una referencia al ID actual para leerlo de forma segura dentro de closures/eventos de Socket
   const myUserIdRef = useRef<string | null>(null);
@@ -339,23 +424,6 @@ export default function MatchPage() {
   }, [code]);
 
   useEffect(() => {
-    if (code) {
-      setActiveMatch({
-        code: code,
-        roundLabel: roundInfo
-          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
-          : undefined,
-      });
-    }
-  }, [code, roundInfo, setActiveMatch]);
-
-  useEffect(() => {
-    if (finalScores) {
-      setActiveMatch(null);
-    }
-  }, [finalScores, setActiveMatch]);
-
-  useEffect(() => {
     if (!user || !code) return;
 
     if (!socket.connected) {
@@ -480,7 +548,7 @@ export default function MatchPage() {
       }
     }
 
-    function startCountdown(initialSeconds: number, endsAt: number) {
+    function startCountdown(_initialSeconds: number, endsAt: number) {
       clearCountdownTimer();
       setRoundPhase("countdown");
 
@@ -497,13 +565,8 @@ export default function MatchPage() {
           setShowVisualizer(true);
           setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
-          audioContextRef.current?.resume();
-
-          if (audioRef.current) {
-            const delaySeconds = Math.abs(remainingMs) / 1000;
-            audioRef.current.currentTime = delaySeconds;
-            audioRef.current.play().catch(() => undefined);
-          }
+          const delaySeconds = Math.abs(remainingMs) / 1000;
+          tryPlayAudio(delaySeconds);
           return;
         }
 
@@ -532,6 +595,7 @@ export default function MatchPage() {
       if (audioRef.current) {
         if (payload.lockAt !== null) {
           audioRef.current.currentTime = payload.lockAt;
+          updateTrackTimerDisplay(payload.lockAt);
         }
         audioRef.current.pause();
       }
@@ -589,13 +653,7 @@ export default function MatchPage() {
 
       setShowVisualizer(true);
 
-      if (audioRef.current) {
-        if (payload.resumeTime !== null) {
-          audioRef.current.currentTime = payload.resumeTime;
-        }
-        audioContextRef.current?.resume();
-        audioRef.current.play().catch(() => undefined);
-      }
+      tryPlayAudio(payload.resumeTime);
     });
 
     socket.on("match:end", (payload: MatchEndPayload) => {
@@ -625,7 +683,7 @@ export default function MatchPage() {
       socket.off("match:error");
       clearCountdownTimer();
     };
-  }, [code, nav, user]);
+  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay]);
 
   useEffect(() => {
     if (!audioUrl) {
@@ -651,7 +709,6 @@ export default function MatchPage() {
 
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
-    sourceRef.current = source;
 
     const handleReady = () => {
       setAudioReady(true);
@@ -675,6 +732,8 @@ export default function MatchPage() {
     };
 
     const handleTimeUpdate = () => {
+      if (showAudioRestoreNoticeRef.current) return;
+
       const remaining = Math.max(
         0,
         Math.ceil(audio.duration - audio.currentTime),
@@ -708,7 +767,6 @@ export default function MatchPage() {
       audioContextRef.current?.close();
       audioContextRef.current = null;
       analyserRef.current = null;
-      sourceRef.current = null;
     };
   }, [audioUrl, roundInfo, code]);
 
@@ -768,16 +826,26 @@ export default function MatchPage() {
 
   const requestLock = useCallback(() => {
     if (!audioRef.current || !canLock || lockRequested) return;
-    setLockRequested(true);
-    socket.emit("round:lock_request", {
-      matchId: code,
-      time: audioRef.current.currentTime,
-    });
-  }, [canLock, code, lockRequested]);
+
+    const emitLock = () => {
+      if (!audioRef.current || lockRequested) return;
+      setLockRequested(true);
+      socket.emit("round:lock_request", {
+        matchId: code,
+        time: audioRef.current.currentTime,
+      });
+    };
+
+    if (showAudioRestoreNotice) {
+      void resumeAudioFromUserGesture().then(emitLock);
+      return;
+    }
+
+    emitLock();
+  }, [canLock, code, lockRequested, showAudioRestoreNotice, resumeAudioFromUserGesture]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!canLock) return; // Si canLock es false (incluyendo si estás en cooldown), el espacio se ignora
       if (event.code !== "Space") return;
       const target = event.target as HTMLElement | null;
       if (
@@ -785,13 +853,32 @@ export default function MatchPage() {
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
       )
         return;
+
+      if (showAudioRestoreNotice && roundPhase === "playing") {
+        event.preventDefault();
+        void resumeAudioFromUserGesture().then(() => {
+          if (canLock && !lockRequested) {
+            requestLock();
+          }
+        });
+        return;
+      }
+
+      if (!canLock) return;
       event.preventDefault();
       requestLock();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canLock, requestLock]);
+  }, [
+    canLock,
+    lockRequested,
+    requestLock,
+    resumeAudioFromUserGesture,
+    roundPhase,
+    showAudioRestoreNotice,
+  ]);
 
   function submitGuess() {
     if (!canGuess || !selectedTrack) return;
@@ -864,8 +951,16 @@ export default function MatchPage() {
     roundPhase === "resolution-win" ||
     roundPhase === "resolution-fail";
 
-  const showCountdown = !showGuessPanel && !showVisualizer;
-  const showEq = !showGuessPanel && showVisualizer;
+  const showAudioNotice = showAudioRestoreNotice && !showGuessPanel;
+  const showCountdown = !showGuessPanel && !showVisualizer && !showAudioNotice;
+  const showEq = !showGuessPanel && showVisualizer && !showAudioNotice;
+  const showTrackTimer =
+    !showAudioRestoreNotice &&
+    songRemainingSeconds !== null &&
+    (roundPhase === "playing" ||
+      roundPhase === "guessing" ||
+      roundPhase === "resolution-win" ||
+      roundPhase === "resolution-fail");
 
   const isMatchFinished =
     matchState?.phase === "finished" || roundPhase === "finished";
@@ -964,23 +1059,47 @@ export default function MatchPage() {
             <div className="flex flex-col sm:flex-row items-stretch gap-4">
               <div className="flex-1 min-w-0">
                 <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                  {songRemainingSeconds !== null &&
-                    (roundPhase === "playing" ||
-                      roundPhase === "guessing" ||
-                      roundPhase === "resolution-win" ||
-                      roundPhase === "resolution-fail") && (
-                      <div className="absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity animate-fade-in">
-                        <span className="relative h-2 w-2 shrink-0">
-                          <span
-                            className={`absolute inset-0 rounded-full bg-amber-400 opacity-75 ${roundPhase === "playing" ? "animate-ping" : ""}`}
-                          ></span>
-                          <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
-                        </span>
-                        <span className="relative transform translate-y-[1px]">
-                          Track: {songRemainingSeconds}s
-                        </span>
-                      </div>
-                    )}
+                  <div
+                    className={`absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity duration-700 ease-in-out
+                    ${showTrackTimer ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                  >
+                    <span className="relative h-2 w-2 shrink-0">
+                      <span
+                        className={`absolute inset-0 rounded-full bg-amber-400 opacity-75 ${roundPhase === "playing" ? "animate-ping" : ""}`}
+                      ></span>
+                      <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
+                    </span>
+                    <span className="relative transform translate-y-[1px]">
+                      Track: {songRemainingSeconds ?? 0}s
+                    </span>
+                  </div>
+
+                  <div
+                    role="button"
+                    tabIndex={showAudioNotice ? 0 : -1}
+                    onClick={() => {
+                      if (showAudioNotice) void resumeAudioFromUserGesture();
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        showAudioNotice &&
+                        (event.code === "Enter" || event.code === "Space")
+                      ) {
+                        event.preventDefault();
+                        void resumeAudioFromUserGesture();
+                      }
+                    }}
+                    className={`absolute inset-0 flex flex-col items-center justify-center px-6 text-center transition-all duration-700 ease-in-out
+                  ${showAudioNotice ? "cursor-pointer opacity-100 scale-100" : "pointer-events-none opacity-0 scale-95"}`}
+                  >
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+                      Audio unavailable
+                    </div>
+                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-300">
+                      Audio is unavailable after reloading. Tap
+                      here to restore playback.
+                    </p>
+                  </div>
 
                   <div
                     className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
