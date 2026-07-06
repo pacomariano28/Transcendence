@@ -96,7 +96,6 @@ export default function AppHeader() {
           <nav className="hidden items-center gap-1 sm:flex">
             <NavItem to="/" label="Home" />
             <NavItem to="/profile" label="Profile" />
-            <NavItem to="/dashboard" label="Dashboard" />
           </nav>
         </div>
 
