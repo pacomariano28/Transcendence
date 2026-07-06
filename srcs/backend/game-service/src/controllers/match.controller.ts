@@ -10,6 +10,7 @@ import {
   readHeader,
   emitMatchError,
   emitMatchState,
+  emitRoundCatchUp,
 } from "./socket.helpers.js";
 import { ROUND_NUMBER } from "../utils/constants.js";
 
@@ -70,6 +71,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         if (roundPayload) {
           socket.emit("round:sync", roundPayload);
         }
+        emitRoundCatchUp(socket, match);
       }
     } catch (error) {
       emitMatchError(socket, error);

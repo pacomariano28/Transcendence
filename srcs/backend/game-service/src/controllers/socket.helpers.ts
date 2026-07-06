@@ -36,3 +36,75 @@ export function emitMatchError(socket: Socket, error: unknown): void {
 
   socket.emit("match:error", { message });
 }
+
+export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
+  const round = match.round;
+  if (!round || match.phase !== "in-game") {
+    return;
+  }
+
+  if (round.phase === "countdown") {
+    const remainingSecs = Math.ceil(
+      Math.max(0, round.countdownEndsAt! - Date.now()) / 1000,
+    );
+    socket.emit("round:countdown", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+      seconds: remainingSecs,
+      endsAt: round.countdownEndsAt,
+    });
+    return;
+  }
+
+  if (round.phase === "playing") {
+    const resumeTime = round.countdownEndsAt
+      ? Math.max(0, (Date.now() - round.countdownEndsAt) / 1000)
+      : 0;
+    socket.emit("round:resume", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+      resumeTime,
+    });
+    return;
+  }
+
+  if (round.phase === "guessing") {
+    socket.emit("round:lock_confirmed", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+      lockOwnerId: round.lockOwnerId,
+      lockAt: round.lockAt,
+      guessEndsAt: round.guessEndsAt,
+    });
+    return;
+  }
+
+  if (round.phase === "resolution-fail" || round.phase === "resolution-win") {
+    const lockOwnerId = round.lockOwnerId;
+    if (!lockOwnerId) {
+      return;
+    }
+
+    const scoreEntry = match.scores.find((entry) => entry.userId === lockOwnerId);
+    const correct = round.phase === "resolution-win";
+
+    socket.emit("round:guess_result", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+      lockOwnerId,
+      correct,
+      reason: correct ? null : "wrong",
+      trackId: round.preview?.trackId ?? null,
+      selectedTrack:
+        correct && round.preview
+          ? {
+              id: round.preview.trackId,
+              track: "",
+              artist: "",
+            }
+          : null,
+      scoreDelta: 0,
+      totalScore: scoreEntry?.score ?? 0,
+    });
+  }
+}

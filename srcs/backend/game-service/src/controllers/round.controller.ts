@@ -5,7 +5,11 @@ import type {
   RoundGuessPayload,
   RoundPreviewEndedPayload,
 } from "../types/socket.payloads.js";
-import { emitMatchError, emitMatchState } from "./socket.helpers.js";
+import {
+  emitMatchError,
+  emitMatchState,
+  emitRoundCatchUp,
+} from "./socket.helpers.js";
 import { ROUND_COUNTDOWN_SECONDS } from "../utils/constants.js";
 
 export function registerRoundHandlers(io: Server, socket: Socket): void {
@@ -27,36 +31,7 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
       }
 
       if (result.catchUp && result.match.round) {
-        const round = result.match.round;
-
-        if (round.phase === "countdown") {
-          const remainingSecs = Math.ceil(
-            Math.max(0, round.countdownEndsAt! - Date.now()) / 1000,
-          );
-          socket.emit("round:countdown", {
-            matchId: result.match.matchId,
-            roundIndex: round.roundIndex,
-            seconds: remainingSecs,
-            endsAt: round.countdownEndsAt,
-          });
-        } else if (round.phase === "playing") {
-          const resumeTime = round.countdownEndsAt
-            ? Math.max(0, (Date.now() - round.countdownEndsAt) / 1000)
-            : 0;
-          socket.emit("round:resume", {
-            matchId: result.match.matchId,
-            roundIndex: round.roundIndex,
-            resumeTime: resumeTime,
-          });
-        } else if (round.phase === "guessing") {
-          socket.emit("round:lock_confirmed", {
-            matchId: result.match.matchId,
-            roundIndex: round.roundIndex,
-            lockOwnerId: round.lockOwnerId,
-            lockAt: round.lockAt,
-            guessEndsAt: round.guessEndsAt,
-          });
-        }
+        emitRoundCatchUp(socket, result.match);
       }
     } catch (error) {
       emitMatchError(socket, error);
