@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { login, register } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { loginSchema, registerSchema } from "../validation/authSchemas";
@@ -9,6 +9,7 @@ import TypingText from "../components/TypingText";
 
 export default function LoginPage() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { reload } = useAuth();
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -22,6 +23,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [spotifyCancelledMessage, setSpotifyCancelledMessage] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    if (searchParams.get("spotify") !== "cancelled") return;
+
+    setSpotifyCancelledMessage(
+      "Spotify authorization was cancelled. You can try again or sign in with email.",
+    );
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   function loginWithSpotify() {
     window.location.href = "/api/auth/spotify/login";
@@ -88,6 +101,12 @@ export default function LoginPage() {
 
         <section className="fade-in">
           <div className="page-card">
+            {spotifyCancelledMessage && (
+              <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 nudge">
+                {spotifyCancelledMessage}
+              </div>
+            )}
+
             <button
               className="btn-glow w-full"
               style={{ "--btn-color": "#1DB954" } as React.CSSProperties}
