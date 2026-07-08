@@ -13,6 +13,8 @@ import JoinRoomPage from "./pages/JoinRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
 import MatchPage from "./pages/MatchPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
 import Footer from "./components/AppFooter";
 
 function AppShell() {
@@ -40,6 +42,8 @@ function AppShell() {
               path="/auth/spotify/success"
               element={<SpotifySuccessPage />}
             />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
 
             <Route element={<RequireAuth />}>
               <Route path="/profile" element={<ProfilePage />} />
