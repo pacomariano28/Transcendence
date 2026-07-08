@@ -8,6 +8,11 @@ import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
 import { getMatchState } from "../api/state";
+import type {
+  MatchPhasePayload,
+  MatchStatePayload,
+  ScoreEntry,
+} from "../types/socket.payloads";
 import {
   activateCooldownOnResume,
   clearPendingCooldown,
@@ -31,35 +36,6 @@ function normalizeCode(raw: string) {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 6);
 }
-
-type MatchStatePayload = {
-  matchId: string;
-  roundsTotal: number;
-  phase: "lobby" | "countdown" | "in-game" | "playing" | "finished";
-  players: Array<{
-    userId: string;
-    displayName: string;
-    ready: boolean;
-    connected: boolean;
-    disconnectedAt: string | null;
-    score?: number;
-    totalScore?: number;
-  }>;
-  scores?: Record<string, number>;
-};
-
-type MatchPhasePayload = {
-  matchId: string;
-  phase: MatchStatePayload["phase"];
-  previousPhase?: MatchStatePayload["phase"];
-  reason?: string;
-};
-
-type ScoreEntry = {
-  userId: string;
-  displayName: string;
-  score: number;
-};
 
 type RoundPreview = {
   trackId: string;
@@ -1005,8 +981,7 @@ export default function MatchPage() {
   if (!code || notFound) {
     return (
       <NotFoundPage
-        title="MATCH NOT FOUND"
-        message="This match does not exist or is no longer available."
+        title="MATCH NOT FOUND!"
       />
     );
   }
