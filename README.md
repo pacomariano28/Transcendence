@@ -13,7 +13,7 @@ with TLS for the Spotify callback.
 - API Gateway with request routing, rate limiting, and request IDs.
 - Content service that searches the Spotify API and caches tokens in Redis.
 - Playlist service that serves randomized preview tracks from Postgres via Prisma.
-- React + Vite frontend with login, dashboard, room create/join UI, and profile screens.
+- React + Vite frontend with login, room create/join UI, and profile screens.
 - Dockerized dev environment with Nginx reverse proxy and HTTPS.
 
 ## Architecture
