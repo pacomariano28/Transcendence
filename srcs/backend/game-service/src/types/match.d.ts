@@ -11,7 +11,7 @@ declare global {
     | "resolution-fail";
 
   export type PlaylistItem = {
-    trackId: string;
+    isrc: string;
     fileName: string;
   };
 

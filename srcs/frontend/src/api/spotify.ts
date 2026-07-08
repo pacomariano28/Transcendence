@@ -2,6 +2,7 @@ import { apiJson } from "./http";
 
 export type SpotifySearchTrack = {
   id: string;
+  isrc: string;
   track: string;
   artist: string;
 };

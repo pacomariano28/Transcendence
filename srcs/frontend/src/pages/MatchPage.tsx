@@ -38,7 +38,7 @@ function normalizeCode(raw: string) {
 }
 
 type RoundPreview = {
-  trackId: string;
+  isrc: string;
   fileName: string;
 };
 
@@ -66,7 +66,7 @@ type RoundLockPayload = {
 };
 
 type GuessSelectedTrack = {
-  id: string;
+  isrc: string;
   track: string;
   artist: string;
 };
@@ -77,7 +77,7 @@ type RoundGuessResultPayload = {
   lockOwnerId: string;
   correct: boolean;
   reason: "wrong" | "timeout" | null;
-  trackId: string | null;
+  isrc: string | null;
   selectedTrack: GuessSelectedTrack | null;
   scoreDelta: number;
   totalScore: number;
@@ -885,7 +885,7 @@ export default function MatchPage() {
     if (!canGuess || !selectedTrack) return;
     socket.emit("round:guess_submit", {
       matchId: code,
-      trackId: selectedTrack.id,
+      isrc: selectedTrack.isrc,
       track: selectedTrack.track,
       artist: selectedTrack.artist,
     });

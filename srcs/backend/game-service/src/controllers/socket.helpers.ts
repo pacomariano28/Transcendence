@@ -94,11 +94,11 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
       lockOwnerId,
       correct,
       reason: correct ? null : "wrong",
-      trackId: round.preview?.trackId ?? null,
+      isrc: round.preview?.isrc ?? null,
       selectedTrack:
         correct && round.preview
           ? {
-              id: round.preview.trackId,
+              isrc: round.preview.isrc,
               track: "",
               artist: "",
             }

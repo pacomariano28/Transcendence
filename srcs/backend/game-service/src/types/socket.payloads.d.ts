@@ -33,13 +33,13 @@ export type RoundLockPayload = {
 
 export type RoundGuessPayload = {
   matchId: string;
-  trackId: string;
+  isrc: string;
   track: string;
   artist: string;
 };
 
 export type GuessSelectedTrack = {
-  id: string;
+  isrc: string;
   track: string;
   artist: string;
 };

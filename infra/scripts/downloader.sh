@@ -41,7 +41,7 @@ rm -f "$TARGET_DIR"/song_*.mp3
 echo "Obteniendo datos del CSV..."
 
 songs=()
-trackIds=()
+isrcs=()
 
 while IFS= read -r line; do
   songs+=("$line")
@@ -55,14 +55,15 @@ with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
 ' "$CSV_FILE")
 
 while IFS= read -r line; do
-  trackIds+=("$line")
+  isrcs+=("$line")
 done < <(python3 -c '
 import csv, sys
 with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
     reader = csv.DictReader(f)
     for row in reader:
-        if "Spotify Track Id" in row:
-            print(row["Spotify Track Id"])
+        isrc_key = next((k for k in row if k.strip().lower() == "isrc"), None)
+        if isrc_key and row[isrc_key].strip():
+            print(row[isrc_key].strip())
 ' "$CSV_FILE")
 
 if [ ${#songs[@]} -eq 0 ]; then
@@ -83,7 +84,7 @@ SUCCESS_COUNT=0
 for song in "${songs[@]}"
 do
   INDEX=$(printf "%03d" $((i+1)))
-  TRACK_ID="${trackIds[$i]}"
+  ISRC="${isrcs[$i]}"
 
   echo "🎧 [$INDEX] buscando: $song"
 
@@ -119,7 +120,7 @@ do
       # Inyectamos el objeto TypeScript en el archivo temporal
       cat <<EOF >> "$SEED_DATA_TMP"
       {
-        trackId: "$TRACK_ID",
+        isrc: "$ISRC",
         fileName: "$PREVIEW_NAME",
       },
 EOF

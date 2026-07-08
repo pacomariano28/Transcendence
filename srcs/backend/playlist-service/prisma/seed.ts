@@ -8,191 +8,191 @@ async function main() {
   await prisma.song.createMany({
     data: [
       {
-        trackId: "3GvDCvfTvXB4cp8wwh7Y3k",
+        isrc: "QM6P42098443",
         fileName: "preview_001.mp3",
       },
       {
-        trackId: "3ivnBohmIbZFrtzGkSqUtN",
+        isrc: "USWL11900184",
         fileName: "preview_002.mp3",
       },
       {
-        trackId: "5V1YyUMhty1NCO3zVePAtR",
+        isrc: "QM6P42321023",
         fileName: "preview_003.mp3",
       },
       {
-        trackId: "0isjtJAFQqeerWeecGmc1u",
+        isrc: "QZHN92113571",
         fileName: "preview_005.mp3",
       },
       {
-        trackId: "4Z6pPinNzkGtbgAlE88263",
+        isrc: "QMDA62493509",
         fileName: "preview_006.mp3",
       },
       {
-        trackId: "2gEthirHCqqUybpq7HkNY7",
+        isrc: "USA2P2206459",
         fileName: "preview_007.mp3",
       },
       {
-        trackId: "4a2KalFjqxANM6WAfR3sYJ",
+        isrc: "QM4TX2373187",
         fileName: "preview_008.mp3",
       },
       {
-        trackId: "763beEZikxBlbwHvdlCWnh",
+        isrc: "QMDA62468039",
         fileName: "preview_009.mp3",
       },
       {
-        trackId: "7x011H8oZwGYBuXQQfGpu4",
+        isrc: "QM6P42321091",
         fileName: "preview_010.mp3",
       },
       {
-        trackId: "6YfQ2Ev74hY6Tsw5q8y2XX",
+        isrc: "AEA0Q1971039",
         fileName: "preview_011.mp3",
       },
       {
-        trackId: "64yCeFRhL4hTNik8J3Un6D",
+        isrc: "ZZOPM2238685",
         fileName: "preview_012.mp3",
       },
       {
-        trackId: "35hYk23wFUOsHoQfljbz80",
+        isrc: "QZGLM2055431",
         fileName: "preview_013.mp3",
       },
       {
-        trackId: "7zxw2muWhobnpwEdABBO83",
+        isrc: "GBLFP2046032",
         fileName: "preview_014.mp3",
       },
       {
-        trackId: "16RcB6ae7pNeCQVIrPuytu",
+        isrc: "QZTAY2341241",
         fileName: "preview_015.mp3",
       },
       {
-        trackId: "1TWAUx1pXxA5XxJmHMGT0b",
+        isrc: "QZNWW2245849",
         fileName: "preview_016.mp3",
       },
       {
-        trackId: "2TrtWQKmcdoSGjsJDc3N64",
+        isrc: "QM6P42321156",
         fileName: "preview_017.mp3",
       },
       {
-        trackId: "4YZhsgOBQtKvxZWjVuJD9H",
+        isrc: "USWB12501265",
         fileName: "preview_018.mp3",
       },
       {
-        trackId: "0UxAVbd9Fjp7O2SvzV2fJJ",
+        isrc: "ZZOPM2231674",
         fileName: "preview_019.mp3",
       },
       {
-        trackId: "3SK45LddxlEkzI8OWO9Eyo",
+        isrc: "ES5022100004",
         fileName: "preview_020.mp3",
       },
       {
-        trackId: "0EsMceg5ksKflUYXt2WMne",
+        isrc: "USA2P2517243",
         fileName: "preview_021.mp3",
       },
       {
-        trackId: "44aqOr4450KjyEZuW9Ekpm",
+        isrc: "ES6101900631",
         fileName: "preview_022.mp3",
       },
       {
-        trackId: "712KzUVmtBeFXgJhbMJY5o",
+        isrc: "QMDA62527257",
         fileName: "preview_023.mp3",
       },
       {
-        trackId: "6m8DnCqkHlUfcjXcjOmOu2",
+        isrc: "QM6MZ2312577",
         fileName: "preview_024.mp3",
       },
       {
-        trackId: "0sVAsg0GP4JZHKn1Ohsiw0",
+        isrc: "USWB12405586",
         fileName: "preview_025.mp3",
       },
       {
-        trackId: "2UP28r5tYcvHi7ZJIK3DjG",
+        isrc: "BK4DA2303467",
         fileName: "preview_026.mp3",
       },
       {
-        trackId: "22hmwgik7o71IiNVsCMDVF",
+        isrc: "USA2P2464664",
         fileName: "preview_028.mp3",
       },
       {
-        trackId: "0yK1nUASmGNYKUH5qpXeOY",
+        isrc: "QM6N22305745",
         fileName: "preview_029.mp3",
       },
       {
-        trackId: "3X7BShvdMM3posr8IDK0J5",
+        isrc: "BK4DA2207343",
         fileName: "preview_030.mp3",
       },
       {
-        trackId: "0ojp3rI6wfc6GjATk2SEir",
+        isrc: "QM6P42321219",
         fileName: "preview_031.mp3",
       },
       {
-        trackId: "5Vv9KbtAN8XNESS8XH1sPt",
+        isrc: "QZHN82014576",
         fileName: "preview_032.mp3",
       },
       {
-        trackId: "7LSZyRFY3SzFFocAGnyJXV",
+        isrc: "BK4DA2612795",
         fileName: "preview_033.mp3",
       },
       {
-        trackId: "740uwCK09xVPNPr4hFpcWW",
+        isrc: "ES5022100005",
         fileName: "preview_034.mp3",
       },
       {
-        trackId: "5Bng1Bwy7PFQys6qByKmdT",
+        isrc: "USA2P2464670",
         fileName: "preview_035.mp3",
       },
       {
-        trackId: "0bxzF2Kyql0pQ58Mymztue",
+        isrc: "QMDA62175555",
         fileName: "preview_036.mp3",
       },
       {
-        trackId: "3J07YIMTnaBv4p6QerX7hT",
+        isrc: "USWL12000049",
         fileName: "preview_037.mp3",
       },
       {
-        trackId: "1Hrucz5n0cjYuPApCk8VkL",
+        isrc: "QM6P42321150",
         fileName: "preview_038.mp3",
       },
       {
-        trackId: "2KM7hci1ohUILFerXvGUrO",
+        isrc: "USA2P2413977",
         fileName: "preview_039.mp3",
       },
       {
-        trackId: "6d4l6gEGNVRJTgrYzGAlpR",
+        isrc: "QZK6J2100614",
         fileName: "preview_040.mp3",
       },
       {
-        trackId: "5py3FJrHEuR67BjR7wm8uj",
+        isrc: "ES5022100396",
         fileName: "preview_041.mp3",
       },
       {
-        trackId: "6z8F2qpz1zM5ehf0tVFAPu",
+        isrc: "ES25E2000023",
         fileName: "preview_042.mp3",
       },
       {
-        trackId: "3lI1sZnyM1Ju3ApgNo0ITT",
+        isrc: "QMDA62109750",
         fileName: "preview_043.mp3",
       },
       {
-        trackId: "3O6qgosmTPliBdsuCIOqMh",
+        isrc: "USWL12200656",
         fileName: "preview_044.mp3",
       },
       {
-        trackId: "10uuINeqxckcD70rf1h4rg",
+        isrc: "QMFMF2111287",
         fileName: "preview_046.mp3",
       },
       {
-        trackId: "7Bczytfc62eccD7kSqSnFh",
+        isrc: "USUM72501265",
         fileName: "preview_047.mp3",
       },
       {
-        trackId: "3xNMMrXGcFIg06FfTVxod9",
+        isrc: "ES5021702169",
         fileName: "preview_048.mp3",
       },
       {
-        trackId: "3KwHAXvJ3XpIFynhiB54iB",
+        isrc: "ES75E2407785",
         fileName: "preview_049.mp3",
       },
       {
-        trackId: "3ymDF1SxC4c8i0GUZN3Mg2",
+        isrc: "ES5152600209",
         fileName: "preview_050.mp3",
       },
     ],

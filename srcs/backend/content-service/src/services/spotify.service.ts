@@ -12,6 +12,7 @@ interface TrackData {
   track: string;
   artist: string;
   id: string;
+  isrc: string;
 }
 
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -188,6 +189,11 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
   for (const track of results) {
     const rawTrackName: string = track.name;
     const rawArtistName: string = track.artists[0]?.name || "Unknown Artist";
+    const isrc: string | undefined = track.external_ids?.isrc;
+
+    if (!isrc) {
+      continue;
+    }
 
     // Create a normalized identifier for the Set
     const identifier = `${normalizeString(rawTrackName)}-${normalizeString(rawArtistName)}`;
@@ -199,6 +205,7 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
         track: clearString(rawTrackName),
         artist: rawArtistName,
         id: track.id,
+        isrc,
       });
       if (uniqueTracks.length === 10) {
         break;
