@@ -162,8 +162,7 @@ export default function RoomLobbyPage() {
   if (!code || notFound) {
     return (
       <NotFoundPage
-        title="ROOM NOT FOUND"
-        message="This room does not exist or is no longer available."
+        title="ROOM NOT FOUND!"
       />
     );
   }
