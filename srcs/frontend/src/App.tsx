@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage";
 import JoinRoomPage from "./pages/JoinRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
 import MatchPage from "./pages/MatchPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import Footer from "./components/AppFooter";
 
 function AppShell() {
@@ -47,6 +48,8 @@ function AppShell() {
               {/* Nota: si tu ruta de juego usa /match/ en vez de /room/, asegúrate de que coincida con el Link del Header */}
               <Route path="/match/:code" element={<MatchPage />} />
             </Route>
+
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </RouteTransition>
       </main>

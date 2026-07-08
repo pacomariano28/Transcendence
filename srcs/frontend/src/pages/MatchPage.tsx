@@ -19,6 +19,11 @@ import {
   startCooldownPenalty,
   writePendingCooldown,
 } from "../utils/matchCooldown";
+import NotFoundPage from "./NotFoundPage";
+
+function isMatchNotFoundError(message: string) {
+  return message === "MATCH_NOT_FOUND" || message === "Match not found";
+}
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -125,6 +130,7 @@ export default function MatchPage() {
   const code = useMemo(() => normalizeCode(codeParam ?? ""), [codeParam]);
 
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roundInfo, setRoundInfo] = useState<RoundSyncPayload | null>(null);
   const [roundPhase, setRoundPhase] = useState("idle");
@@ -351,7 +357,12 @@ export default function MatchPage() {
   }, [code, cooldownEndsAt]);
 
   useEffect(() => {
-    if (code) {
+    if (notFound) {
+      setActiveMatch(null);
+      return;
+    }
+
+    if (matchState) {
       setActiveMatch({
         code: code,
         roundLabel: roundInfo
@@ -359,7 +370,7 @@ export default function MatchPage() {
           : undefined,
       });
     }
-  }, [code, roundInfo, setActiveMatch]);
+  }, [code, roundInfo, setActiveMatch, matchState, notFound]);
 
   useEffect(() => {
     if (
@@ -372,7 +383,12 @@ export default function MatchPage() {
   }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
 
   useEffect(() => {
-    if (!code) return;
+    setNotFound(false);
+
+    if (!code) {
+      setNotFound(true);
+      return;
+    }
 
     async function hydrateMatch() {
       try {
@@ -413,6 +429,11 @@ export default function MatchPage() {
           });
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        if (isMatchNotFoundError(message)) {
+          setNotFound(true);
+          return;
+        }
         console.error(
           "Error al sincronizar puntuaciones por HTTP al montar:",
           err,
@@ -666,6 +687,10 @@ export default function MatchPage() {
     });
 
     socket.on("match:error", (err: { message: string }) => {
+      if (isMatchNotFoundError(err.message)) {
+        setNotFound(true);
+        return;
+      }
       setError(err.message);
       setLockRequested(false);
     });
@@ -976,6 +1001,15 @@ export default function MatchPage() {
         score: scores[player.userId] || (player as any).score || 0,
       }))
       .sort((a, b) => b.score - a.score);
+
+  if (!code || notFound) {
+    return (
+      <NotFoundPage
+        title="MATCH NOT FOUND"
+        message="This match does not exist or is no longer available."
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
