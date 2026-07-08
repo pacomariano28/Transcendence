@@ -4,6 +4,8 @@ import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import TypingText from "../components/TypingText";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import { getMatchState } from "../api/state";
+import NotFoundPage from "./NotFoundPage";
 import type {
   MatchPhasePayload,
   MatchStatePayload,
@@ -15,6 +17,10 @@ function normalizeCode(raw: string) {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 6);
+}
+
+function isMatchNotFoundError(message: string) {
+  return message === "MATCH_NOT_FOUND" || message === "Match not found";
 }
 
 export default function RoomLobbyPage() {
@@ -32,6 +38,7 @@ export default function RoomLobbyPage() {
     createdMatch ?? null,
   );
 
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigatingToMatchRef = useRef(false);
 
@@ -52,7 +59,34 @@ export default function RoomLobbyPage() {
   }, [matchState]);
 
   useEffect(() => {
-    if (!user || !code) return;
+    setNotFound(false);
+
+    if (!code) {
+      setNotFound(true);
+      return;
+    }
+
+    if (createdMatch?.matchId === code) return;
+
+    async function validateRoom() {
+      try {
+        const match = await getMatchState({ matchId: code });
+        if (match.phase === "finished") {
+          setNotFound(true);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        if (isMatchNotFoundError(message)) {
+          setNotFound(true);
+        }
+      }
+    }
+
+    validateRoom();
+  }, [code, createdMatch]);
+
+  useEffect(() => {
+    if (!user || !code || notFound) return;
 
     navigatingToMatchRef.current = false;
 
@@ -97,6 +131,10 @@ export default function RoomLobbyPage() {
     });
 
     socket.on("match:error", (err: { message: string }) => {
+      if (isMatchNotFoundError(err.message)) {
+        setNotFound(true);
+        return;
+      }
       setError(err.message);
     });
 
@@ -110,7 +148,7 @@ export default function RoomLobbyPage() {
         leaveLobby();
       }
     };
-  }, [code, user, nav, createdMatch]);
+  }, [code, user, nav, createdMatch, notFound]);
 
   function toggleReady() {
     socket.emit("match:ready");
@@ -119,6 +157,15 @@ export default function RoomLobbyPage() {
   function leave() {
     leaveLobby();
     nav("/", { replace: true });
+  }
+
+  if (!code || notFound) {
+    return (
+      <NotFoundPage
+        title="ROOM NOT FOUND"
+        message="This room does not exist or is no longer available."
+      />
+    );
   }
 
   return (
