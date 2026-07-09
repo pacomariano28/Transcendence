@@ -338,6 +338,16 @@ export default function MatchPage() {
       return;
     }
 
+    const isFinished =
+      Boolean(finalScores) ||
+      matchState?.phase === "finished" ||
+      roundPhase === "finished";
+
+    if (isFinished) {
+      setActiveMatch(null);
+      return;
+    }
+
     if (matchState) {
       setActiveMatch({
         code: code,
@@ -346,17 +356,20 @@ export default function MatchPage() {
           : undefined,
       });
     }
-  }, [code, roundInfo, setActiveMatch, matchState, notFound]);
+  }, [
+    code,
+    roundInfo,
+    setActiveMatch,
+    matchState,
+    notFound,
+    roundPhase,
+    finalScores,
+  ]);
 
-  useEffect(() => {
-    if (
-      finalScores ||
-      matchState?.phase === "finished" ||
-      roundPhase === "finished"
-    ) {
-      setActiveMatch(null);
-    }
-  }, [finalScores, matchState?.phase, roundPhase, setActiveMatch]);
+  const leaveFinishedMatch = useCallback(() => {
+    setActiveMatch(null);
+    nav("/");
+  }, [nav, setActiveMatch]);
 
   useEffect(() => {
     setNotFound(false);
@@ -476,6 +489,7 @@ export default function MatchPage() {
 
       if (payload.phase === "finished") {
         setRoundPhase("finished");
+        setActiveMatch(null);
       }
     });
 
@@ -490,6 +504,7 @@ export default function MatchPage() {
       }
       if (payload.phase === "finished") {
         setRoundPhase("finished");
+        setActiveMatch(null);
       }
     });
 
@@ -657,6 +672,10 @@ export default function MatchPage() {
       if (payload.matchId !== code) return;
       setFinalScores(payload.scores);
       setRoundPhase("finished");
+      setMatchState((prev) =>
+        prev ? { ...prev, phase: "finished" } : prev,
+      );
+      setActiveMatch(null);
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -684,7 +703,7 @@ export default function MatchPage() {
       socket.off("match:error");
       clearCountdownTimer();
     };
-  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay]);
+  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay, setActiveMatch]);
 
   useEffect(() => {
     if (!audioUrl) {
@@ -881,6 +900,14 @@ export default function MatchPage() {
     showAudioRestoreNotice,
   ]);
 
+  function clearGuessSelector() {
+    setSelectedTrack(null);
+    setSearchTerm("");
+    setSearchResults([]);
+    setSearchError(null);
+    setSearching(false);
+  }
+
   function submitGuess() {
     if (!canGuess || !selectedTrack) return;
     socket.emit("round:guess_submit", {
@@ -889,6 +916,7 @@ export default function MatchPage() {
       track: selectedTrack.track,
       artist: selectedTrack.artist,
     });
+    clearGuessSelector();
   }
 
   const selectTrack = useCallback((track: SpotifySearchTrack) => {
@@ -967,16 +995,20 @@ export default function MatchPage() {
     matchState?.phase === "finished" || roundPhase === "finished";
 
   const playersList = matchState?.players || [];
-  const resultsData =
-    finalScores ||
-    playersList
-      .map((player) => ({
-        userId: player.userId,
-        displayName:
-          (player as any).username || (player as any).displayName || "Jugador",
-        score: scores[player.userId] || (player as any).score || 0,
-      }))
-      .sort((a, b) => b.score - a.score);
+  const resultsData = useMemo(() => {
+    const entries = finalScores
+      ? finalScores
+      : playersList.map((player) => ({
+          userId: player.userId,
+          displayName:
+            (player as any).username ||
+            (player as any).displayName ||
+            "Jugador",
+          score: scores[player.userId] || (player as any).score || 0,
+        }));
+
+    return [...entries].sort((a, b) => b.score - a.score);
+  }, [finalScores, playersList, scores]);
 
   if (!code || notFound) {
     return (
@@ -987,7 +1019,7 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center container-page py-10 fade-in">
+    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center px-4 py-10 fade-in sm:px-6 lg:px-8">
       <style>{`
       @keyframes roundPop {
         0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
@@ -997,9 +1029,62 @@ export default function MatchPage() {
       .animate-round-change {
         animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       }
+      @keyframes matchPlayExit {
+        0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); max-height: 600px; }
+        100% { opacity: 0; transform: scale(0.94) translateY(-12px); filter: blur(6px); max-height: 0; }
+      }
+      @keyframes matchGuessExit {
+        0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); max-height: 800px; }
+        100% { opacity: 0; transform: scale(0.96) translateY(-8px); filter: blur(4px); max-height: 0; }
+      }
+      @keyframes matchResultsEnter {
+        0% { opacity: 0; transform: scale(0.92) translateY(24px); filter: blur(8px); }
+        60% { opacity: 1; transform: scale(1.02) translateY(-4px); filter: blur(0); }
+        100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+      }
+      @keyframes matchTitleReveal {
+        0% { opacity: 0; transform: translateY(12px); letter-spacing: 0.1em; }
+        100% { opacity: 1; transform: translateY(0); letter-spacing: 0.24em; }
+      }
+      @keyframes resultRowReveal {
+        0% { opacity: 0; transform: translateX(-20px) scale(0.95); }
+        70% { opacity: 1; transform: translateX(4px) scale(1.01); }
+        100% { opacity: 1; transform: translateX(0) scale(1); }
+      }
+      @keyframes matchBackReveal {
+        0% { opacity: 0; transform: translateY(16px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes winnerGlow {
+        0%, 100% { box-shadow: 0 0 20px rgba(247,208,70,0.15); }
+        50% { box-shadow: 0 0 32px rgba(247,208,70,0.35); }
+      }
+      .animate-match-play-exit {
+        animation: matchPlayExit 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        pointer-events: none;
+      }
+      .animate-match-guess-exit {
+        animation: matchGuessExit 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        pointer-events: none;
+      }
+      .animate-match-results-enter {
+        animation: matchResultsEnter 0.85s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+      }
+      .animate-match-title-reveal {
+        animation: matchTitleReveal 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+      }
+      .animate-result-row-reveal {
+        animation: resultRowReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+      }
+      .animate-match-back-reveal {
+        animation: matchBackReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.5s both;
+      }
+      .animate-winner-glow {
+        animation: winnerGlow 2.5s ease-in-out infinite;
+      }
     `}</style>
 
-      <div className="w-full max-w-4xl space-y-6">
+      <div className="w-full space-y-6">
         <header className="flex items-center justify-between">
           <div className="flex items-center justify-between w-full">
             <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out sm:text-5xl">
@@ -1027,47 +1112,18 @@ export default function MatchPage() {
           </div>
         )}
 
-        {isMatchFinished ? (
-          <section className="card p-6 animate-fade-in">
-            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-              Final results
-            </div>
-            <div className="mt-4 grid gap-3">
-              {resultsData.map((entry) => (
-                <div
-                  key={entry.userId}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <div className="text-sm font-medium text-zinc-100">
-                    {entry.displayName}
-                    {entry.userId === myUserId ? (
-                      <span className="text-zinc-500"> (you)</span>
-                    ) : null}
-                  </div>
-                  <div className="text-lg font-semibold text-white">
-                    {entry.score}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 text-center">
-              <button
-                className="btn-glow px-6"
-                style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
-                type="button"
-                onClick={() => nav("/")}
-                onMouseMove={handleMouseMoveToSetFillOrigin}
-              >
-                <span>back</span>
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="card p-6">
-            <div className="flex flex-col sm:flex-row items-stretch gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+        <div
+          className={`flex flex-col ${
+            isMatchFinished ? "gap-0" : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
+          }`}
+        >
+          <section
+            className={`card order-1 overflow-hidden p-6 lg:col-start-1 lg:row-start-1 lg:flex lg:h-[24rem] lg:flex-col ${
+              isMatchFinished ? "animate-match-play-exit !m-0 !border-0 !p-0" : ""
+            }`}
+          >
+            <div className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
+              <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-52 lg:min-h-0 lg:h-auto lg:flex-1">
                   <div
                     className={`absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity duration-700 ease-in-out
                     ${showTrackTimer ? "opacity-100" : "pointer-events-none opacity-0"}`}
@@ -1130,7 +1186,7 @@ export default function MatchPage() {
                       ref={canvasRef}
                       width={1200}
                       height={240}
-                      className="h-52 w-full"
+                      className="h-full max-h-full w-full"
                     />
                   </div>
 
@@ -1214,31 +1270,27 @@ export default function MatchPage() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* ⏱️ MODIFICADO: LOCK BUTTON CON SOPORTE PARA COOLDOWN VISUAL */}
-              <div className="flex items-center justify-center sm:justify-start">
-                <button
-                  className="btn-glow h-16 sm:h-60 w-full sm:w-44 transition-all duration-500 disabled:opacity-40"
-                  style={
-                    {
-                      "--btn-color": showCooldownUi ? "#f43f5e" : "#f7d046",
-                    } as React.CSSProperties
-                  }
-                  type="button"
-                  disabled={!canLock || lockRequested}
-                  onClick={requestLock}
-                  onMouseMove={handleMouseMoveToSetFillOrigin}
-                >
-                  <span>
-                    {lockRequested
-                      ? "Locking..."
-                      : showCooldownUi
-                        ? `Cooldown (${cooldownSeconds}s)`
-                        : "Lock (Space)"}
-                  </span>
-                </button>
-              </div>
+              <button
+                className="btn-glow h-14 w-full shrink-0 transition-all duration-500 disabled:opacity-40"
+                style={
+                  {
+                    "--btn-color": showCooldownUi ? "#f43f5e" : "#f7d046",
+                  } as React.CSSProperties
+                }
+                type="button"
+                disabled={!canLock || lockRequested}
+                onClick={requestLock}
+                onMouseMove={handleMouseMoveToSetFillOrigin}
+              >
+                <span>
+                  {lockRequested
+                    ? "Locking..."
+                    : showCooldownUi
+                      ? `Cooldown (${cooldownSeconds}s)`
+                      : "Lock (Space)"}
+                </span>
+              </button>
             </div>
 
             {roundInfo?.playlistError && (
@@ -1247,10 +1299,12 @@ export default function MatchPage() {
               </div>
             )}
           </section>
-        )}
 
-        {!isMatchFinished && (
-          <section className="card p-6 overflow-hidden">
+          <section
+            className={`card order-2 overflow-hidden p-6 lg:col-span-2 lg:row-start-2 ${
+              isMatchFinished ? "animate-match-guess-exit !m-0 !border-0 !p-0" : ""
+            }`}
+          >
             <div className="flex flex-col gap-1">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
                 Lock and guess
@@ -1380,67 +1434,144 @@ export default function MatchPage() {
               </div>
             </div>
           </section>
-        )}
 
-        {!isMatchFinished && (
-          <section className="card p-6">
-            <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+          <section
+            className={`card order-3 p-6 ${
+              isMatchFinished
+                ? "animate-match-results-enter mx-auto w-full max-w-2xl"
+                : "lg:col-start-2 lg:row-start-1 lg:flex lg:h-[24rem] lg:flex-col lg:overflow-hidden"
+            }`}
+          >
+            {isMatchFinished ? (
+              <>
+                <div className="animate-match-title-reveal">
+                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-[#f7d046]">
+                    Match complete
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
+                    Final results
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3">
+                  {resultsData.map((entry, index) => {
+                    const isWinner = index === 0;
+
+                    return (
+                      <div
+                        key={entry.userId}
+                        className={`animate-result-row-reveal flex min-h-[3.5rem] items-center justify-between rounded-2xl border px-4 py-3.5 sm:p-4 ${
+                          isWinner
+                            ? "animate-winner-glow border-[#f7d046]/50 bg-[#f7d046]/10"
+                            : "border-white/10 bg-black/20"
+                        }`}
+                        style={{ animationDelay: `${250 + index * 100}ms` }}
+                      >
+                        <div className="flex min-w-0 items-center gap-3 text-sm font-medium text-zinc-100 sm:text-base">
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                              isWinner
+                                ? "bg-[#f7d046] text-zinc-950"
+                                : "bg-white/10 text-zinc-400"
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                          <span className="truncate">{entry.displayName}</span>
+                          {entry.userId === myUserId ? (
+                            <span className="shrink-0 text-zinc-500 font-normal">
+                              (you)
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div
+                          className={`shrink-0 text-lg font-semibold sm:text-xl ${
+                            isWinner ? "text-[#f7d046]" : "text-white"
+                          }`}
+                        >
+                          {entry.score}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="animate-match-back-reveal mt-8 text-center">
+                  <button
+                    className="btn-glow px-6"
+                    style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+                    type="button"
+                    onClick={leaveFinishedMatch}
+                    onMouseMove={handleMouseMoveToSetFillOrigin}
+                  >
+                    <span>back</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+            <div className="shrink-0 text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
               Scoreboard
             </div>
-            <div className="mt-4 grid gap-3">
-              {scoreboard.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-                  Waiting for players.
-                </div>
-              ) : (
-                scoreboard.map((entry) => {
+            {scoreboard.length === 0 ? (
+              <div className="mt-4 flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
+                Waiting for players.
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-2.5 lg:min-h-0 lg:flex-1 lg:grid-rows-5 lg:gap-2">
+                {scoreboard.map((entry) => {
                   const isCurrentLockOwner = entry.userId === lockOwnerId;
                   const isWinRow =
                     roundPhase === "resolution-win" && isCurrentLockOwner;
                   const isFailRow =
                     roundPhase === "resolution-fail" && isCurrentLockOwner;
+                  const isLockedRow =
+                    roundPhase === "guessing" && isCurrentLockOwner;
 
                   return (
                     <div
                       key={entry.userId}
-                      className={`flex items-center justify-between rounded-2xl border p-4 transition-all duration-500 ease-in-out
+                      className={`flex min-h-[3.25rem] items-center justify-between rounded-2xl border px-4 py-3.5 lg:min-h-0 lg:py-0 transition-all duration-500 ease-in-out
                       ${
                         isWinRow
                           ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
                           : isFailRow
                             ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-                            : "border-white/10 bg-black/20"
+                            : isLockedRow
+                              ? "border-[#f7d046]/40 bg-[#f7d046]/10 shadow-[0_0_15px_rgba(247,208,70,0.15)]"
+                              : "border-white/10 bg-black/20"
                       }`}
                     >
-                      <div className="text-sm font-medium text-zinc-100 flex items-center gap-2">
-                        {entry.displayName}
+                      <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-zinc-100">
+                        <span className="truncate">{entry.displayName}</span>
                         {entry.userId === myUserId ? (
-                          <span className="text-zinc-500 font-normal">
-                            {" "}
+                          <span className="shrink-0 text-zinc-500 font-normal">
                             (you)
                           </span>
                         ) : null}
                         {!entry.connected ? (
-                          <span className="text-zinc-500 font-normal text-xs">
-                            {" "}
+                          <span className="shrink-0 text-zinc-500 font-normal text-xs">
                             (offline)
                           </span>
                         ) : null}
                       </div>
 
                       <div
-                        className={`text-lg font-semibold transition-all duration-300
+                        className={`shrink-0 text-lg font-semibold transition-all duration-300
                         ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
                       >
                         {entry.score}
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
+              </>
+            )}
           </section>
-        )}
+          </div>
       </div>
     </div>
   );
