@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getRedisClient } from "../lib/redis.js";
-import { formatTrackName } from "../utils/utils.js";
+import { formatTrackName, getTrackDedupKey } from "../utils/utils.js";
 
 interface AccessToken {
   access_token: string;
@@ -153,8 +153,9 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
  * @brief Searches Spotify for tracks matching the given term with deduplication.
  *
  * @details Fetches tracks from two paginated result pages (20 total results) and
- * returns up to 10 unique tracks. Uniqueness is determined by ISRC, so remix and
- * alternate versions appear as separate results when they have distinct codes.
+ * returns up to 10 unique tracks. Uniqueness is determined by normalized track
+ * title plus artist, so duplicate Spotify editions collapse while remixes and
+ * other distinct versions remain separate.
  *
  * Uses @ref formatTrackName() to format display names.
  *
@@ -182,7 +183,7 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
   ];
 
   const uniqueTracks: TrackData[] = [];
-  const seenIsrcs = new Set<string>();
+  const seenTrackKeys = new Set<string>();
 
   for (const track of results) {
     const rawTrackName: string = track.name;
@@ -193,9 +194,10 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
       continue;
     }
 
-    if (!seenIsrcs.has(isrc)) {
-      // console.log(`${formatTrackName(rawTrackName)} - ${rawArtistName}`);
-      seenIsrcs.add(isrc);
+    const dedupKey = getTrackDedupKey(rawTrackName, rawArtistName);
+
+    if (!seenTrackKeys.has(dedupKey)) {
+      seenTrackKeys.add(dedupKey);
       uniqueTracks.push({
         track: formatTrackName(rawTrackName),
         artist: rawArtistName,
