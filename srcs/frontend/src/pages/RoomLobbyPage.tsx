@@ -199,7 +199,7 @@ export default function RoomLobbyPage() {
           </div>
 
           {error && (
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge mt-4">
               <strong>Error:</strong> {error}
             </div>
           )}
