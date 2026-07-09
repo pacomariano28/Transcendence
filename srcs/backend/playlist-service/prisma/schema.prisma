@@ -20,7 +20,7 @@ datasource db {
 
 model Song {
   id        String   @id @default(uuid())
-  trackId   String
+  isrc      String
   fileName  String   @unique
   used      Boolean  @default(false)
   createdAt DateTime @default(now())

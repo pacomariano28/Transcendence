@@ -12,7 +12,7 @@ import type { Prisma } from '@prisma/client';
 
 export const TransactionIsolationLevelSchema = z.enum(['ReadUncommitted','ReadCommitted','RepeatableRead','Serializable']);
 
-export const SongScalarFieldEnumSchema = z.enum(['id','trackId','fileName','used','createdAt','updatedAt']);
+export const SongScalarFieldEnumSchema = z.enum(['id','isrc','fileName','used','createdAt','updatedAt']);
 
 export const SortOrderSchema = z.enum(['asc','desc']);
 
@@ -27,7 +27,7 @@ export const QueryModeSchema = z.enum(['default','insensitive']);
 
 export const SongSchema = z.object({
   id: z.uuid(),
-  trackId: z.string(),
+  isrc: z.string(),
   fileName: z.string(),
   used: z.boolean(),
   createdAt: z.coerce.date(),
@@ -45,7 +45,7 @@ export type Song = z.infer<typeof SongSchema>
 
 export const SongSelectSchema: z.ZodType<Prisma.SongSelect> = z.object({
   id: z.boolean().optional(),
-  trackId: z.boolean().optional(),
+  isrc: z.boolean().optional(),
   fileName: z.boolean().optional(),
   used: z.boolean().optional(),
   createdAt: z.boolean().optional(),
@@ -62,7 +62,7 @@ export const SongWhereInputSchema: z.ZodType<Prisma.SongWhereInput> = z.strictOb
   OR: z.lazy(() => SongWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => SongWhereInputSchema), z.lazy(() => SongWhereInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
-  trackId: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   fileName: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   used: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
@@ -71,7 +71,7 @@ export const SongWhereInputSchema: z.ZodType<Prisma.SongWhereInput> = z.strictOb
 
 export const SongOrderByWithRelationInputSchema: z.ZodType<Prisma.SongOrderByWithRelationInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
-  trackId: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
   fileName: z.lazy(() => SortOrderSchema).optional(),
   used: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
@@ -96,7 +96,7 @@ export const SongWhereUniqueInputSchema: z.ZodType<Prisma.SongWhereUniqueInput> 
   AND: z.union([ z.lazy(() => SongWhereInputSchema), z.lazy(() => SongWhereInputSchema).array() ]).optional(),
   OR: z.lazy(() => SongWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => SongWhereInputSchema), z.lazy(() => SongWhereInputSchema).array() ]).optional(),
-  trackId: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   used: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
@@ -104,7 +104,7 @@ export const SongWhereUniqueInputSchema: z.ZodType<Prisma.SongWhereUniqueInput> 
 
 export const SongOrderByWithAggregationInputSchema: z.ZodType<Prisma.SongOrderByWithAggregationInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
-  trackId: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
   fileName: z.lazy(() => SortOrderSchema).optional(),
   used: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
@@ -119,7 +119,7 @@ export const SongScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.SongScal
   OR: z.lazy(() => SongScalarWhereWithAggregatesInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => SongScalarWhereWithAggregatesInputSchema), z.lazy(() => SongScalarWhereWithAggregatesInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
-  trackId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
   fileName: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
   used: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema), z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
@@ -128,7 +128,7 @@ export const SongScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.SongScal
 
 export const SongCreateInputSchema: z.ZodType<Prisma.SongCreateInput> = z.strictObject({
   id: z.uuid().optional(),
-  trackId: z.string(),
+  isrc: z.string(),
   fileName: z.string(),
   used: z.boolean().optional(),
   createdAt: z.coerce.date().optional(),
@@ -137,7 +137,7 @@ export const SongCreateInputSchema: z.ZodType<Prisma.SongCreateInput> = z.strict
 
 export const SongUncheckedCreateInputSchema: z.ZodType<Prisma.SongUncheckedCreateInput> = z.strictObject({
   id: z.uuid().optional(),
-  trackId: z.string(),
+  isrc: z.string(),
   fileName: z.string(),
   used: z.boolean().optional(),
   createdAt: z.coerce.date().optional(),
@@ -146,7 +146,7 @@ export const SongUncheckedCreateInputSchema: z.ZodType<Prisma.SongUncheckedCreat
 
 export const SongUpdateInputSchema: z.ZodType<Prisma.SongUpdateInput> = z.strictObject({
   id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  trackId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fileName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
@@ -155,7 +155,7 @@ export const SongUpdateInputSchema: z.ZodType<Prisma.SongUpdateInput> = z.strict
 
 export const SongUncheckedUpdateInputSchema: z.ZodType<Prisma.SongUncheckedUpdateInput> = z.strictObject({
   id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  trackId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fileName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
@@ -164,7 +164,7 @@ export const SongUncheckedUpdateInputSchema: z.ZodType<Prisma.SongUncheckedUpdat
 
 export const SongCreateManyInputSchema: z.ZodType<Prisma.SongCreateManyInput> = z.strictObject({
   id: z.uuid().optional(),
-  trackId: z.string(),
+  isrc: z.string(),
   fileName: z.string(),
   used: z.boolean().optional(),
   createdAt: z.coerce.date().optional(),
@@ -173,7 +173,7 @@ export const SongCreateManyInputSchema: z.ZodType<Prisma.SongCreateManyInput> = 
 
 export const SongUpdateManyMutationInputSchema: z.ZodType<Prisma.SongUpdateManyMutationInput> = z.strictObject({
   id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  trackId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fileName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
@@ -182,7 +182,7 @@ export const SongUpdateManyMutationInputSchema: z.ZodType<Prisma.SongUpdateManyM
 
 export const SongUncheckedUpdateManyInputSchema: z.ZodType<Prisma.SongUncheckedUpdateManyInput> = z.strictObject({
   id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  trackId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fileName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
@@ -222,7 +222,7 @@ export const DateTimeFilterSchema: z.ZodType<Prisma.DateTimeFilter> = z.strictOb
 
 export const SongCountOrderByAggregateInputSchema: z.ZodType<Prisma.SongCountOrderByAggregateInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
-  trackId: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
   fileName: z.lazy(() => SortOrderSchema).optional(),
   used: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
@@ -231,7 +231,7 @@ export const SongCountOrderByAggregateInputSchema: z.ZodType<Prisma.SongCountOrd
 
 export const SongMaxOrderByAggregateInputSchema: z.ZodType<Prisma.SongMaxOrderByAggregateInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
-  trackId: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
   fileName: z.lazy(() => SortOrderSchema).optional(),
   used: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
@@ -240,7 +240,7 @@ export const SongMaxOrderByAggregateInputSchema: z.ZodType<Prisma.SongMaxOrderBy
 
 export const SongMinOrderByAggregateInputSchema: z.ZodType<Prisma.SongMinOrderByAggregateInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
-  trackId: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
   fileName: z.lazy(() => SortOrderSchema).optional(),
   used: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),

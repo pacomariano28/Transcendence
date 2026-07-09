@@ -61,7 +61,7 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
       };
       const match = matchService.submitGuess(
         socket.id,
-        payload.trackId,
+        payload.isrc,
         payload.track,
         payload.artist,
         emitToMatch,

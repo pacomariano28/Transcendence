@@ -2,7 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import crypto from "crypto";
 
 interface Song {
-  trackId: string;
+  isrc: string;
   fileName: string;
   used: boolean;
 }
@@ -41,17 +41,17 @@ export async function generateRandomPlaylist() {
   const selectedSongs = shuffled.slice(0, PLAYLIST_SIZE);
 
   const playlistId = crypto.randomUUID();
-  const songIds = selectedSongs.map((s) => s.trackId);
+  const songIsrcs = selectedSongs.map((s) => s.isrc);
 
   // 3. Marcar esas canciones como usadas
   await prisma.song.updateMany({
-    where: { trackId: { in: songIds } },
+    where: { isrc: { in: songIsrcs } },
     data: { used: true },
   });
 
   // 4. Preparar las canciones para la respuesta (omitimos campos internos)
-  const songs = selectedSongs.map(({ trackId, fileName }) => ({
-    trackId,
+  const songs = selectedSongs.map(({ isrc, fileName }) => ({
+    isrc,
     fileName,
   }));
 

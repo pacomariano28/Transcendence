@@ -88,7 +88,7 @@ export function resolveGuess({
     lockOwnerId,
     correct,
     reason,
-    trackId: round.preview?.trackId ?? null,
+    isrc: round.preview?.isrc ?? null,
     selectedTrack,
     scoreDelta,
     totalScore: scoreEntry?.score ?? scoreDelta,

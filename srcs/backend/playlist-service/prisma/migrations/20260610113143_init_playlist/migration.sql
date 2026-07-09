@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "Song" (
     "id" TEXT NOT NULL,
-    "trackId" TEXT NOT NULL,
+    "isrc" TEXT NOT NULL,
     "fileName" TEXT NOT NULL,
     "used" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

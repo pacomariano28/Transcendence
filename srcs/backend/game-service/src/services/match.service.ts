@@ -317,7 +317,7 @@ export class MatchService {
 
   submitGuess(
     socketId: string,
-    trackId: string,
+    isrc: string,
     track: string,
     artist: string,
     emit: EmitMatchEvent,
@@ -340,14 +340,14 @@ export class MatchService {
       throw new Error("NOT_LOCK_OWNER");
     }
 
-    const previewId = match.round.preview?.trackId ?? null;
-    const isCorrect = Boolean(previewId && trackId === previewId);
+    const previewIsrc = match.round.preview?.isrc ?? null;
+    const isCorrect = Boolean(previewIsrc && isrc === previewIsrc);
     resolveGuess({
       match,
       lockOwnerId: player.userId,
       correct: isCorrect,
       reason: isCorrect ? null : "wrong",
-      selectedTrack: { id: trackId, track, artist },
+      selectedTrack: { isrc, track, artist },
       emit,
       guessTimers: this.guessTimers,
       resumeTimers: this.resumeTimers,
