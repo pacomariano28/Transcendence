@@ -8,6 +8,7 @@ import {
   SECOND_MS,
 } from "../utils/constants.js";
 import { loadPlaylist } from "./playlist.service.js";
+import { fetchAvailableSongCount } from "../clients/playlist.client.js";
 import { createMatchState, createPlayer, ensureScoreEntry } from "./state.js";
 import {
   resolveGuess,
@@ -165,6 +166,22 @@ export class MatchService {
       connectedPlayers.every((entry) => entry.ready);
 
     if (countdownStarted) {
+      const requiredRounds = match.roundsTotal;
+      const availability = await fetchAvailableSongCount();
+
+      if (!availability.ok || availability.count < requiredRounds) {
+        connectedPlayers.forEach((entry) => {
+          entry.ready = false;
+        });
+        emit(match.matchId, "match:error", {
+          message: "NOT_ENOUGH_SONGS_AVAILABLE",
+        });
+        return {
+          match,
+          countdownStarted: false,
+        };
+      }
+
       const previousPhase = match.phase;
       match.phase = "in-game";
       await loadPlaylist(match);

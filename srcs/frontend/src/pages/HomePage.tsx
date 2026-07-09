@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
@@ -6,6 +6,12 @@ import TypingText from "../components/TypingText";
 import LinkIcon from "../components/icons/LinkIcon";
 import { socket } from "../api/socket";
 import { getState } from "../api/state";
+import {
+  ensureEnoughSongsForMatch,
+  getAvailableSongCount,
+  MATCH_ROUNDS_TOTAL,
+  NOT_ENOUGH_SONGS_MESSAGE,
+} from "../api/playlist";
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
@@ -38,23 +44,55 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string>("");
+  const [songsAvailable, setSongsAvailable] = useState<number | null>(null);
+
+  const hasEnoughSongs =
+    songsAvailable === null || songsAvailable >= MATCH_ROUNDS_TOTAL;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAvailableSongs() {
+      try {
+        const count = await getAvailableSongCount();
+        if (!cancelled) {
+          setSongsAvailable(count);
+        }
+      } catch {
+        if (!cancelled) {
+          setSongsAvailable(null);
+        }
+      }
+    }
+
+    loadAvailableSongs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const disabledReason = useMemo(() => {
     if (!user) return "Login required";
     if (isCreating) return "Creating room...";
+    if (songsAvailable !== null && !hasEnoughSongs) {
+      return NOT_ENOUGH_SONGS_MESSAGE;
+    }
     return "";
-  }, [user, isCreating]);
+  }, [user, isCreating, songsAvailable, hasEnoughSongs]);
 
   async function createRoom() {
-    if (!user || isCreating) return;
+    if (!user || isCreating || !hasEnoughSongs) return;
 
     setIsCreating(true);
+    setError("");
 
     try {
       const res = await getState();
 
       if (!res.ok) throw new Error("User already in game");
 
+      await ensureEnoughSongsForMatch();
       await ensureSocketConnected();
 
       let matchId = "";
@@ -100,14 +138,17 @@ export default function HomePage() {
   }
 
   async function joinRoom() {
-    if (!user || isCreating) return;
+    if (!user || isCreating || !hasEnoughSongs) return;
 
     setIsCreating(true);
+    setError("");
 
     try {
       const res = await getState();
 
       if (!res.ok) throw new Error("User already in game");
+
+      await ensureEnoughSongsForMatch();
 
       navigate(`/join`);
     } catch (error) {
@@ -135,7 +176,7 @@ export default function HomePage() {
                 style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 onClick={createRoom}
-                disabled={!user || isCreating}
+                disabled={!user || isCreating || !hasEnoughSongs}
                 title={disabledReason}
               >
                 <span>{isCreating ? "Creating..." : "Create room"}</span>
@@ -147,15 +188,16 @@ export default function HomePage() {
                 style={{ "--btn-color": "#ede9db" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 onClick={joinRoom}
-                disabled={!user}
+                disabled={!user || isCreating || !hasEnoughSongs}
+                title={disabledReason}
               >
                 <span>Join room</span>
               </button>
             </div>
 
-            {error && (
+            {(error || (songsAvailable !== null && !hasEnoughSongs)) && (
               <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
-                <strong>{error}</strong>
+                <strong>{error || NOT_ENOUGH_SONGS_MESSAGE}</strong>
               </div>
             )}
 

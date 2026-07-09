@@ -1,5 +1,18 @@
 import type { Request, Response } from "express";
-import { generateRandomPlaylist } from "../services/playlistGenerator.js";
+import {
+  countAvailableSongs,
+  generateRandomPlaylist,
+} from "../services/playlistGenerator.js";
+
+export async function getAvailableSongCount(req: Request, res: Response) {
+  try {
+    const count = await countAvailableSongs();
+    return res.status(200).json({ ok: true, count });
+  } catch (err) {
+    console.error("[playlist-service] Error in getAvailableSongCount:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
 
 export async function getPlaylist(req: Request, res: Response) {
   try {
