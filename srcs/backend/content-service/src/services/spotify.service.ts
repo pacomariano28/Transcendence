@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getRedisClient } from "../lib/redis.js";
-import { clearString, normalizeString } from "../utils/utils.js";
+import { formatTrackName } from "../utils/utils.js";
 
 interface AccessToken {
   access_token: string;
@@ -153,20 +153,18 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
  * @brief Searches Spotify for tracks matching the given term with deduplication.
  *
  * @details Fetches tracks from two paginated result pages (20 total results) and
- * returns up to 10 unique tracks. Uniqueness is determined by comparing normalized
- * versions of track and artist names (case-insensitive, without special characters).
+ * returns up to 10 unique tracks. Uniqueness is determined by ISRC, so remix and
+ * alternate versions appear as separate results when they have distinct codes.
  *
- * Uses @ref normalizeString() to create identifiers for deduplication and
- * @ref clearString() to format display names.
+ * Uses @ref formatTrackName() to format display names.
  *
  * @param term The search query to find on Spotify
  *
  * @return A promise that resolves to an array of @c TrackData objects (max 10 unique tracks)
- *         containing track name, artist name, and Spotify track ID
+ *         containing track name, artist name, Spotify track ID, and ISRC
  *
  * @see searchTracks()
- * @see normalizeString()
- * @see clearString()
+ * @see formatTrackName()
  *
  * @note Results are limited to the Spanish market (@c market: 'ES')
  */
@@ -184,7 +182,7 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
   ];
 
   const uniqueTracks: TrackData[] = [];
-  const seenIdentifiers = new Set<string>();
+  const seenIsrcs = new Set<string>();
 
   for (const track of results) {
     const rawTrackName: string = track.name;
@@ -195,14 +193,11 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
       continue;
     }
 
-    // Create a normalized identifier for the Set
-    const identifier = `${normalizeString(rawTrackName)}-${normalizeString(rawArtistName)}`;
-
-    if (!seenIdentifiers.has(identifier)) {
-      // console.log(`${clearString(rawTrackName)} - ${clearString(rawArtistName)}`);
-      seenIdentifiers.add(identifier);
+    if (!seenIsrcs.has(isrc)) {
+      // console.log(`${formatTrackName(rawTrackName)} - ${rawArtistName}`);
+      seenIsrcs.add(isrc);
       uniqueTracks.push({
-        track: clearString(rawTrackName),
+        track: formatTrackName(rawTrackName),
         artist: rawArtistName,
         id: track.id,
         isrc,

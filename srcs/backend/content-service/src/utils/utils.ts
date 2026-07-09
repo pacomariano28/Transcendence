@@ -23,37 +23,6 @@ function stripBrackets(input: string, opening: string): string {
 }
 
 /**
- * @brief Normalizes a string by removing brackets and whitespace.
- *
- * @details This function processes a string through the following steps:
- * - Removes content within parentheses ()
- * - Removes content within square brackets []
- * - Removes everything after dashes (-, –, —)
- * - Removes all whitespace characters
- * - Converts the string to lowercase
- * - Normalize the result
- *
- * @param str The input string to normalize
- * @return A normalized string with brackets removed, lowercased, and whitespace stripped
- *
- * @example
- * normalizeString("The Title (Remix) - Extended") // Returns "thetitle"
- * normalizeString("Song [Feat. Artist]") // Returns "song"
- */
-export function normalizeString(str: string): string {
-  let result: string;
-
-  result = stripBrackets(str, "(");
-  result = stripBrackets(result, "[");
-
-  return result
-    .replace(/\s+[-–—]\s+.*/g, "")
-    .replace(/\s+/g, "")
-    .toLowerCase()
-    .normalize();
-}
-
-/**
  * @brief Clears a string by removing brackets and normalizing whitespace.
  *
  * @details This function processes a string through the following steps:
@@ -70,7 +39,6 @@ export function normalizeString(str: string): string {
  * clearString("The Title (Remix) - Extended") // Returns "The Title"
  * clearString("Song  [Feat. Artist]") // Returns "Song"
  *
- * @note Unlike normalizeString(), this function preserves the original case
  * and maintains spacing between words (normalized to single spaces).
  */
 export function clearString(str: string): string {
@@ -83,4 +51,18 @@ export function clearString(str: string): string {
     .replace(/\s+[-–—]\s+.*/g, "")
     .trim()
     .replace(/\s\s+/g, " ");
+}
+
+/**
+ * @brief Formats a track name for display in search results.
+ *
+ * @details Remix versions keep the original Spotify title so they remain
+ * distinguishable from the base track. All other titles use @ref clearString().
+ */
+export function formatTrackName(str: string): string {
+  if (/remix/i.test(str)) {
+    return str.trim().replace(/\s\s+/g, " ");
+  }
+
+  return clearString(str);
 }
