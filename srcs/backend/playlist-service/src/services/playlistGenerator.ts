@@ -19,6 +19,18 @@ function fisherYatesShuffle<T>(array: T[]): T[] {
   return arr;
 }
 
+export async function countAvailableSongs(): Promise<number> {
+  const unusedCount = await prisma.song.count({
+    where: { used: false },
+  });
+
+  if (unusedCount < PLAYLIST_SIZE) {
+    return prisma.song.count();
+  }
+
+  return unusedCount;
+}
+
 export async function generateRandomPlaylist() {
   // 1. Consultar canciones no usadas
   let unusedSongs: Song[] = await prisma.song.findMany({
