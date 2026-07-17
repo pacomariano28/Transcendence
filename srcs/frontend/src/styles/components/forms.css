@@ -1,0 +1,23 @@
+@layer components {
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-[#0f0f10] px-3 py-2.5 sm:py-2
+           text-zinc-100 placeholder:text-zinc-500
+           outline-none transition duration-150 ease-out
+           focus:border-[#f7d046]/40 focus:ring-2 focus:ring-[#f7d046]/20;
+  }
+}
+
+.lock-input {
+  letter-spacing: 0.1em;
+  transition: all 0.5s;
+
+  &:hover {
+    background-color: transparent;
+    border: 1px solid #f7d046;
+    color: 1px solid #f7d046 !important;
+  }
+
+  &:focus {
+    letter-spacing: 0.25em;
+  }
+}

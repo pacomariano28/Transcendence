@@ -1,0 +1,126 @@
+@keyframes matchPlayExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+    max-height: 600px;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94) translateY(-12px);
+    filter: blur(6px);
+    max-height: 0;
+  }
+}
+
+@keyframes matchGuessExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+    max-height: 800px;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+    filter: blur(4px);
+    max-height: 0;
+  }
+}
+
+@keyframes matchResultsEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(24px);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-4px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes matchTitleReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+    letter-spacing: 0.1em;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: 0.24em;
+  }
+}
+
+@keyframes resultRowReveal {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.95);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes matchBackReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes winnerGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(247, 208, 70, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(247, 208, 70, 0.35);
+  }
+}
+
+.animate-match-play-exit {
+  animation: matchPlayExit 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-match-guess-exit {
+  animation: matchGuessExit 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-match-results-enter {
+  animation: matchResultsEnter 0.85s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-match-title-reveal {
+  animation: matchTitleReveal 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-result-row-reveal {
+  animation: resultRowReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-match-back-reveal {
+  animation: matchBackReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.5s both;
+}
+
+.animate-winner-glow {
+  animation: winnerGlow 2.5s ease-in-out infinite;
+}
