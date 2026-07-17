@@ -1,0 +1,88 @@
+/**
+ * Per-round sync phase before countdown.
+ *
+ * Each connected player must ack `round:ready`. If one player never acks,
+ * FORCE_COUNTDOWN_MS starts the countdown anyway so the round cannot stall.
+ */
+import {
+  ROUND_COUNTDOWN_SECONDS,
+  SECOND_MS,
+} from "../../utils/constants.js";
+import { startRoundCountdown, toRoundSyncPayload } from "../round.js";
+import {
+  getMatchBySocketOrThrow,
+  type MatchRegistry,
+} from "./match.registry.js";
+import type { MatchTimerContext } from "./match.timers.js";
+import { getConnectedPlayers } from "./match.utils.js";
+
+/** Max wait for all players to ack round sync before forcing countdown. */
+const FORCE_COUNTDOWN_MS = 150;
+
+export function markRoundReady(
+  registry: MatchRegistry,
+  timers: MatchTimerContext,
+  socketId: string,
+  emit: EmitMatchEvent,
+): { match: MatchState; countdownStarted: boolean; catchUp?: boolean } {
+  const match = getMatchBySocketOrThrow(registry, socketId);
+  if (match.phase !== "in-game" || !match.round) {
+    throw new Error("INVALID_STATE");
+  }
+
+  if (match.round.phase !== "sync") {
+    return { match, countdownStarted: false, catchUp: true };
+  }
+
+  const player = match.players.find((entry) => entry.socketId === socketId);
+  if (!player) {
+    throw new Error("PLAYER_NOT_IN_MATCH");
+  }
+
+  if (!match.round.readyUserIds.includes(player.userId)) {
+    match.round.readyUserIds.push(player.userId);
+  }
+
+  const connectedPlayers = getConnectedPlayers(match);
+  const countdownStarted = connectedPlayers.every((entry) =>
+    match.round?.readyUserIds.includes(entry.userId),
+  );
+
+  if (countdownStarted) {
+    const syncTimer = timers.syncTimers.get(match.matchId);
+    if (syncTimer) {
+      global.clearTimeout(syncTimer);
+      timers.syncTimers.delete(match.matchId);
+    }
+
+    match.round.phase = "countdown";
+    match.round.countdownEndsAt =
+      Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
+    startRoundCountdown(match, timers.roundCountdownTimers);
+  } else if (!timers.syncTimers.has(match.matchId)) {
+    const timer = global.setTimeout(() => {
+      timers.syncTimers.delete(match.matchId);
+
+      if (
+        match.phase === "in-game" &&
+        match.round &&
+        match.round.phase === "sync"
+      ) {
+        console.log(
+          `[Match ${match.matchId}] Forzando inicio de ronda por jugador ausente.`,
+        );
+
+        match.round.phase = "countdown";
+        match.round.countdownEndsAt =
+          Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
+        startRoundCountdown(match, timers.roundCountdownTimers);
+
+        emit(match.matchId, "round:sync", toRoundSyncPayload(match));
+      }
+    }, FORCE_COUNTDOWN_MS);
+
+    timers.syncTimers.set(match.matchId, timer);
+  }
+
+  return { match, countdownStarted };
+}
