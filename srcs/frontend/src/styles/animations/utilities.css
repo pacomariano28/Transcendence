@@ -1,0 +1,11 @@
+.fade-in-initial {
+  opacity: 0;
+}
+
+.fade-in-visible {
+  opacity: 1;
+}
+
+.animate-round-change {
+  animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}

@@ -15,7 +15,7 @@ export default function MatchPageHeader({
   return (
     <header className="flex items-center justify-between">
       <div className="flex items-center justify-between w-full">
-        <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out sm:text-5xl">
+        <h1 className="select-text font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out sm:text-5xl">
           {code || "———"}
         </h1>
 

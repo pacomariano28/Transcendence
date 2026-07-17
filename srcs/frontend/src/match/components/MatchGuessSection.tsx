@@ -99,7 +99,7 @@ export default function MatchGuessSection({
               </div>
 
               {selectedTrack && (
-                <div className="mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
+                <div className="select-text mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
                   Selected: {selectedTrack.track} - {selectedTrack.artist}
                 </div>
               )}
@@ -129,11 +129,11 @@ export default function MatchGuessSection({
               {searchResults.length > 0 &&
                 !selectedTrack &&
                 searchTerm.trim().length >= 2 && (
-                  <div className="mt-3 grid gap-2 animate-fade-in">
+                  <div className="select-text mt-3 grid gap-2 animate-fade-in">
                     {searchResults.map((track) => (
                       <button
                         key={track.id}
-                        className="rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
+                        className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
                         type="button"
                         onClick={() => onSelectTrack(track)}
                       >

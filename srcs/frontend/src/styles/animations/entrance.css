@@ -1,0 +1,18 @@
+@layer components {
+  .fade-in {
+    animation: fadeIn 180ms ease-out both;
+  }
+
+  .pop-in {
+    animation: popIn 180ms ease-out both;
+  }
+
+  .nudge {
+    animation: nudge 220ms ease-out both;
+  }
+
+  .code-flash {
+    animation: codeFlash 2.5s ease-out both;
+    animation-delay: 0.15s;
+  }
+}
