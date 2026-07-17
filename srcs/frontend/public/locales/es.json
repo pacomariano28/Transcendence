@@ -5,7 +5,7 @@
     "change_lang": "Cambiar idioma",
     "signed_in_as": "Sesión iniciada como",
     "live_match_in_progress": "PARTIDA EN CURSO",
-    "room" : "Sala:"
+    "room": "Sala:"
   },
   "footer": {
     "game_description": "Juego multijugador minimalista",
@@ -51,7 +51,20 @@
     "login": "Iniciar sesión",
     "create_an_account_switch": "Crear una cuenta",
     "already_have_account": "Ya tengo una cuenta",
-    "completing_spotify_login": "Completando el inicio de sesión con Spotify..."
+    "completing_spotify_login": "Completando el inicio de sesión con Spotify...",
+    "errors": {
+      "spotify_cancelled": "La autorización de Spotify fue cancelada. Puedes intentarlo de nuevo o iniciar sesión con tu correo electrónico.",
+      "WRONG_CREDENTIALS": "Correo electrónico o contraseña incorrectos.",
+      "USER_ALREADY_EXISTS": "Ya existe una cuenta con este correo electrónico o nombre de usuario.",
+      "INTERNAL_ERROR": "Algo salió mal de nuestro lado. Por favor, inténtalo de nuevo más tarde."
+    }
+  },
+  "validation": {
+    "invalid_email": "Correo electrónico no válido",
+    "username_required": "El nombre de usuario es obligatorio",
+    "username_too_long": "Máximo 12 caracteres permitidos para el nombre de usuario",
+    "password_too_short": "La contraseña debe tener al menos 3 caracteres",
+    "password_too_long": "Máximo 12 caracteres permitidos para la contraseña"
   },
   "profile": {
     "title": "PERFIL",
@@ -183,7 +196,7 @@
       "changesTermsTitle": "10. Cambios a estos Términos",
       "changesTermsBody": "Podemos actualizar estos Términos a medida que el proyecto evolucione. El uso continuo de Songuess después de que se publiquen los cambios constituye la aceptación de los Términos revisados. La fecha de \"Última actualización\" en la parte superior de esta página indica la revisión más reciente."
     },
-    "seeAlso": "Consulta también nuestra <1>Política de Privacidad</1>."
+    "seeAlso": "Consulte también nuestra <PrivacyLink>Política de privacidad</PrivacyLink>."
   },
   "privacy": {
     "title": "Política de Privacidad",
@@ -216,12 +229,13 @@
       "changesTitle": "6. Cambios en esta política",
       "changesBody": "Podemos actualizar esta Política de Privacidad a medida que el proyecto evolucione durante el desarrollo y la evaluación. La fecha de \"Última actualización\" en la parte superior de esta página reflejará la revisión más reciente."
     },
-    "seeAlso": "Consulta también nuestros <1>Términos de Servicio</1>."
+    "seeAlso": "Consulte también nuestros <TermsLink>Términos de servicio</TermsLink>."
   },
   "common": {
     "loading": "Cargando..."
   },
   "errors": {
+    "WRONG_CREDENTIALS": "Credenciales incorrectas",
     "404_NOT_FOUND": "¡404 PÁGINA NO ENCONTRADA!",
     "MATCH_NOT_FOUND": "Partida no encontrada",
     "USER_ALREADY_IN_GAME": "Ya estás activo en otra sesión de juego.",

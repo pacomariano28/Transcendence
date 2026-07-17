@@ -1,7 +1,7 @@
 /** Lock status label and Spotify search form for the lock owner. */
 import { useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
-import { translateError } from "../../i18n/translateError";
+//import { translateError } from "../../i18n/translateError";
 
 type MatchGuessSectionProps = {
   isMatchFinished: boolean;

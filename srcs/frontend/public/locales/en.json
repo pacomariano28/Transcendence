@@ -5,7 +5,7 @@
     "change_lang": "Change Language",
     "signed_in_as": "Signed in as",
     "live_match_in_progress": "MATCH IN PROGRESS",
-    "room" : "Room:"
+    "room": "Room:"
   },
   "footer": {
     "game_description": "Minimal multiplayer game",
@@ -51,8 +51,22 @@
     "login": "Login",
     "create_an_account_switch": "Create an account",
     "already_have_account": "I already have an account",
-    "completing_spotify_login": "Completing login with Spotify..."
+    "completing_spotify_login": "Completing login with Spotify...",
+    "errors": {
+      "spotify_cancelled": "Spotify authorization was cancelled. You can try again or sign in with email.",
+      "WRONG_CREDENTIALS": "Invalid email or password.",
+      "USER_ALREADY_EXISTS": "An account with this email or username already exists.",
+      "INTERNAL_ERROR": "Something went wrong on our end. Please try again later."
+    }
   },
+  "validation": {
+    "invalid_email": "Invalid email address",
+    "username_required": "Username is required",
+    "username_too_long": "Maximum 12 characters allowed for username",
+    "password_too_short": "Password requires at least 3 characters",
+    "password_too_long": "Maximum 12 characters allowed for password"
+  },
+
   "profile": {
     "title": "PROFILE",
     "session_data": "Session data",
@@ -184,7 +198,7 @@
       "changesTermsTitle": "10. Changes to these Terms",
       "changesTermsBody": "We may update these Terms as the project evolves. Continued use of Songuess after changes are published constitutes acceptance of the revised Terms. The \"Last updated\" date at the top of this page indicates the latest revision."
     },
-    "seeAlso": "See also our <1>Privacy Policy</1>."
+    "seeAlso": "See also our <PrivacyLink>Privacy Policy</PrivacyLink>."
   },
   "privacy": {
     "title": "Privacy Policy",
@@ -217,12 +231,13 @@
       "changesTitle": "6. Changes to this policy",
       "changesBody": "We may update this Privacy Policy as the project evolves during development and evaluation. The &ldquo;Last updated&rdquo; date at the top of this page will reflect the most recent revision."
     },
-    "seeAlso": "See also our <1>Terms of Service</1>."
+    "seeAlso": "See also our <TermsLink>Terms of Service</TermsLink>."
   },
   "common": {
     "loading": "Loading..."
   },
   "errors": {
+    "WRONG_CREDENTIALS": "Wrong credentials",
     "404_NOT_FOUND": "404 NOT FOUND!",
     "MATCH_NOT_FOUND": "Match not found",
     "USER_ALREADY_IN_GAME": "You are already active in another game session.",

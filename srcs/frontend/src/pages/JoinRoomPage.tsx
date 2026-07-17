@@ -143,9 +143,7 @@ export default function JoinRoomPage() {
               disabled={!isValid || !!disabledReason}
               onClick={onJoin}
               title={
-                disabledReason
-                  ? translateError(disabledReason, t)
-                  : undefined
+                disabledReason ? translateError(disabledReason, t) : undefined
               }
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >

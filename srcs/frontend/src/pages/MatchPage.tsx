@@ -279,7 +279,9 @@ export default function MatchPage() {
 
         <div
           className={`flex flex-col ${
-            isMatchFinished ? "gap-0" : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
+            isMatchFinished
+              ? "gap-0"
+              : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
           }`}
         >
           <MatchPlaySection

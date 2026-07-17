@@ -27,9 +27,7 @@ export default function TermsOfServicePage() {
         <div className="page-card section-stack">
           <div>
             <h1 className="page-title">{t("terms.title")}</h1>
-            <p className="page-subtitle mt-2">
-              {t("terms.lastUpdated")}
-            </p>
+            <p className="page-subtitle mt-2">{t("terms.lastUpdated")}</p>
           </div>
 
           <p className="text-sm leading-relaxed text-zinc-400">
@@ -73,11 +71,12 @@ export default function TermsOfServicePage() {
               <Trans i18nKey="terms.sections.availabilityBody">
                 Songuess is provided on an &ldquo;as is&rdquo; and &ldquo;as
                 available&rdquo; basis. Because it is an MVP under active
-                development, we do <strong className="text-zinc-300">not</strong>{" "}
-                guarantee continuous availability, uptime, data persistence, or
-                error-free operation. The service may be offline, reset, or
-                unavailable at any time without notice — including during
-                evaluations, demos, or development work.
+                development, we do{" "}
+                <strong className="text-zinc-300">not</strong> guarantee
+                continuous availability, uptime, data persistence, or error-free
+                operation. The service may be offline, reset, or unavailable at
+                any time without notice — including during evaluations, demos,
+                or development work.
               </Trans>
             </p>
           </LegalSection>
@@ -90,10 +89,10 @@ export default function TermsOfServicePage() {
             <p>
               <Trans i18nKey="terms.sections.spotifyBody1">
                 Songuess uses <strong className="text-zinc-300">Spotify</strong>{" "}
-                solely for user authentication and, with your consent, to retrieve
-                profile and listening-taste information used inside the app. Your
-                use of Spotify login is also subject to Spotify&apos;s own terms
-                and privacy policies.
+                solely for user authentication and, with your consent, to
+                retrieve profile and listening-taste information used inside the
+                app. Your use of Spotify login is also subject to Spotify&apos;s
+                own terms and privacy policies.
               </Trans>
             </p>
             <p>{t("terms.sections.spotifyBody2")}</p>
@@ -110,7 +109,11 @@ export default function TermsOfServicePage() {
 
           <LegalSection title={t("terms.sections.contactTitle")}>
             <p>
-              <Trans i18nKey="terms.sections.contactBody">
+              {/* FIXED: Passing components array to match <1> tag in JSON */}
+              <Trans
+                i18nKey="terms.sections.contactBody"
+                components={[<span />, <Link to="/" className="link" />]}
+              >
                 For questions about these Terms or about your data, contact the
                 development team through the GitHub profiles listed on the{" "}
                 <Link to="/" className="link">
@@ -126,7 +129,13 @@ export default function TermsOfServicePage() {
           </LegalSection>
 
           <p className="text-sm text-zinc-500">
-            <Trans i18nKey="terms.seeAlso">
+            {/* FIXED: Passing object configuration to exactly match <PrivacyLink> in JSON */}
+            <Trans
+              i18nKey="terms.seeAlso"
+              components={{
+                PrivacyLink: <Link to="/privacy" className="link" />,
+              }}
+            >
               See also our{" "}
               <Link to="/privacy" className="link">
                 Privacy Policy

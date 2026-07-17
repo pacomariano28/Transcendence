@@ -33,11 +33,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams.get("spotify") !== "cancelled") return;
 
-    setSpotifyCancelledMessage(
-      "Spotify authorization was cancelled. You can try again or sign in with email.",
-    );
+    setSpotifyCancelledMessage(t("auth.errors.spotify_cancelled"));
     setSearchParams({}, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, t]);
 
   function loginWithSpotify() {
     window.location.href = "/api/auth/spotify/login";
@@ -55,7 +53,7 @@ export default function LoginPage() {
 
     if (!parsed.success) {
       const firstIssue = parsed.error.issues[0];
-      setError(firstIssue?.message ?? "Invalid input");
+      setError(firstIssue?.message ?? "validation.unknown_error");
       setSubmitting(false);
       return;
     }
@@ -152,7 +150,7 @@ export default function LoginPage() {
                     className="input"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="paco"
+                    placeholder="lana"
                     autoComplete="username"
                   />
                 </label>
@@ -176,7 +174,12 @@ export default function LoginPage() {
 
               {error && (
                 <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
-                  {error}
+                  {t(
+                    error.startsWith("validation.")
+                      ? error
+                      : `auth.errors.${error}`,
+                    error,
+                  )}
                 </div>
               )}
 

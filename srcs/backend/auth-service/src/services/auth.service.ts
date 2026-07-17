@@ -70,10 +70,10 @@ export async function loginUser(
     select: { id: true, email: true, username: true, passwordHash: true },
   });
 
-  if (!user) throw new Error("Wrong credentials");
+  if (!user) throw new Error("WRONG_CREDENTIALS");
 
   const ok = await verifyPassword(input.password, user.passwordHash);
-  if (!ok) throw new Error("Wrong credentials");
+  if (!ok) throw new Error("WRONG_CREDENTIALS");
 
   const token = signAccessToken({
     sub: user.id,

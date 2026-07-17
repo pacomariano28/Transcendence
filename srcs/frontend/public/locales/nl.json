@@ -5,7 +5,7 @@
     "change_lang": "Taal wijzigen",
     "signed_in_as": "Ingelogd als",
     "live_match_in_progress": "WEDSTRIJD BEZIG",
-    "room" : "Kamer:"
+    "room": "Kamer:"
   },
   "footer": {
     "game_description": "Minimaal multiplayer spel",
@@ -50,7 +50,20 @@
     "working": "Verwerken…",
     "login": "Inloggen",
     "create_an_account_switch": "Een account aanmaken",
-    "already_have_account": "Ik heb al een account"
+    "already_have_account": "Ik heb al een account",
+    "errors": {
+      "spotify_cancelled": "Spotify-autorisatie is geannuleerd. Je kunt het opnieuw proberen of inloggen met je e-mailadres.",
+      "WRONG_CREDENTIALS": "Ongeldig e-mailadres of wachtwoord.",
+      "USER_ALREADY_EXISTS": "Er bestaat al een account met dit e-mailadres of deze gebruikersnaam.",
+      "INTERNAL_ERROR": "Er is iets misgegaan aan onze kant. Probeer het later opnieuw."
+    }
+  },
+  "validation": {
+    "invalid_email": "Ongeldig e-mailadres",
+    "username_required": "Gebruikersnaam is verplicht",
+    "username_too_long": "Maximaal 12 tekens toegestaan voor gebruikersnaam",
+    "password_too_short": "Wachtwoord moet minimaal 3 tekens bevatten",
+    "password_too_long": "Maximaal 12 tekens toegestaan voor wachtwoord"
   },
   "profile": {
     "title": "PROFIEL",
@@ -183,7 +196,7 @@
       "changesTermsTitle": "10. Wijzigingen in deze Voorwaarden",
       "changesTermsBody": "We kunnen deze Voorwaarden bijwerken naarmate het project evolueert. Voortgezet gebruik van Songuess na de publicatie van wijzigingen houdt acceptatie in van de herziene Voorwaarden. De datum \"Laatst bijgewerkt\" bovenaan deze pagina geeft de nieuwste herziening aan."
     },
-    "seeAlso": "Zie ook ons <1>Privacybeleid</1>."
+    "seeAlso": "Bekijk ook ons <PrivacyLink>Privacybeleid</PrivacyLink>."
   },
   "privacy": {
     "title": "Privacybeleid",
@@ -216,12 +229,13 @@
       "changesTitle": "6. Wijzigingen in dit beleid",
       "changesBody": "We kunnen dit Privacybeleid bijwerken naarmate het project evolueert tijdens ontwikkeling en evaluatie. De datum \"Laatst bijgewerkt\" bovenaan deze pagina geeft de meest recente herziening weer."
     },
-    "seeAlso": "Zie ook onze <1>Algemene Voorwaarden</1>."
+    "seeAlso": "Bekijk ook onze <TermsLink>Servicevoorwaarden</TermsLink>."
   },
   "common": {
     "loading": "Laden..."
   },
   "errors": {
+    "WRONG_CREDENTIALS": "Onjuiste inloggegevens",
     "404_NOT_FOUND": "404 NIET GEVONDEN!",
     "MATCH_NOT_FOUND": "Wedstrijd niet gevonden",
     "USER_ALREADY_IN_GAME": "Je bent al actief in een andere gamesessie.",
