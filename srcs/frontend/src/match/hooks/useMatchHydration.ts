@@ -1,3 +1,7 @@
+/**
+ * One-shot HTTP fetch on mount to hydrate match/scores before socket events arrive.
+ * Does not replace socket authority during active play.
+ */
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { getMatchState } from "../../api/state";
 import { isMatchNotFoundError } from "../utils";

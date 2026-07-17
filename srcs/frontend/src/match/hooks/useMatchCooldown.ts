@@ -1,3 +1,7 @@
+/**
+ * Persists lock cooldown across reloads (localStorage) and drives the lock-button UI timer.
+ * Penalty duration is written by useMatchSocket on wrong guess / round resume.
+ */
 import { useEffect, useMemo, useState } from "react";
 import {
   clearStoredCooldown,

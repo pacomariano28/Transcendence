@@ -1,3 +1,9 @@
+/**
+ * Match module types.
+ *
+ * Payload types mirror socket events emitted by the game service during a round.
+ * `GuessStatus` and `ScoreboardEntry` are client-only shapes for UI state.
+ */
 import type { ScoreEntry } from "../types/socket.payloads";
 
 export type RoundPreview = {

@@ -1,3 +1,16 @@
+/**
+ * Match page orchestrator.
+ *
+ * Owns the shared round state that multiple hooks must read/write (phase, scores,
+ * lock owner, guess resolution). Side effects are delegated to hooks under
+ * `src/match/hooks/`; presentation lives in `src/match/components/`.
+ *
+ * Round flow (server is source of truth via socket events):
+ *   sync → countdown → playing → [lock] → guessing → resolution → resume → … → finished
+ *
+ * `roundPhase` mirrors the client-side round UI state; `matchState.phase` is the
+ * server match lifecycle (lobby / in-game / finished).
+ */
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
@@ -39,6 +52,7 @@ export default function MatchPage() {
   const code = useMemo(() => normalizeCode(codeParam ?? ""), [codeParam]);
   const myUserId = user ? String(user.id) : null;
 
+  // --- Shared round state (updated by useMatchSocket and read by UI selectors) ---
   const [matchState, setMatchState] = useState<MatchStatePayload | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +66,7 @@ export default function MatchPage() {
   const [finalScores, setFinalScores] = useState<ScoreEntry[] | null>(null);
   const [lockRequested, setLockRequested] = useState(false);
 
+  // Guess resolution overlays (countdown / wrong / correct / timeout) in MatchAudioStage
   const [guessStatus, setGuessStatus] = useState<GuessStatus>("countdown");
   const [showResultText, setShowResultText] = useState(false);
   const [guessResultTrack, setGuessResultTrack] =
@@ -106,8 +121,10 @@ export default function MatchPage() {
 
   useAudioVisualizer(analyserRef, canvasRef);
 
+  // HTTP bootstrap before/alongside socket; socket remains authoritative during play
   useMatchHydration({ code, setNotFound, setMatchState, setScores });
 
+  // Keeps header/minimized match indicator in sync while the page is mounted
   useActiveMatchSync({
     code,
     roundInfo,
@@ -118,6 +135,7 @@ export default function MatchPage() {
     setActiveMatch,
   });
 
+  // All round:* and match:* socket handlers; intentionally receives many setters
   useMatchSocket({
     code,
     user,
@@ -174,6 +192,7 @@ export default function MatchPage() {
   }, [nav, setActiveMatch]);
 
   const handleGuessTransitionEnd = useCallback(() => {
+    // TypingText is shown only after the guess overlay CSS transition finishes
     if (
       (guessStatus === "wrong" ||
         guessStatus === "expired" ||
@@ -204,6 +223,7 @@ export default function MatchPage() {
     [finalScores, playersList, scores],
   );
 
+  // Derive which overlays are visible in the audio stage (mutually exclusive layers)
   const {
     showGuessPanel,
     showAudioNotice,

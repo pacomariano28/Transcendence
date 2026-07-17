@@ -1,3 +1,7 @@
+/**
+ * Debounced Spotify search and guess submission for the lock owner.
+ * Search only runs while `canGuess` is true and no track is selected yet.
+ */
 import { useCallback, useEffect, useState } from "react";
 import type { SpotifySearchTrack } from "../../api/spotify";
 import { searchSpotifyTracks } from "../../api/spotify";

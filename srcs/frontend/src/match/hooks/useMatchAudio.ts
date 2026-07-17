@@ -1,3 +1,10 @@
+/**
+ * Manages preview audio lifecycle: element creation, Web Audio analyser hookup,
+ * server sync (round:ready / preview_ended), and playback position recovery.
+ *
+ * Browser autoplay policies may block `play()` after reload — in that case
+ * `showAudioRestoreNotice` prompts a user gesture via resumeAudioFromUserGesture.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { socket } from "../../api/socket";
 import { SECOND_MS } from "../constants";
@@ -41,6 +48,7 @@ export function useMatchAudio({
   }, [showAudioRestoreNotice]);
 
   const updateTrackTimerDisplay = useCallback((offsetSec: number) => {
+    // Anchor + offset lets us re-sync after lock/resume without drift
     playbackSyncRef.current = { anchorAt: Date.now(), offsetSec };
     const duration = audioRef.current?.duration;
     if (!duration || isNaN(duration)) return;
@@ -140,6 +148,7 @@ export function useMatchAudio({
 
     const handleReady = () => {
       setAudioReady(true);
+      // Emit once per round when the preview is buffered — server waits for all clients
       if (roundInfo && readyRoundRef.current !== roundInfo.roundIndex) {
         socket.emit("round:ready");
         readyRoundRef.current = roundInfo.roundIndex;

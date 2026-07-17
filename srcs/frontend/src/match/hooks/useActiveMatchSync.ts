@@ -1,3 +1,7 @@
+/**
+ * Mirrors in-progress match metadata into ActiveMatchContext (header badge elsewhere).
+ * Clears the context when the match finishes or is not found.
+ */
 import { useEffect } from "react";
 import type { MatchStatePayload, ScoreEntry } from "../../types/socket.payloads";
 import type { RoundSyncPayload } from "../types";

@@ -1,3 +1,4 @@
+/** Left column: audio stage + lock button (+ playlist error). */
 import type { RefObject } from "react";
 import { handleMouseMoveToSetFillOrigin } from "../../utils/buttonHover";
 import type { GuessSelectedTrack, GuessStatus } from "../types";

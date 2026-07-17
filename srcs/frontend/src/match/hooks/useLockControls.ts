@@ -1,3 +1,7 @@
+/**
+ * Lock request via button or Space key. If audio was blocked by the browser,
+ * resumes playback first and then emits `round:lock_request` with current time.
+ */
 import { useCallback, useEffect, type RefObject } from "react";
 import { socket } from "../../api/socket";
 

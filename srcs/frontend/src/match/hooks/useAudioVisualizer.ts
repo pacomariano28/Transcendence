@@ -1,3 +1,7 @@
+/**
+ * Renders the frequency bars on the playing-phase canvas using the analyser
+ * node created in useMatchAudio. Runs continuously via requestAnimationFrame.
+ */
 import { useEffect, type RefObject } from "react";
 
 export function useAudioVisualizer(

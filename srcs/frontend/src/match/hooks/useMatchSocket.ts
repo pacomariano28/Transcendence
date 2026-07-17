@@ -1,3 +1,20 @@
+/**
+ * Subscribes to all match socket events for a single match code.
+ *
+ * The server drives round transitions; this hook translates events into React
+ * state updates. Effect deps are intentionally minimal (see cleanup note below)
+ * so handlers always close over the latest refs for user/lock identity without
+ * re-subscribing on every render.
+ *
+ * Event map:
+ *   match:state / match:phase — lobby & lifecycle
+ *   round:sync — new round, resets client state, sets audio URL
+ *   round:countdown — timestamp-based countdown before playback
+ *   round:lock_confirmed — pause audio, open guess window
+ *   round:guess_result — resolution overlay, score update, cooldown penalty flag
+ *   round:resume — resume playback from server-provided offset
+ *   match:end — final scores
+ */
 import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { socket } from "../../api/socket";
@@ -104,6 +121,7 @@ export function useMatchSocket({
   resetSearch,
 }: UseMatchSocketOptions) {
   const countdownTimerRef = useRef<number | null>(null);
+  // Refs capture lock/user identity for handlers that fire after state is cleared
   const myUserIdRef = useRef<string | null>(null);
   const lockOwnerIdRef = useRef<string | null>(null);
 
@@ -217,6 +235,7 @@ export function useMatchSocket({
         audioRef.current.currentTime = 0;
       }
 
+      // Uses absolute `endsAt` timestamp so countdown stays accurate after tab throttling
       const updateCountdown = () => {
         const now = Date.now();
         const remainingMs = endsAt - now;

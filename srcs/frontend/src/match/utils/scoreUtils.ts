@@ -1,5 +1,10 @@
 import type { MatchStatePayload } from "../../types/socket.payloads";
 
+/**
+ * Merges server score data into the local scores map.
+ * Used on HTTP hydration and on every `match:state` socket event so the
+ * scoreboard stays aligned with the server without resetting unrelated keys.
+ */
 export function mergeScoresFromPayload(
   prev: Record<string, number>,
   payload: MatchStatePayload,

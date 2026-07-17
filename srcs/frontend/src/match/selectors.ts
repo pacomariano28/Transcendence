@@ -1,3 +1,7 @@
+/**
+ * Pure selectors: derive display data from match state without side effects.
+ * Keeps MatchPage free of score-mapping and overlay visibility logic.
+ */
 import type { MatchStatePayload, ScoreEntry } from "../types/socket.payloads";
 import type { ScoreboardEntry } from "./types";
 
@@ -86,6 +90,7 @@ export function getMatchDisplayFlags(options: {
     roundPhase === "resolution-fail";
 
   const showAudioNotice = showAudioRestoreNotice && !showGuessPanel;
+  // Countdown, equalizer and audio-restore notice are mutually exclusive layers
   const showCountdown = !showGuessPanel && !showVisualizer && !showAudioNotice;
   const showEq = !showGuessPanel && showVisualizer && !showAudioNotice;
   const showTrackTimer =

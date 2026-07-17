@@ -1,3 +1,4 @@
+/** Live scoreboard during play; animated final results when the match ends. */
 import type { ScoreEntry } from "../../types/socket.payloads";
 import { handleMouseMoveToSetFillOrigin } from "../../utils/buttonHover";
 import type { ScoreboardEntry } from "../types";

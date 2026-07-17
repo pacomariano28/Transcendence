@@ -1,3 +1,7 @@
+/**
+ * Derives the visible guess countdown from the absolute `guessEndsAt` timestamp
+ * sent by the server on lock confirmation.
+ */
 import { useEffect, useState } from "react";
 import { SECOND_MS } from "../constants";
 

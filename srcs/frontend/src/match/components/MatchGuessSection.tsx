@@ -1,3 +1,4 @@
+/** Lock status label and Spotify search form for the lock owner. */
 import type { SpotifySearchTrack } from "../../api/spotify";
 
 type MatchGuessSectionProps = {

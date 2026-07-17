@@ -1,3 +1,7 @@
+/**
+ * Stacked overlay zones for the audio stage: track timer, restore notice,
+ * countdown, equalizer canvas, and guess/resolution states.
+ */
 import type { RefObject } from "react";
 import TypingText from "../../components/TypingText";
 import type { GuessSelectedTrack, GuessStatus } from "../types";
@@ -109,6 +113,7 @@ export default function MatchAudioStage({
         className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                   ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
       >
+        {/* Each guess outcome is an absolute layer; only one is visible at a time */}
         <div
           className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
                     ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}

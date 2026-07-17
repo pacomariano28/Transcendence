@@ -1,3 +1,4 @@
+/** Match code header with animated round indicator. */
 type MatchPageHeaderProps = {
   code: string;
   roundLabel: string;
