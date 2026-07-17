@@ -4,8 +4,6 @@ import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import type { SpotifySearchTrack } from "../api/spotify";
 import { searchSpotifyTracks } from "../api/spotify";
-import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
-import TypingText from "../components/TypingText";
 import { useActiveMatch } from "../context/active.match.context";
 import { getMatchState } from "../api/state";
 import type {
@@ -25,76 +23,23 @@ import {
   writePendingCooldown,
 } from "../utils/matchCooldown";
 import NotFoundPage from "./NotFoundPage";
-
-function isMatchNotFoundError(message: string) {
-  return message === "MATCH_NOT_FOUND" || message === "Match not found";
-}
-
-function normalizeCode(raw: string) {
-  return (raw ?? "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 6);
-}
-
-type RoundPreview = {
-  isrc: string;
-  fileName: string;
-};
-
-type RoundSyncPayload = {
-  matchId: string;
-  roundIndex: number;
-  roundsTotal: number;
-  preview: RoundPreview | null;
-  playlistError: string | null;
-};
-
-type RoundCountdownPayload = {
-  matchId: string;
-  roundIndex: number;
-  seconds: number;
-  endsAt: number;
-};
-
-type RoundLockPayload = {
-  matchId: string;
-  roundIndex: number;
-  lockOwnerId: string;
-  lockAt: number | null;
-  guessEndsAt: number | null;
-};
-
-type GuessSelectedTrack = {
-  isrc: string;
-  track: string;
-  artist: string;
-};
-
-type RoundGuessResultPayload = {
-  matchId: string;
-  roundIndex: number;
-  lockOwnerId: string;
-  correct: boolean;
-  reason: "wrong" | "timeout" | null;
-  isrc: string | null;
-  selectedTrack: GuessSelectedTrack | null;
-  scoreDelta: number;
-  totalScore: number;
-};
-
-type RoundResumePayload = {
-  matchId: string;
-  roundIndex: number;
-  resumeTime: number | null;
-};
-
-type MatchEndPayload = {
-  matchId: string;
-  scores: ScoreEntry[];
-};
-
-const SECOND_MS = 1000;
+import MatchPageHeader from "../match/components/MatchPageHeader";
+import MatchPlaySection from "../match/components/MatchPlaySection";
+import MatchGuessSection from "../match/components/MatchGuessSection";
+import MatchScoreboardSection from "../match/components/MatchScoreboardSection";
+import { useAudioVisualizer } from "../match/hooks/useAudioVisualizer";
+import { SECOND_MS } from "../match/constants";
+import { isMatchNotFoundError, normalizeCode } from "../match/utils";
+import type {
+  GuessSelectedTrack,
+  GuessStatus,
+  MatchEndPayload,
+  RoundCountdownPayload,
+  RoundGuessResultPayload,
+  RoundLockPayload,
+  RoundResumePayload,
+  RoundSyncPayload,
+} from "../match/types";
 
 export default function MatchPage() {
   const nav = useNavigate();
@@ -136,9 +81,7 @@ export default function MatchPage() {
   );
   const [cooldownUiTick, setCooldownUiTick] = useState(0);
 
-  const [guessStatus, setGuessStatus] = useState<
-    "countdown" | "expired" | "wrong" | "correct"
-  >("countdown");
+  const [guessStatus, setGuessStatus] = useState<GuessStatus>("countdown");
   const [showResultText, setShowResultText] = useState(false);
   const [guessResultTrack, setGuessResultTrack] =
     useState<GuessSelectedTrack | null>(null);
@@ -155,6 +98,8 @@ export default function MatchPage() {
 
   const [showAudioRestoreNotice, setShowAudioRestoreNotice] = useState(false);
   const showAudioRestoreNoticeRef = useRef(false);
+
+  useAudioVisualizer(analyserRef, canvasRef);
 
   useEffect(() => {
     showAudioRestoreNoticeRef.current = showAudioRestoreNotice;
@@ -238,13 +183,11 @@ export default function MatchPage() {
     }
   }, [applySyncedPlaybackPosition]);
 
-  // Creamos una referencia al ID actual para leerlo de forma segura dentro de closures/eventos de Socket
   const myUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     myUserIdRef.current = myUserId;
   }, [myUserId]);
 
-  // Guardamos también el lockOwnerId en un ref para capturarlo justamente antes de que se limpie en el evento resume
   const lockOwnerIdRef = useRef<string | null>(null);
   useEffect(() => {
     lockOwnerIdRef.current = lockOwnerId;
@@ -927,53 +870,31 @@ export default function MatchPage() {
     setSearching(false);
   }, []);
 
-  useEffect(() => {
-    let animationId: number;
-
-    const draw = () => {
-      const analyser = analyserRef.current;
-      const canvas = canvasRef.current;
-
-      if (!analyser || !canvas) {
-        animationId = requestAnimationFrame(draw);
-        return;
+  const handleSearchTermChange = useCallback(
+    (nextValue: string) => {
+      setSearchTerm(nextValue);
+      if (selectedTrack) {
+        setSelectedTrack(null);
       }
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        animationId = requestAnimationFrame(draw);
-        return;
+      if (nextValue.trim().length < 2) {
+        setSearchResults([]);
+        setSearchError(null);
+        setSearching(false);
       }
+    },
+    [selectedTrack],
+  );
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const height = (dataArray[i] / 255) * canvas.height * 0.6;
-        ctx.fillStyle = "#f7d046";
-        ctx.fillRect(
-          x,
-          canvas.height - height,
-          Math.max(barWidth - 2, 1),
-          height,
-        );
-        x += barWidth;
-      }
-
-      animationId = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-    };
-  }, []);
+  const handleGuessTransitionEnd = useCallback(() => {
+    if (
+      (guessStatus === "wrong" ||
+        guessStatus === "expired" ||
+        guessStatus === "correct") &&
+      !showResultText
+    ) {
+      setShowResultText(true);
+    }
+  }, [guessStatus, showResultText]);
 
   const showGuessPanel =
     roundPhase === "guessing" ||
@@ -1020,91 +941,13 @@ export default function MatchPage() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center px-4 py-10 fade-in sm:px-6 lg:px-8">
-      <style>{`
-      @keyframes roundPop {
-        0% { transform: scale(0.85); opacity: 0; filter: brightness(1.8); }
-        50% { transform: scale(1.18); opacity: 1; filter: brightness(1.4); box-shadow: 0 0 20px rgba(247,208,70,0.4); }
-        100% { transform: scale(1); opacity: 1; filter: brightness(1); }
-      }
-      .animate-round-change {
-        animation: roundPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-      }
-      @keyframes matchPlayExit {
-        0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); max-height: 600px; }
-        100% { opacity: 0; transform: scale(0.94) translateY(-12px); filter: blur(6px); max-height: 0; }
-      }
-      @keyframes matchGuessExit {
-        0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); max-height: 800px; }
-        100% { opacity: 0; transform: scale(0.96) translateY(-8px); filter: blur(4px); max-height: 0; }
-      }
-      @keyframes matchResultsEnter {
-        0% { opacity: 0; transform: scale(0.92) translateY(24px); filter: blur(8px); }
-        60% { opacity: 1; transform: scale(1.02) translateY(-4px); filter: blur(0); }
-        100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-      }
-      @keyframes matchTitleReveal {
-        0% { opacity: 0; transform: translateY(12px); letter-spacing: 0.1em; }
-        100% { opacity: 1; transform: translateY(0); letter-spacing: 0.24em; }
-      }
-      @keyframes resultRowReveal {
-        0% { opacity: 0; transform: translateX(-20px) scale(0.95); }
-        70% { opacity: 1; transform: translateX(4px) scale(1.01); }
-        100% { opacity: 1; transform: translateX(0) scale(1); }
-      }
-      @keyframes matchBackReveal {
-        0% { opacity: 0; transform: translateY(16px); }
-        100% { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes winnerGlow {
-        0%, 100% { box-shadow: 0 0 20px rgba(247,208,70,0.15); }
-        50% { box-shadow: 0 0 32px rgba(247,208,70,0.35); }
-      }
-      .animate-match-play-exit {
-        animation: matchPlayExit 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        pointer-events: none;
-      }
-      .animate-match-guess-exit {
-        animation: matchGuessExit 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        pointer-events: none;
-      }
-      .animate-match-results-enter {
-        animation: matchResultsEnter 0.85s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-      }
-      .animate-match-title-reveal {
-        animation: matchTitleReveal 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-      }
-      .animate-result-row-reveal {
-        animation: resultRowReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-      }
-      .animate-match-back-reveal {
-        animation: matchBackReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.5s both;
-      }
-      .animate-winner-glow {
-        animation: winnerGlow 2.5s ease-in-out infinite;
-      }
-    `}</style>
-
       <div className="w-full space-y-6">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center justify-between w-full">
-            <h1 className="font-mono text-3xl font-semibold tracking-[0.35em] text-zinc-500 hover:text-white transition duration-300 ease-in-out sm:text-5xl">
-              {code || "———"}
-            </h1>
-
-            {!isMatchFinished && (
-              <div
-                key={roundInfo?.roundIndex ?? "idle"}
-                className="animate-round-change flex items-center gap-2 rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-[#f7d046] shadow-[0_0_15px_rgba(247,208,70,0.05)]"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f7d046] opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f7d046]"></span>
-                </span>
-                {roundLabel}
-              </div>
-            )}
-          </div>
-        </header>
+        <MatchPageHeader
+          code={code}
+          roundLabel={roundLabel}
+          roundIndex={roundInfo?.roundIndex}
+          isMatchFinished={isMatchFinished}
+        />
 
         {error && (
           <div className="rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
@@ -1117,461 +960,57 @@ export default function MatchPage() {
             isMatchFinished ? "gap-0" : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
           }`}
         >
-          <section
-            className={`card order-1 overflow-hidden p-6 lg:col-start-1 lg:row-start-1 lg:flex lg:h-[24rem] lg:flex-col ${
-              isMatchFinished ? "animate-match-play-exit !m-0 !border-0 !p-0" : ""
-            }`}
-          >
-            <div className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
-              <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-52 lg:min-h-0 lg:h-auto lg:flex-1">
-                  <div
-                    className={`absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity duration-700 ease-in-out
-                    ${showTrackTimer ? "opacity-100" : "pointer-events-none opacity-0"}`}
-                  >
-                    <span className="relative h-2 w-2 shrink-0">
-                      <span
-                        className={`absolute inset-0 rounded-full bg-amber-400 opacity-75 ${roundPhase === "playing" ? "animate-ping" : ""}`}
-                      ></span>
-                      <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
-                    </span>
-                    <span className="relative transform translate-y-[1px]">
-                      Track: {songRemainingSeconds ?? 0}s
-                    </span>
-                  </div>
+          <MatchPlaySection
+            isMatchFinished={isMatchFinished}
+            canvasRef={canvasRef}
+            showTrackTimer={showTrackTimer}
+            songRemainingSeconds={songRemainingSeconds}
+            roundPhase={roundPhase}
+            showAudioNotice={showAudioNotice}
+            resumeAudioFromUserGesture={resumeAudioFromUserGesture}
+            showCountdown={showCountdown}
+            countdownSeconds={countdownSeconds}
+            showEq={showEq}
+            showGuessPanel={showGuessPanel}
+            guessStatus={guessStatus}
+            showResultText={showResultText}
+            guessSeconds={guessSeconds}
+            guessResultTrack={guessResultTrack}
+            onGuessTransitionEnd={handleGuessTransitionEnd}
+            showCooldownUi={showCooldownUi}
+            cooldownSeconds={cooldownSeconds}
+            canLock={canLock}
+            lockRequested={lockRequested}
+            requestLock={requestLock}
+            playlistError={roundInfo?.playlistError}
+          />
 
-                  <div
-                    role="button"
-                    tabIndex={showAudioNotice ? 0 : -1}
-                    onClick={() => {
-                      if (showAudioNotice) void resumeAudioFromUserGesture();
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        showAudioNotice &&
-                        (event.code === "Enter" || event.code === "Space")
-                      ) {
-                        event.preventDefault();
-                        void resumeAudioFromUserGesture();
-                      }
-                    }}
-                    className={`absolute inset-0 flex flex-col items-center justify-center px-6 text-center transition-all duration-700 ease-in-out
-                  ${showAudioNotice ? "cursor-pointer opacity-100 scale-100" : "pointer-events-none opacity-0 scale-95"}`}
-                  >
-                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                      Audio unavailable
-                    </div>
-                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-300">
-                      Audio is unavailable after reloading. Tap
-                      here to restore playback.
-                    </p>
-                  </div>
+          <MatchGuessSection
+            isMatchFinished={isMatchFinished}
+            roundPhase={roundPhase}
+            lockOwnerId={lockOwnerId}
+            lockOwnerName={lockOwnerName}
+            canGuess={canGuess}
+            searchTerm={searchTerm}
+            onSearchTermChange={handleSearchTermChange}
+            selectedTrack={selectedTrack}
+            searchResults={searchResults}
+            searching={searching}
+            searchError={searchError}
+            onSelectTrack={selectTrack}
+            onSubmitGuess={submitGuess}
+          />
 
-                  <div
-                    className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-in-out
-                  ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                  >
-                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                      Starts in
-                    </div>
-                    <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
-                      {countdownSeconds ?? ""}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-4 transition-all duration-700 ease-in-out
-                  ${showEq ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                  >
-                    <canvas
-                      ref={canvasRef}
-                      width={1200}
-                      height={240}
-                      className="h-full max-h-full w-full"
-                    />
-                  </div>
-
-                  <div
-                    onTransitionEnd={() => {
-                      if (
-                        (guessStatus === "wrong" ||
-                          guessStatus === "expired" ||
-                          guessStatus === "correct") &&
-                        !showResultText
-                      ) {
-                        setShowResultText(true);
-                      }
-                    }}
-                    className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                  ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                  >
-                    <div
-                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                    >
-                      <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-                        Guess time remaining
-                      </div>
-                      <div
-                        className={`mt-3 text-7xl font-bold transition-all duration-500
-                      ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
-                      >
-                        {guessSeconds ?? 0}
-                      </div>
-                      <div className="mt-2 text-sm text-zinc-500">seconds</div>
-                    </div>
-
-                    <div
-                      className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out
-                    ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                    >
-                      {showResultText && guessStatus === "expired" && (
-                        <TypingText key="timeout" text="TIMEOUT!" size="md" />
-                      )}
-                    </div>
-
-                    <div
-                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${guessStatus === "wrong" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                    >
-                      {showResultText && guessStatus === "wrong" && (
-                        <>
-                          <TypingText
-                            key="wrong"
-                            text="WRONG ANSWER!"
-                            size="md"
-                          />
-                          {guessResultTrack && (
-                            <div className="mt-4 max-w-md px-4 text-sm font-medium text-rose-400">
-                              {guessResultTrack.track} - {guessResultTrack.artist}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div
-                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                    ${guessStatus === "correct" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-                    >
-                      {showResultText && guessStatus === "correct" && (
-                        <>
-                          <TypingText
-                            key="correct"
-                            text="CORRECT ANSWER!"
-                            size="md"
-                          />
-                          {guessResultTrack && (
-                            <div className="mt-4 max-w-md px-4 text-sm font-medium text-emerald-400">
-                              {guessResultTrack.track} - {guessResultTrack.artist}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-              <button
-                className="btn-glow h-14 w-full shrink-0 transition-all duration-500 disabled:opacity-40"
-                style={
-                  {
-                    "--btn-color": showCooldownUi ? "#f43f5e" : "#f7d046",
-                  } as React.CSSProperties
-                }
-                type="button"
-                disabled={!canLock || lockRequested}
-                onClick={requestLock}
-                onMouseMove={handleMouseMoveToSetFillOrigin}
-              >
-                <span>
-                  {lockRequested
-                    ? "Locking..."
-                    : showCooldownUi
-                      ? `Cooldown (${cooldownSeconds}s)`
-                      : "Lock (Space)"}
-                </span>
-              </button>
-            </div>
-
-            {roundInfo?.playlistError && (
-              <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
-                {roundInfo.playlistError}
-              </div>
-            )}
-          </section>
-
-          <section
-            className={`card order-2 overflow-hidden p-6 lg:col-span-2 lg:row-start-2 ${
-              isMatchFinished ? "animate-match-guess-exit !m-0 !border-0 !p-0" : ""
-            }`}
-          >
-            <div className="flex flex-col gap-1">
-              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                Lock and guess
-              </div>
-
-              <div className="relative h-7 mt-1">
-                <div
-                  className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
-                text-lg text-zinc-300`}
-                >
-                  Locked by{" "}
-                  <span className="font-extrabold tracking-wider">
-                    {lockOwnerName || "player"}
-                  </span>
-                </div>
-                <div
-                  className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
-                ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
-                text-sm text-zinc-400`}
-                >
-                  First lock wins
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
-            ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
-            >
-              <div className="rounded-2xl bg-black/20 p-4">
-                {canGuess ? (
-                  <div className="mt-2">
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <input
-                        autoFocus
-                        className="lock-input input flex-1 text-center uppercase"
-                        placeholder="Search track"
-                        value={searchTerm}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          setSearchTerm(nextValue);
-                          if (selectedTrack) {
-                            setSelectedTrack(null);
-                          }
-                          if (nextValue.trim().length < 2) {
-                            setSearchResults([]);
-                            setSearchError(null);
-                            setSearching(false);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter") return;
-                          event.preventDefault();
-                          submitGuess();
-                        }}
-                        disabled={!canGuess}
-                      />
-                      <button
-                        className={`btn-glow submit-guess w-full sm:w-44 transition-all duration-300 ${!canGuess || !selectedTrack ? "opacity-50" : "animate-bounce scale-95"}`}
-                        style={
-                          { "--btn-color": "#4ade80" } as React.CSSProperties
-                        }
-                        type="button"
-                        onClick={submitGuess}
-                        disabled={!canGuess || !selectedTrack}
-                      >
-                        <span>Submit guess</span>
-                      </button>
-                    </div>
-
-                    {selectedTrack && (
-                      <div className="mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
-                        Selected: {selectedTrack.track} - {selectedTrack.artist}
-                      </div>
-                    )}
-
-                    {searchError && (
-                      <div className="mt-3 text-xs text-rose-300 animate-fade-in">
-                        {searchError}
-                      </div>
-                    )}
-
-                    {searching && (
-                      <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                        Searching...
-                      </div>
-                    )}
-
-                    {!searching &&
-                      !searchError &&
-                      searchTerm.trim().length >= 2 &&
-                      searchResults.length === 0 &&
-                      !selectedTrack && (
-                        <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                          No results.
-                        </div>
-                      )}
-
-                    {searchResults.length > 0 &&
-                      !selectedTrack &&
-                      searchTerm.trim().length >= 2 && (
-                        <div className="mt-3 grid gap-2 animate-fade-in">
-                          {searchResults.map((track) => (
-                            <button
-                              key={track.id}
-                              className="rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
-                              type="button"
-                              onClick={() => selectTrack(track)}
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {track.track}
-                              </div>
-                              <div className="text-xs text-zinc-400">
-                                {track.artist}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                ) : (
-                  <div className="mt-2 text-sm text-zinc-400">
-                    Waiting for the lock owner to submit a guess.
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section
-            className={`card order-3 p-6 ${
-              isMatchFinished
-                ? "animate-match-results-enter mx-auto w-full max-w-2xl"
-                : "lg:col-start-2 lg:row-start-1 lg:flex lg:h-[24rem] lg:flex-col lg:overflow-hidden"
-            }`}
-          >
-            {isMatchFinished ? (
-              <>
-                <div className="animate-match-title-reveal">
-                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-[#f7d046]">
-                    Match complete
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
-                    Final results
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-3">
-                  {resultsData.map((entry, index) => {
-                    const isWinner = index === 0;
-
-                    return (
-                      <div
-                        key={entry.userId}
-                        className={`animate-result-row-reveal flex min-h-[3.5rem] items-center justify-between rounded-2xl border px-4 py-3.5 sm:p-4 ${
-                          isWinner
-                            ? "animate-winner-glow border-[#f7d046]/50 bg-[#f7d046]/10"
-                            : "border-white/10 bg-black/20"
-                        }`}
-                        style={{ animationDelay: `${250 + index * 100}ms` }}
-                      >
-                        <div className="flex min-w-0 items-center gap-3 text-sm font-medium text-zinc-100 sm:text-base">
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                              isWinner
-                                ? "bg-[#f7d046] text-zinc-950"
-                                : "bg-white/10 text-zinc-400"
-                            }`}
-                          >
-                            {index + 1}
-                          </span>
-                          <span className="truncate">{entry.displayName}</span>
-                          {entry.userId === myUserId ? (
-                            <span className="shrink-0 text-zinc-500 font-normal">
-                              (you)
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div
-                          className={`shrink-0 text-lg font-semibold sm:text-xl ${
-                            isWinner ? "text-[#f7d046]" : "text-white"
-                          }`}
-                        >
-                          {entry.score}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="animate-match-back-reveal mt-8 text-center">
-                  <button
-                    className="btn-glow px-6"
-                    style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
-                    type="button"
-                    onClick={leaveFinishedMatch}
-                    onMouseMove={handleMouseMoveToSetFillOrigin}
-                  >
-                    <span>back</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-            <div className="shrink-0 text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-              Scoreboard
-            </div>
-            {scoreboard.length === 0 ? (
-              <div className="mt-4 flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-                Waiting for players.
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-2.5 lg:min-h-0 lg:flex-1 lg:grid-rows-5 lg:gap-2">
-                {scoreboard.map((entry) => {
-                  const isCurrentLockOwner = entry.userId === lockOwnerId;
-                  const isWinRow =
-                    roundPhase === "resolution-win" && isCurrentLockOwner;
-                  const isFailRow =
-                    roundPhase === "resolution-fail" && isCurrentLockOwner;
-                  const isLockedRow =
-                    roundPhase === "guessing" && isCurrentLockOwner;
-
-                  return (
-                    <div
-                      key={entry.userId}
-                      className={`flex min-h-[3.25rem] items-center justify-between rounded-2xl border px-4 py-3.5 lg:min-h-0 lg:py-0 transition-all duration-500 ease-in-out
-                      ${
-                        isWinRow
-                          ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
-                          : isFailRow
-                            ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-                            : isLockedRow
-                              ? "border-[#f7d046]/40 bg-[#f7d046]/10 shadow-[0_0_15px_rgba(247,208,70,0.15)]"
-                              : "border-white/10 bg-black/20"
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-zinc-100">
-                        <span className="truncate">{entry.displayName}</span>
-                        {entry.userId === myUserId ? (
-                          <span className="shrink-0 text-zinc-500 font-normal">
-                            (you)
-                          </span>
-                        ) : null}
-                        {!entry.connected ? (
-                          <span className="shrink-0 text-zinc-500 font-normal text-xs">
-                            (offline)
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div
-                        className={`shrink-0 text-lg font-semibold transition-all duration-300
-                        ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
-                      >
-                        {entry.score}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-              </>
-            )}
-          </section>
-          </div>
+          <MatchScoreboardSection
+            isMatchFinished={isMatchFinished}
+            resultsData={resultsData}
+            myUserId={myUserId}
+            onLeaveFinishedMatch={leaveFinishedMatch}
+            scoreboard={scoreboard}
+            lockOwnerId={lockOwnerId}
+            roundPhase={roundPhase}
+          />
+        </div>
       </div>
     </div>
   );
