@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import TypingText from "../components/TypingText";
@@ -11,6 +12,8 @@ import type {
   MatchStatePayload,
   RoomLobbyLocationState,
 } from "../types/socket.payloads";
+import { translateError } from "../i18n/translateError";
+import i18n from "../i18n/i18n";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -24,6 +27,7 @@ function isMatchNotFoundError(message: string) {
 }
 
 export default function RoomLobbyPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const createdMatch = (location.state as RoomLobbyLocationState | null)
     ?.createdMatch;
@@ -98,7 +102,8 @@ export default function RoomLobbyPage() {
       if (createdMatch?.matchId === code) return;
       socket.emit("match:join", {
         matchId: code,
-        displayName: user.username ?? user.email ?? "Guest",
+        displayName:
+          user.username ?? user.email ?? i18n.t("lobby.guestFallback"),
       });
     };
 
@@ -160,11 +165,7 @@ export default function RoomLobbyPage() {
   }
 
   if (!code || notFound) {
-    return (
-      <NotFoundPage
-        title="ROOM NOT FOUND!"
-      />
-    );
+    return <NotFoundPage title={t("lobby.notFoundTitle")} />;
   }
 
   return (
@@ -172,7 +173,7 @@ export default function RoomLobbyPage() {
       <div className="mx-auto max-w-3xl">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            <TypingText text="Lobby code" size="md" className="ms-1" />
+            <TypingText text={t("lobby.lobbyCode")} size="md" className="ms-1" />
           </div>
           <div className="select-text mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-white sm:text-5xl">
             {code || "———"}
@@ -191,23 +192,26 @@ export default function RoomLobbyPage() {
               onMouseMove={handleMouseMoveToSetFillOrigin}
               disabled={!matchState}
             >
-              <span>{me?.ready ? "Ready" : "Mark ready"}</span>
+              <span>
+                {me?.ready ? t("lobby.ready") : t("lobby.markReady")}
+              </span>
             </button>
             <button className="btn-ghost flex-1" type="button" onClick={leave}>
-              Leave room
+              {t("lobby.leaveRoom")}
             </button>
           </div>
 
           {error && (
             <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge mt-4">
-              <strong>Error:</strong> {error}
+              <strong>{t("lobby.errorPrefix")}</strong>{" "}
+              {translateError(error, t)}
             </div>
           )}
 
           <div className="mt-8 page-card">
             <div className="flex items-center justify-between">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                Connected players
+                {t("lobby.connectedPlayers")}
               </div>
               <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
                 {matchState ? connectedPlayers.length : 0}
@@ -217,7 +221,7 @@ export default function RoomLobbyPage() {
             <div className="mt-4 grid gap-3">
               {connectedPlayers.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-                  Waiting for players to connect.
+                  {t("lobby.waitingPlayers")}
                 </div>
               ) : (
                 connectedPlayers.map((player) => (
@@ -229,7 +233,9 @@ export default function RoomLobbyPage() {
                       <div className="text-sm font-medium text-zinc-100">
                         {player.displayName}
                         {player.userId === String(user?.id) ? (
-                          <span className="text-zinc-500"> (you)</span>
+                          <span className="text-zinc-500">
+                            {t("lobby.youSuffix")}
+                          </span>
                         ) : null}
                       </div>
                       <div

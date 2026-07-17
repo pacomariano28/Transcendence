@@ -1,5 +1,6 @@
 import { useAuth } from "../auth/auth-context";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import TypingText from "../components/TypingText";
 
 type SpotifyArtist = {
@@ -105,11 +106,15 @@ function TrackCard({
   subtitle: string;
   track?: SpotifyTrack | null;
 }) {
+  const { t } = useTranslation();
+
   if (!track) {
     return (
       <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d046]/40 hover:bg-white/5 hover:shadow-[0_0_0_1px_rgba(247,208,70,0.08),0_12px_30px_rgba(0,0,0,0.18)]">
         <div className="text-xs font-medium text-zinc-400">{title}</div>
-        <div className="mt-4 text-sm text-zinc-500">No track available.</div>
+        <div className="mt-4 text-sm text-zinc-500">
+          {t("profile.no_track_available")}
+        </div>
       </div>
     );
   }
@@ -125,7 +130,7 @@ function TrackCard({
         </div>
 
         <div className="rounded-full border border-[#f7d046]/20 bg-[#f7d046]/10 px-2.5 py-1 text-[11px] font-medium text-[#f7d046] transition-colors duration-200 group-hover:border-[#f7d046]/40 group-hover:bg-[#f7d046]/15">
-          Popularity {track.popularity}
+          {t("profile.popularity")} {track.popularity}
         </div>
       </div>
 
@@ -138,7 +143,7 @@ function TrackCard({
               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
           ) : (
-            <div className="text-xs text-zinc-400">No img</div>
+            <div className="text-xs text-zinc-400">{t("profile.no_img")}</div>
           )}
         </div>
 
@@ -187,6 +192,7 @@ function StatCard({
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const { user } = useAuth() as { user: AuthUser | null };
 
   const spotifyProfile = user?.spotifyProfile ?? null;
@@ -201,34 +207,36 @@ export default function ProfilePage() {
       <div className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <TypingText text="PROFILE" size="lg" />
+            <TypingText text={t("profile.title")} size="lg" />
             <p className="mt-2 text-sm text-zinc-400">
-              Session data from /api/auth/me
+              {t("profile.session_data")}
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-300 transition-all duration-200 hover:border-[#f7d046]/40 hover:bg-white/5">
-            Protected
+            {t("profile.protected")}
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <StatCard label="User email" value={user?.email ?? "-"}>
-            <div className="text-xs text-zinc-500">Username</div>
+          <StatCard label={t("profile.user_email")} value={user?.email ?? "-"}>
+            <div className="text-xs text-zinc-500">{t("profile.username")}</div>
             <div className="text-sm text-zinc-200">{user?.username ?? "-"}</div>
           </StatCard>
 
           <StatCard
-            label="Top Genre"
+            label={t("profile.top_genre")}
             value={topGenre?.name ?? "-"}
             tone="green"
           >
             {topGenre ? (
               <div className="text-xs text-emerald-200/80">
-                Weight: {topGenre.weight.toFixed(2)}
+                {t("profile.weight")}: {topGenre.weight.toFixed(2)}
               </div>
             ) : (
-              <div className="text-xs text-zinc-500">No genre data</div>
+              <div className="text-xs text-zinc-500">
+                {t("profile.no_genre_data")}
+              </div>
             )}
           </StatCard>
         </div>
@@ -237,17 +245,17 @@ export default function ProfilePage() {
           <>
             <div className="mt-8">
               <div className="mb-3 text-sm font-medium text-zinc-300">
-                Top Tracks
+                {t("profile.top_tracks")}
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <TrackCard
-                  title="Song of the month"
-                  subtitle="Recent listening"
+                  title={t("profile.song_of_the_month")}
+                  subtitle={t("profile.recent_listening")}
                   track={monthTrack}
                 />
                 <TrackCard
-                  title="Song of all time"
-                  subtitle="All time listening"
+                  title={t("profile.song_of_all_time")}
+                  subtitle={t("profile.all_time_listening")}
                   track={allTimeTrack}
                 />
               </div>
@@ -255,7 +263,7 @@ export default function ProfilePage() {
 
             <div className="mt-8">
               <div className="mb-3 text-sm font-medium text-zinc-300">
-                Top Artists
+                {t("profile.top_artists")}
               </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {spotifyProfile?.topArtists?.length ? (
@@ -275,13 +283,13 @@ export default function ProfilePage() {
 
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-zinc-500">
-                            Rank #{index + 1}
+                            {t("profile.rank")} #{index + 1}
                           </div>
                           <div className="truncate text-base font-semibold text-white transition-colors duration-200 group-hover:text-[#fff3bf]">
                             {artist.name}
                           </div>
                           <div className="text-xs text-zinc-400">
-                            Popularity {artist.popularity}
+                            {t("profile.popularity")} {artist.popularity}
                           </div>
                         </div>
                       </div>
@@ -298,14 +306,16 @@ export default function ProfilePage() {
                           ))
                         ) : (
                           <span className="text-xs text-zinc-500">
-                            No genres
+                            {t("profile.no_genres")}
                           </span>
                         )}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-zinc-400">No artists yet.</div>
+                  <div className="text-sm text-zinc-400">
+                    {t("profile.no_artists_yet")}
+                  </div>
                 )}
               </div>
             </div>
@@ -313,17 +323,16 @@ export default function ProfilePage() {
         ) : (
           <div className="rounded-3xl border border-dashed border-[#f7d046]/30 bg-black/20 p-6 text-center mt-4">
             <div className="text-lg font-semibold text-white">
-              Spotify not connected
+              {t("profile.spotify_not_connected")}
             </div>
             <p className="mt-2 text-sm text-zinc-400">
-              Log in with your Spotify account to unlock your top artists,
-              genres and music profile.
+              {t("profile.spotify_connect_prompt")}
             </p>
             <button
               onClick={loginWithSpotify}
               className="mt-4 inline-flex rounded-xl border border-[#f7d046]/30 bg-[#f7d046]/10 px-4 py-2 text-sm font-medium text-[#f7d046] transition-colors hover:bg-[#f7d046]/15"
             >
-              Connect Spotify
+              {t("profile.connect_spotify")}
             </button>
           </div>
         )}

@@ -1,8 +1,10 @@
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import LanguageButton from "./LanguageButton";
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
@@ -62,6 +64,7 @@ function LogoutIcon() {
 }
 
 export default function AppHeader() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { user, loading, clear } = useAuth();
@@ -94,15 +97,16 @@ export default function AppHeader() {
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">
-            <NavItem to="/" label="Home" />
-            <NavItem to="/profile" label="Profile" />
+            <LanguageButton />
+            <NavItem to="/" label={t("header.nav_home")} />
+            <NavItem to="/profile" label={t("header.nav_profile")} />
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
           {loading ? (
             <div className="animate-pulse text-sm text-zinc-400">
-              Checking session…
+              {t("home.checking_session")}
             </div>
           ) : user ? (
             <>
@@ -113,7 +117,9 @@ export default function AppHeader() {
                   imageUrl={avatarUrl}
                 />
                 <div className="text-sm text-zinc-300">
-                  <span className="block text-zinc-400">Signed in as</span>
+                  <span className="block text-zinc-400">
+                    {t("header.signed_in_as")}
+                  </span>
                   <span className="text-zinc-200">
                     {user.username ?? user.email}
                   </span>
@@ -148,7 +154,7 @@ export default function AppHeader() {
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 type="button"
               >
-                <span>Login</span>
+                <span>{t("auth.login")}</span>
               </button>
             </Link>
           )}
@@ -169,12 +175,16 @@ export default function AppHeader() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600"></span>
             </span>
             {/* leading-none quita los márgenes invisibles de la tipografía por arriba y abajo */}
-            <span className="leading-none">LIVE MATCH IN PROGRESS</span>
+            <span className="leading-none">
+              {t("header.live_match_in_progress")}
+            </span>
           </div>
 
           {/* Lado derecho: Datos de la sala y ronda */}
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="select-text opacity-90">ROOM: {activeMatch.code}</span>
+            <span className="select-text opacity-90">
+              {t("header.room")} {activeMatch.code}
+            </span>
             {activeMatch.roundLabel && (
               /* Cambiamos inline-flex por inline-block y controlamos el padding píxel a píxel */
               <span

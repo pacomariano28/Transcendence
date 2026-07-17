@@ -1,16 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { useAuth } from "../auth/auth-context";
 import TypingText from "../components/TypingText";
 import { getMatchState } from "../api/state";
 import type { MatchStatePayload } from "../types/socket.payloads";
+import { translateError } from "../i18n/translateError";
 
 function normalizeCode(raw: string) {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export default function JoinRoomPage() {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +24,14 @@ export default function JoinRoomPage() {
   const { user } = useAuth();
 
   const disabledReason = useMemo(() => {
-    if (!user) return "Login required";
+    if (!user) return "LOGIN_REQUIRED";
     return "";
   }, [user]);
 
   async function pasteFromClipboard() {
     try {
-      const t = await navigator.clipboard.readText();
-      setCode(normalizeCode(t).slice(0, 8));
+      const text = await navigator.clipboard.readText();
+      setCode(normalizeCode(text).slice(0, 8));
       setTouched(true);
     } catch {
       // ignore: clipboard permissions
@@ -48,7 +51,7 @@ export default function JoinRoomPage() {
 
       console.log(JSON.stringify(match));
 
-      if (match.phase === "finished") throw new Error("match finished");
+      if (match.phase === "finished") throw new Error("MATCH_FINISHED");
       nav(`/room/${normalized}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "";
@@ -60,35 +63,31 @@ export default function JoinRoomPage() {
     <div className="container-page py-10 fade-in mt-5">
       <div className="mx-auto max-w-3xl">
         <div>
-          {/* INDICADOR SUPERIOR CON TYPING EFFECT */}
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            <TypingText text="LOBBY PAGE" size="md" />
+            <TypingText text={t("join.lobby_page")} size="md" />
           </div>
 
-          {/* CÓDIGO EN TIEMPO REAL (ESTILO LOBBY) */}
           <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-zinc-500 sm:text-5xl uppercase">
             {normalized || "———"}
           </div>
 
-          {/* CONTROL DE ERRORES/LOGIN */}
           {disabledReason && (
             <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200 text-sm animate-fade-in">
-              {disabledReason}
+              {translateError(disabledReason, t)}
             </div>
           )}
 
-          {/* PANEL DE CREDENCIALES (ESTILO PAGE-CARD DEL LOBBY) */}
           <div className="mt-8 page-card">
             <div className="flex items-center justify-between">
               <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-                Room credentials
+                {t("join.room_credentials")}
               </div>
               <button
                 type="button"
                 className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300 transition hover:bg-white/10"
                 onClick={pasteFromClipboard}
               >
-                Paste
+                {t("join.paste")}
               </button>
             </div>
 
@@ -103,7 +102,7 @@ export default function JoinRoomPage() {
                 ].join(" ")}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="AB12CD"
+                placeholder={t("join.placeholder")}
                 maxLength={16}
                 onBlur={() => setTouched(true)}
                 onKeyDown={(event) => {
@@ -114,16 +113,15 @@ export default function JoinRoomPage() {
               />
             </div>
 
-            {/* ERROR INLINE DE VALIDACIÓN */}
             <div className="mt-3 flex items-center justify-between text-xs font-mono text-zinc-500">
               <div className="relative h-4 flex-1">
                 {touched && !isValid ? (
                   <span className="absolute left-0 text-rose-400 animate-fade-in font-sans tracking-wide">
-                    Code must be 4–8 chars (A–Z, 0–9).
+                    {t("join.error_validation_failed")}
                   </span>
                 ) : (
                   <span className="absolute left-0 text-zinc-500 font-sans tracking-wide">
-                    Use 4–8 characters.
+                    {t("join.validation_hint")}
                   </span>
                 )}
               </div>
@@ -133,11 +131,10 @@ export default function JoinRoomPage() {
 
           {error && (
             <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 mt-3 text-sm text-rose-200 nudge">
-              <strong>{error}</strong>
+              <strong>{translateError(error, t)}</strong>
             </div>
           )}
 
-          {/* FILA DE BOTONES ASIMÉTRICA (ESTILO LOBBY JUEGO) */}
           <div className="mt-6 flex gap-3 sm:flex-row">
             <button
               className="btn-glow flex-5 p-4 transition-all duration-500"
@@ -145,24 +142,30 @@ export default function JoinRoomPage() {
               type="button"
               disabled={!isValid || !!disabledReason}
               onClick={onJoin}
-              title={disabledReason}
+              title={
+                disabledReason
+                  ? translateError(disabledReason, t)
+                  : undefined
+              }
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              <span>Join room</span>
+              <span>{t("join.join_room")}</span>
             </button>
 
             <Link
               className="btn-ghost flex-1 flex items-center justify-center p-4 text-center"
               to="/"
             >
-              Back
+              {t("join.back")}
             </Link>
           </div>
 
-          {/* COMENTARIO INFERIOR LIMPIO */}
           <div className="mt-8 text-center text-xs text-zinc-500 font-sans">
-            Tip: we’ll auto-normalize to{" "}
-            <span className="text-zinc-400 font-mono">UPPERCASE</span>.
+            {t("join.tip_prefix")}{" "}
+            <span className="text-zinc-400 font-mono">
+              {t("join.tip_suffix")}
+            </span>
+            .
           </div>
         </div>
       </div>

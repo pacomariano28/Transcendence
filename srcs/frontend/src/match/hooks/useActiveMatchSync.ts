@@ -13,6 +13,7 @@ type UseActiveMatchSyncOptions = {
   notFound: boolean;
   roundPhase: string;
   finalScores: ScoreEntry[] | null;
+  compactRoundLabel?: string;
   setActiveMatch: (value: { code: string; roundLabel?: string } | null) => void;
 };
 
@@ -23,6 +24,7 @@ export function useActiveMatchSync({
   notFound,
   roundPhase,
   finalScores,
+  compactRoundLabel,
   setActiveMatch,
 }: UseActiveMatchSyncOptions) {
   useEffect(() => {
@@ -44,9 +46,7 @@ export function useActiveMatchSync({
     if (matchState) {
       setActiveMatch({
         code: code,
-        roundLabel: roundInfo
-          ? `R ${roundInfo.roundIndex + 1}/${roundInfo.roundsTotal}`
-          : undefined,
+        roundLabel: compactRoundLabel,
       });
     }
   }, [
@@ -57,5 +57,6 @@ export function useActiveMatchSync({
     notFound,
     roundPhase,
     finalScores,
+    compactRoundLabel,
   ]);
 }

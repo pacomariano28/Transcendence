@@ -1,0 +1,235 @@
+{
+  "header": {
+    "nav_home": "Home",
+    "nav_profile": "Profiel",
+    "change_lang": "Taal wijzigen",
+    "signed_in_as": "Ingelogd als",
+    "live_match_in_progress": "WEDSTRIJD BEZIG",
+    "room" : "Kamer:"
+  },
+  "footer": {
+    "game_description": "Minimaal multiplayer spel",
+    "built_with": "Gebouwd met React"
+  },
+  "home": {
+    "title": "Raad het nummer",
+    "create_room": "Kamer aanmaken",
+    "creating": "Aanmaken...",
+    "join_room": "Deelnemen aan kamer",
+    "checking_session": "Sessie controleren…",
+    "signed_in_prefix": "Je bent ingelogd als ",
+    "signed_in_suffix": ". Ga naar ",
+    "profile_link": "Profiel",
+    "not_signed_in": "Je bent niet ingelogd. ",
+    "login_link": "Inloggen",
+    "login_prompt_suffix": " om je sessie te behouden bij het verversen.",
+    "disabled_login_required": "Inloggen vereist",
+    "disabled_creating": "Kamer aanmaken...",
+    "made_by": "GEMAAKT DOOR"
+  },
+  "join": {
+    "lobby_page": "DEELNEMEN AAN WEDSTRIJD",
+    "room_credentials": "WEDSTRIJDCODE",
+    "paste": "Plakken",
+    "placeholder": "AB12CD",
+    "error_validation_failed": "Code moet 4–8 tekens lang zijn (A–Z, 0–9).",
+    "validation_hint": "Gebruik 4–8 tekens.",
+    "join_room": "Deelnemen aan kamer",
+    "back": "Terug",
+    "tip_prefix": "Tip: we zetten dit automatisch om naar ",
+    "tip_suffix": "HOOFDLETTERS"
+  },
+  "auth": {
+    "welcome_back": "Welkom terug",
+    "create_account": "Account aanmaken",
+    "continue_with": "Doorgaan met",
+    "or": "of",
+    "email": "E-mailadres",
+    "username": "Gebruikersnaam",
+    "password": "Wachtwoord",
+    "working": "Verwerken…",
+    "login": "Inloggen",
+    "create_an_account_switch": "Een account aanmaken",
+    "already_have_account": "Ik heb al een account"
+  },
+  "profile": {
+    "title": "PROFIEL",
+    "session_data": "Sessiedata",
+    "protected": "Beveiligd",
+    "user_email": "E-mailadres gebruiker",
+    "username": "Gebruikersnaam",
+    "top_genre": "Topgenre",
+    "weight": "Gewicht",
+    "no_genre_data": "Geen genregegevens",
+    "top_tracks": "Topnummers",
+    "song_of_the_month": "Nummer van de maand",
+    "recent_listening": "Recent beluisterd",
+    "song_of_all_time": "Nummer aller tijden",
+    "all_time_listening": "Altijd beluisterd",
+    "no_track_available": "Geen nummer beschikbaar.",
+    "popularity": "Populariteit",
+    "no_img": "Geen afb",
+    "top_artists": "Topartiesten",
+    "rank": "Rang",
+    "no_genres": "Geen genres",
+    "no_artists_yet": "Nog geen artiesten.",
+    "spotify_not_connected": "Spotify niet verbonden",
+    "spotify_connect_prompt": "Log in met je Spotify-account om je topartiesten, genres en muziekprofiel te ontgrendelen.",
+    "connect_spotify": "Spotify verbinden",
+    "completing_spotify_login": "Inloggen met Spotify afronden..."
+  },
+  "match": {
+    "rounds": {
+      "label": "Ronde {{current}} / {{total}}",
+      "waiting": "Wachten op de ronde"
+    },
+    "cooldown": {
+      "active": "Afkoelperiode actief! Even geduld...",
+      "secondsRemaining": "Resterende seconden: {seconds}"
+    },
+    "user": {
+      "guest": "Gast",
+      "playerFallback": "Speler",
+      "player": "speler"
+    },
+    "errors": {
+      "audioLoadFailed": "Kan de audiostream niet laden. Controleer je verbinding.",
+      "searchFailed": "Zoeken mislukt. Controleer je zoekopdracht of probeer het later opnieuw.",
+      "matchNotFoundTitle": "WEDSTRIJD NIET GEVONDEN!"
+    },
+    "header": {
+      "matchComplete": "Wedstrijd voltooid",
+      "finalResults": "Eindresultaten",
+      "you": "(jij)",
+      "backButton": "terug"
+    },
+    "hud": {
+      "trackTime": "Nummer: {{seconds}}s",
+      "audioUnavailable": "Audio niet beschikbaar",
+      "audioRestoreInstructions": "Audio is niet beschikbaar na het herladen. Tik hier om de weergave te herstellen.",
+      "startsIn": "Begint over",
+      "guessTimeRemaining": "Resterende goktijd",
+      "seconds": "seconden",
+      "timeout": "TIJD OM!",
+      "wrongAnswer": "FOUT ANTWOORD!",
+      "correctAnswer": "GOED ANTWOORD!",
+      "lockedBy": "Vergrendeld door {{name}}",
+      "firstLockWins": "Wie het eerst vergrendelt wint",
+      "lockLabel": "Vergrendel en raad"
+    },
+    "buttons": {
+      "locking": "Bezig met vergrendelen...",
+      "cooldown": "Afkoelperiode ({{seconds}}s)",
+      "lockDefault": "Vergrendel (Spatie)"
+    },
+    "guessingPanel": {
+      "searchPlaceholder": "Zoek nummer",
+      "submitButton": "Antwoord indienen",
+      "selectedPrefix": "Geselecteerd: {{track}} — {{artist}}",
+      "searching": "Zoeken...",
+      "noResults": "Geen resultaten.",
+      "waitingForOwner": "Wachten tot de eigenaar van de vergrendeling een antwoord indient."
+    },
+    "scoreboard": {
+      "title": "Scorebord",
+      "waitingForPlayers": "Wachten op spelers.",
+      "you": "(jij)",
+      "offline": "(offline)"
+    }
+  },
+  "lobby": {
+    "notFoundTitle": "KAMER NIET GEVONDEN!",
+    "lobbyCode": "Lobbycode",
+    "ready": "Gereed",
+    "markReady": "Meld gereed",
+    "leaveRoom": "Kamer verlaten",
+    "errorPrefix": "Fout:",
+    "connectedPlayers": "Verbonden spelers",
+    "waitingPlayers": "Wachten op spelers om te verbinden.",
+    "youSuffix": " (jij)",
+    "guestFallback": "Gast"
+  },
+  "terms": {
+    "title": "Algemene Voorwaarden",
+    "lastUpdated": "Laatst bijgewerkt: 8 juli 2026",
+    "intro": "Deze Algemene Voorwaarden (\"Voorwaarden\") zijn van toepassing op uw gebruik van <1>Songuess</1>, een real-time multiplayer muziekquiz. Door Songuess te openen of te gebruiken, gaat u akkoord met deze Voorwaarden.",
+    "sections": {
+      "academicTitle": "1. Academisch project",
+      "academicBody": "Songuess is een academisch project ontwikkeld door studenten van <1>42</1> als onderdeel van het ft_transcendence-curriculum. Het is een leeroefening en MVP, geen commercieel product of een openbaar geëxploiteerde onlinedienst.",
+      "intendedTitle": "2. Beoogd gebruik",
+      "intendedBody1": "Songuess is uitsluitend bedoeld voor lokale ontwikkeling, testen en evaluatie — inclusief projectbeoordelingen en peer-assessments bij 42. Het is niet ontworpen voor algemeen publiek gebruik op internet, en we bieden het niet aan als een gehoste dienst aan externe gebruikers.",
+      "intendedBody2": "U mag Songuess alleen openen in omgevingen waar het project is geïmplementeerd voor academische doeleinden (bijvoorbeeld een lokale of door de school verstrekte opstelling die tijdens de evaluatie wordt gebruikt).",
+      "acceptableTitle": "3. Acceptabel gebruik",
+      "acceptableIntro": "U gaat akkoord met een verantwoordelijk gebruik te goeder trouw van Songuess. U mag niet:",
+      "acceptableRule1": "Proberen de applicatie of de infrastructuur ervan te verstoren, uit te buiten of te reverse-engineeren.",
+      "acceptableRule2": "De dienst gebruiken om andere spelers te pesten, te imiteren of te schaden.",
+      "acceptableRule3": "Inloggegevens delen of proberen toegang te krijgen tot accounts die niet van u zijn.",
+      "acceptableRule4": "Geautomatiseerde tools of scripts gebruiken om de gameplay of serverfunctionaliteit te verstoren.",
+      "acceptableOutro": "We kunnen de toegang beperken of beëindigen als we vaststellen dat het gebruik misbruik maakt of onverenigbaar is met het academische doel van het project.",
+      "availabilityTitle": "4. Geen garantie op beschikbaarheid",
+      "availabilityBody": "Songuess wordt geleverd op een \"as is\" en \"as available\" basis. Omdat het een MVP in actieve ontwikkeling is, garanderen we <1>niet</1> dat het continu beschikbaar is, uptime heeft, gegevens bewaart of foutloos werkt. De dienst kan op elk moment zonder voorafgaande kennisgeving offline zijn, worden gereset of onbeschikbaar zijn — inclusief tijdens evaluaties, demo's of ontwikkelingswerk.",
+      "changesDevTitle": "5. Wijzigingen tijdens de ontwikkeling",
+      "changesDevBody": "Het ontwikkelingsteam kan op elk moment functies, regels o gegevens toevoegen, wijzigen of verwijderen als onderdeel van de lopende werkzaamheden aan het project. Spelmechanica, authenticatiestromen en opgeslagen datamodellen kunnen zonder voorafgaande kennisgeving veranderen. U erkent dat uw ervaring kan verschillen tussen versies en evaluatiesessies.",
+      "spotifyTitle": "6. Spotify als dienst van derden",
+      "spotifyBody1": "Songuess gebruikt <1>Spotify</1> uitsluitend voor gebruikersauthenticatie en, met uw toestemming, om profiel- en luistersmaakinformatie op te halen die binnen de app wordt gebruikt. Uw gebruik van Spotify-login is tevens onderworpen aan de eigen voorwaarden en het privacybeleid van Spotify.",
+      "spotifyBody2": "We zijn niet gelieerd aan, worden niet ondersteund door en zijn niet verantwoordelijk voor Spotify. Als Spotify niet beschikbaar is of zijn API wijzigt, kan Spotify-login of gerelateerde functies in Songuess zonder kennisgeving stoppen met werken.",
+      "accountsTitle": "7. Accounts en inhoud",
+      "accountsBody1": "U bent verantwoordelijk voor de juistheid van de informatie die u verstrekt bij de registratie (e-mail, gebruikersnaam en wachtwoord) of bij het inloggen met Spotify. U bent verantwoordelijk voor het vertrouwelijk houden van uw inloggegevens.",
+      "accountsBody2": "Songuess claimt geen eigendom over muziekfragmenten of metadata die tijdens de gameplay via Spotify naar voren komen. Alle muziekgerelateerde inhoud blijft onderworpen aan de voorwaarden van Spotify en het toepasselijke auteursrecht.",
+      "liabilityTitle": "8. Beperking van aansprakelijkheid",
+      "liabilityBody": "Voor zover maximaal toegestaan in deze academische context, zijn de ontwikkelaars van Songuess niet aansprakelijk voor enig verlies van gegevens, onderbroken gameplay of andere schade die voortvloeit uit het gebruik van deze MVP. Het project wordt gratis aangeboden, zonder monetarisering, advertenties of garanties van welke aard dan ook.",
+      "contactTitle": "9. Contact",
+      "contactBody": "Voor vragen over deze Voorwaarden of over uw gegevens kunt u contact opnemen met het ontwikkelingsteam via de GitHub-profielen die op de <1>homepagina</1> vermeld staan.",
+      "changesTermsTitle": "10. Wijzigingen in deze Voorwaarden",
+      "changesTermsBody": "We kunnen deze Voorwaarden bijwerken naarmate het project evolueert. Voortgezet gebruik van Songuess na de publicatie van wijzigingen houdt acceptatie in van de herziene Voorwaarden. De datum \"Laatst bijgewerkt\" bovenaan deze pagina geeft de nieuwste herziening aan."
+    },
+    "seeAlso": "Zie ook ons <1>Privacybeleid</1>."
+  },
+  "privacy": {
+    "title": "Privacybeleid",
+    "lastUpdated": "Laatst bijgewerkt: 8 juli 2026",
+    "intro": "Dit Privacybeleid beschrijft hoe <1>Songuess</1> — een real-time multiplayer muziekquiz ontwikkeld als een academisch project bij 42 — persoonlijke gegevens verzamelt, gebruikt en opslaat. Songuess is momenteel een MVP die uitsluitend bedoeld is voor lokale ontwikkeling, testen en evaluatie. Het is niet ontworpen voor openbare implementatie op internet.",
+    "sections": {
+      "dataTitle": "1. Gegevens die we opslaan",
+      "dataIntro": "Wanneer u een account aanmaakt of inlogt, slaan we alleen de informatie op die nodig is om de applicatie uit te voeren:",
+      "dataRule1": "<1>Accountgegevens:</1> e-mailadres, gebruikersnaam en een met bcrypt gehasht wachtwoord (we slaan uw wachtwoord nooit op in platte tekst).",
+      "dataRule2": "<1>Sessiegegevens:</1> gehashte refresh tokens gekoppeld aan uw account, plus kortstondige access tokens geleverd via HTTP-only cookies (<3>access_token</3>, <5>refresh_token</5>).",
+      "dataRule3": "<1>Spotify-profielgegevens</1> (optioneel, alleen als u inlogt met Spotify): Spotify-gebruikers-ID, weergavenaam, e-mailadres, URL van profielafbeelding, uw topartiesten en -genres, en uw meest beluisterde nummers (recent en aller tijden). Deze gegevens worden vernieuwd telkens wanneer u zich bij Spotify authenticeert.",
+      "dataOutro1": "Tijdens actieve multiplayer-matchen worden uw weergavenaam en score in het servergeheugen bewaard, zodat andere spelers ze kunnen zien. Matchresultaten worden niet permanent opgeslagen in onze database.",
+      "dataOutro2": "Uw browser kan ook een inlogvlag, sessietimingwaarden en gameplay-cooldown-timestamps opslaan in <1>localStorage</1>. Deze worden uitsluitend gebruikt voor sessiebeheer en spelmechanica.",
+      "spotifyTitle": "2. Informatie verkregen via Spotify OAuth",
+      "spotifyBody1": "Als u kiest voor \"Doorgaan met Spotify\", sturen we u door naar de autorisatiepagina van Spotify. Met uw toestemming deelt Spotify profiel- en luistersmaakgegevens via de volgende machtigingen: <1>user-read-email</1>, <3>user-read-private</3> en <5>user-top-read</5>.",
+      "spotifyBody2": "Van Spotify ontvangen we uw profielinformatie (ID, e-mail, weergavenaam, avatar) en uw topartiesten, afgeleide genres en topnummers. Spotify OAuth access tokens worden alleen gebruikt tijdens de inlogcallback en worden <1>niet</1> voor langere termijn op onze servers opgeslagen.",
+      "spotifyBody3": "Spotify is de enige dienst van derden die wordt gebruikt voor gebruikersauthenticatie. We integreren niet met andere externe inlogproviders.",
+      "useTitle": "3. Hoe we uw gegevens gebruiken",
+      "useIntro": "We gebruiken de hierboven beschreven gegevens uitsluitend om:",
+      "useRule1": "Uw Songuess-account en sessie aan te maken en te beheren.",
+      "useRule2": "Uw profiel en optionele Spotify-smaakgegevens binnen de app weer te geven.",
+      "useRule3": "U te identificeren tijdens multiplayer-kamers en matchen (weergavenaam en score).",
+      "useRule4": "De applicatie veilig te houden en correct te laten functioneren.",
+      "useOutro": "We verkopen, verhuren of delen uw persoonlijke gegevens niet met derden voor marketing of advertenties. Songuess kent geen monetarisering, geen advertenties en geen analyse- of trackingdiensten.",
+      "academicTitle": "4. Lokaal en academisch gebruik",
+      "academicBody": "Songuess is een studentenproject gebouwd voor het ft_transcendence-curriculum bij 42. Het draait in een lokale ontwikkelings- en evaluatieomgeving. We exploiteren het niet als een commerciële of openbaar gehoste dienst, en we garanderen niet dezelfde bescherming of beschikbaarheid die u van een productie-applicatie zou verwachten.",
+      "retentionTitle": "5. Gegevensbewaring en -verwijdering",
+      "retentionBody1": "Account- en Spotify-profielgegevens blijven opgeslagen zolang uw account bestaat. Sessietokens verlopen automatisch (access tokens na 15 minuten; refresh tokens na 30 dagen, of eerder als u uitlogt).",
+      "retentionBody2": "Songuess biedt momenteel geen in-app functie voor het verwijderen van accounts. Als u uw opgeslagen gegevens wilt laten verwijderen, neem dan contact op met het ontwikkelingsteam via de GitHub-profielen op de <1>homepagina</1>. We zullen verzoeken om verwijdering naar beste vermogen afhandelen binnen de context van dit academische project.",
+      "changesTitle": "6. Wijzigingen in dit beleid",
+      "changesBody": "We kunnen dit Privacybeleid bijwerken naarmate het project evolueert tijdens ontwikkeling en evaluatie. De datum \"Laatst bijgewerkt\" bovenaan deze pagina geeft de meest recente herziening weer."
+    },
+    "seeAlso": "Zie ook onze <1>Algemene Voorwaarden</1>."
+  },
+  "common": {
+    "loading": "Laden..."
+  },
+  "errors": {
+    "404_NOT_FOUND": "404 NIET GEVONDEN!",
+    "MATCH_NOT_FOUND": "Wedstrijd niet gevonden",
+    "USER_ALREADY_IN_GAME": "Je bent al actief in een andere gamesessie.",
+    "MATCH_CREATE_FAILED": "Kan geen verbinding maken of kamer aanmaken.",
+    "DEFAULT_ERROR": "Er is een onverwachte fout opgetreden.",
+    "LOGIN_REQUIRED": "Je moet inloggen om toegang te krijgen tot een actieve gamekamer.",
+    "MATCH_FINISHED": "Deze wedstrijd is al afgelopen.",
+    "NOT_ENOUGH_SONGS_MESSAGE": "Niet genoeg nummers beschikbaar om het spel te starten.",
+    "NOT_ENOUGH_SONGS_AVAILABLE": "Niet genoeg nummers beschikbaar om het spel te starten."
+  }
+}
