@@ -159,7 +159,7 @@ export default function AppHeader() {
       {showLiveBar && user && (
         <Link
           to={`/match/${activeMatch.code}`}
-          className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer select-none animate-fade-in"
+          className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer animate-fade-in"
         >
           {/* Lado izquierdo: Indicador de En Vivo */}
           <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export default function AppHeader() {
 
           {/* Lado derecho: Datos de la sala y ronda */}
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="opacity-90">ROOM: {activeMatch.code}</span>
+            <span className="select-text opacity-90">ROOM: {activeMatch.code}</span>
             {activeMatch.roundLabel && (
               /* Cambiamos inline-flex por inline-block y controlamos el padding píxel a píxel */
               <span

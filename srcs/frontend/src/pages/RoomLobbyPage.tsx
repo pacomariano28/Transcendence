@@ -174,7 +174,7 @@ export default function RoomLobbyPage() {
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
             <TypingText text="Lobby code" size="md" className="ms-1" />
           </div>
-          <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-white sm:text-5xl">
+          <div className="select-text mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-white sm:text-5xl">
             {code || "———"}
           </div>
 

@@ -4,6 +4,9 @@
 @import "./styles/base/root.css";
 @import "./styles/base/document.css";
 
+/* Utilities */
+@import "./styles/utilities/selection.css";
+
 /* Layout */
 @import "./styles/layout/shell.css";
 
