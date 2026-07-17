@@ -1,22 +1,47 @@
-import { randomInt } from "node:crypto";
+/**
+ * Match service orchestrator.
+ *
+ * Owns in-memory registries (matches, player/socket indexes, timers) and delegates
+ * all behavior to modules under `services/match/`. Controllers import this class
+ * via the singleton `matchService`; they must not import the submodules directly.
+ *
+ * Match lifecycle (server is source of truth):
+ *   lobby → in-game → (round sync → countdown → playing → guessing → resolution) → finished
+ *
+ * Submodules:
+ *   match.registry     — lookups and player/match queries
+ *   match.lifecycle    — create / join
+ *   match.lobby        — ready toggle and game start
+ *   match.round-sync   — per-round sync and countdown
+ *   match.gameplay     — lock, guess, preview-ended
+ *   match.connection   — disconnect, reconnect, idle cleanup
+ */
 import {
-  ALPHABET,
-  DISCONNECT_TTL_MS,
-  GUESS_WINDOW_SECONDS,
-  MAX_PLAYER,
-  ROUND_COUNTDOWN_SECONDS,
-  SECOND_MS,
-} from "../utils/constants.js";
-import { loadPlaylist } from "./playlist.service.js";
-import { fetchAvailableSongCount } from "../clients/playlist.client.js";
-import { createMatchState, createPlayer, ensureScoreEntry } from "./state.js";
+  leaveMatch as leaveMatchConnection,
+  reconnectSocket as reconnectSocketConnection,
+  removeSocket as removeSocketConnection,
+} from "./match/match.connection.js";
 import {
-  resolveGuess,
-  startRound,
-  startRoundCountdown,
-  toRoundSyncPayload,
-} from "./round.js";
-import { replaceTimer } from "./timers.js";
+  handlePreviewEnded as handlePreviewEndedAction,
+  requestLock as requestLockAction,
+  submitGuess as submitGuessAction,
+} from "./match/match.gameplay.js";
+import {
+  createMatch as createMatchAction,
+  generateMatchCode as generateMatchCodeAction,
+  joinMatch as joinMatchAction,
+} from "./match/match.lifecycle.js";
+import { markReady as markReadyAction } from "./match/match.lobby.js";
+import {
+  getMatch as getMatchFromRegistry,
+  getMatchBySocket as getMatchBySocketFromRegistry,
+  getMatchOrThrow as getMatchOrThrowFromRegistry,
+  getPlayerByUserId as getPlayerByUserIdFromRegistry,
+  getRoundSyncPayload as getRoundSyncPayloadFromRegistry,
+  type MatchRegistry,
+} from "./match/match.registry.js";
+import { markRoundReady as markRoundReadyAction } from "./match/match.round-sync.js";
+import type { MatchTimerContext } from "./match/match.timers.js";
 
 export class MatchService {
   private readonly matches = new Map<string, MatchState>();
@@ -25,251 +50,50 @@ export class MatchService {
   private readonly roundCountdownTimers = new Map<string, NodeJS.Timeout>();
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
   private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
-
   private readonly syncTimers = new Map<string, NodeJS.Timeout>();
 
-  private getConnectedPlayers(match: MatchState): MatchPlayer[] {
-    return match.players.filter((entry) => entry.connected);
+  private get registry(): MatchRegistry {
+    return {
+      matches: this.matches,
+      userToMatch: this.userToMatch,
+      socketToMatch: this.socketToMatch,
+    };
+  }
+
+  private get timers(): MatchTimerContext {
+    return {
+      roundCountdownTimers: this.roundCountdownTimers,
+      guessTimers: this.guessTimers,
+      resumeTimers: this.resumeTimers,
+      syncTimers: this.syncTimers,
+    };
+  }
+
+  private get connectionContext() {
+    return { ...this.registry, syncTimers: this.syncTimers };
   }
 
   generateMatchCode(length = 6): string {
-    let code;
-
-    do {
-      code = "";
-      for (let i = 0; i < length; i++) {
-        code += ALPHABET[randomInt(ALPHABET.length)];
-      }
-    } while (this.matches.has(code));
-
-    return code;
+    return generateMatchCodeAction(this.registry, length);
   }
 
   createMatch(input: CreateMatchInput): MatchState {
-    const existingMatchId = this.userToMatch.get(input.userId);
-    if (existingMatchId) {
-      const existingMatch = this.matches.get(existingMatchId);
-      if (!existingMatch || existingMatch.phase === "finished") {
-        if (existingMatch) {
-          this.releasePlayersFromMatch(existingMatch);
-        }
-      } else {
-        const existingPlayer = existingMatch.players.find(
-          (player) => player.userId === input.userId,
-        );
-        if (existingPlayer?.connected) {
-          throw new Error(
-            "You cannot create a new game because you are already in-game",
-          );
-        }
-      }
-      this.userToMatch.delete(input.userId);
-    }
-
-    if (this.getPlayerByUserId(input.userId)) {
-      throw new Error(
-        "You cannot create a new game because you are already in-game",
-      );
-    }
-
-    const matchId = this.generateMatchCode();
-    const match = createMatchState(matchId, input);
-
-    this.matches.set(matchId, match);
-    this.userToMatch.set(input.userId, matchId);
-    this.socketToMatch.set(input.socketId, matchId);
-
-    return match;
+    return createMatchAction(this.registry, this.connectionContext, input);
   }
 
   joinMatch(input: JoinMatchInput): MatchState {
-    const match = this.getMatchOrThrow(input.matchId);
-
-    // if (match.phase === "finished") {
-    //   throw new Error("MATCH_FINISHED");
-    // }
-
-    const existingPlayer = match.players.find(
-      (player) =>
-        player.socketId === input.socketId || player.userId === input.userId,
-    );
-
-    if (existingPlayer) {
-      if (
-        existingPlayer.connected &&
-        existingPlayer.socketId !== input.socketId
-      ) {
-        throw new Error(
-          "You cannot join to a game because you are already in-game",
-        );
-      }
-      existingPlayer.socketId = input.socketId;
-      existingPlayer.displayName = input.displayName;
-      existingPlayer.connected = true;
-      existingPlayer.disconnectedAt = null;
-      ensureScoreEntry(match, existingPlayer);
-      this.userToMatch.set(input.userId, match.matchId);
-      this.socketToMatch.set(input.socketId, match.matchId);
-      return match;
-    }
-
-    if (match.players.length >= MAX_PLAYER) {
-      throw new Error("MATCH_FULL");
-    }
-
-    const player = createPlayer({
-      socketId: input.socketId,
-      userId: input.userId,
-      displayName: input.displayName,
-    });
-
-    // 🔑 CAMBIO AQUÍ: Si la partida ya está en juego, este nuevo jugador entra "listo"
-    if (match.phase === "in-game") {
-      player.ready = true;
-    }
-
-    match.players.push(player);
-    ensureScoreEntry(match, player);
-
-    this.userToMatch.set(input.userId, match.matchId);
-    this.socketToMatch.set(input.socketId, match.matchId);
-
-    return match;
+    return joinMatchAction(this.registry, input);
   }
 
-  async markReady(
-    socketId: string,
-    emit: EmitMatchEvent,
-  ): Promise<ReadyResult> {
-    const match = this.getMatchBySocketOrThrow(socketId);
-
-    // 🔑 CAMBIO AQUÍ: Si no está en lobby (está in-game), devolvemos el estado actual sin romper.
-    if (match.phase !== "lobby") {
-      return {
-        match,
-        countdownStarted: false,
-      };
-    }
-
-    const player = match.players.find((entry) => entry.socketId === socketId);
-
-    if (!player) {
-      throw new Error("PLAYER_NOT_IN_MATCH");
-    }
-
-    player.ready = !player.ready;
-
-    const connectedPlayers = this.getConnectedPlayers(match);
-    const countdownStarted =
-      match.phase === "lobby" &&
-      connectedPlayers.length > 0 &&
-      connectedPlayers.every((entry) => entry.ready);
-
-    if (countdownStarted) {
-      const requiredRounds = match.roundsTotal;
-      const availability = await fetchAvailableSongCount();
-
-      if (!availability.ok || availability.count < requiredRounds) {
-        connectedPlayers.forEach((entry) => {
-          entry.ready = false;
-        });
-        emit(match.matchId, "match:error", {
-          message: "NOT_ENOUGH_SONGS_AVAILABLE",
-        });
-        return {
-          match,
-          countdownStarted: false,
-        };
-      }
-
-      const previousPhase = match.phase;
-      match.phase = "in-game";
-      await loadPlaylist(match);
-      startRound(match);
-      emit(match.matchId, "match:phase", {
-        matchId: match.matchId,
-        phase: match.phase,
-        previousPhase,
-      });
-      emit(match.matchId, "round:sync", toRoundSyncPayload(match));
-    }
-
-    return {
-      match,
-      countdownStarted,
-    };
+  markReady(socketId: string, emit: EmitMatchEvent): Promise<ReadyResult> {
+    return markReadyAction(this.registry, socketId, emit);
   }
 
   markRoundReady(
     socketId: string,
     emit: EmitMatchEvent,
   ): { match: MatchState; countdownStarted: boolean; catchUp?: boolean } {
-    const match = this.getMatchBySocketOrThrow(socketId);
-    if (match.phase !== "in-game" || !match.round) {
-      throw new Error("INVALID_STATE");
-    }
-
-    if (match.round.phase !== "sync") {
-      return { match, countdownStarted: false, catchUp: true };
-    }
-
-    const player = match.players.find((entry) => entry.socketId === socketId);
-    if (!player) {
-      throw new Error("PLAYER_NOT_IN_MATCH");
-    }
-
-    if (!match.round.readyUserIds.includes(player.userId)) {
-      match.round.readyUserIds.push(player.userId);
-    }
-
-    const connectedPlayers = this.getConnectedPlayers(match);
-    const countdownStarted = connectedPlayers.every((entry) =>
-      match.round?.readyUserIds.includes(entry.userId),
-    );
-
-    if (countdownStarted) {
-      // Usamos global.clearTimeout para evitar el error de TypeScript
-      const syncTimer = this.syncTimers.get(match.matchId);
-      if (syncTimer) {
-        global.clearTimeout(syncTimer);
-        this.syncTimers.delete(match.matchId);
-      }
-
-      match.round.phase = "countdown";
-      match.round.countdownEndsAt =
-        Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
-      startRoundCountdown(match, this.roundCountdownTimers);
-    } else {
-      if (!this.syncTimers.has(match.matchId)) {
-        const FORCE_COUNTDOWN_MS = 150;
-
-        // Usamos global.setTimeout para evitar el error de TypeScript
-        const timer = global.setTimeout(() => {
-          this.syncTimers.delete(match.matchId);
-
-          if (
-            match.phase === "in-game" &&
-            match.round &&
-            match.round.phase === "sync"
-          ) {
-            console.log(
-              `[Match ${match.matchId}] Forzando inicio de ronda por jugador ausente.`,
-            );
-
-            match.round.phase = "countdown";
-            match.round.countdownEndsAt =
-              Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
-            startRoundCountdown(match, this.roundCountdownTimers);
-
-            emit(match.matchId, "round:sync", toRoundSyncPayload(match));
-          }
-        }, FORCE_COUNTDOWN_MS);
-
-        this.syncTimers.set(match.matchId, timer);
-      }
-    }
-
-    return { match, countdownStarted };
+    return markRoundReadyAction(this.registry, this.timers, socketId, emit);
   }
 
   requestLock(
@@ -277,59 +101,14 @@ export class MatchService {
     time: number,
     emit: EmitMatchEvent,
   ): MatchState {
-    const match = this.getMatchBySocketOrThrow(socketId);
-    if (match.phase !== "in-game" || !match.round) {
-      throw new Error("INVALID_STATE");
-    }
-
-    if (match.round.phase !== "playing") {
-      throw new Error("ROUND_NOT_PLAYING");
-    }
-
-    if (match.round.lockOwnerId) {
-      throw new Error("ROUND_ALREADY_LOCKED");
-    }
-
-    const player = match.players.find((entry) => entry.socketId === socketId);
-    if (!player) {
-      throw new Error("PLAYER_NOT_IN_MATCH");
-    }
-
-    const now = Date.now();
-    match.round.phase = "guessing";
-    match.round.lockOwnerId = player.userId;
-    match.round.lockAt = time;
-    match.round.guessEndsAt = now + GUESS_WINDOW_SECONDS * SECOND_MS;
-
-    emit(match.matchId, "round:lock_confirmed", {
-      matchId: match.matchId,
-      roundIndex: match.round.roundIndex,
-      lockOwnerId: match.round.lockOwnerId,
-      lockAt: match.round.lockAt,
-      guessEndsAt: match.round.guessEndsAt,
-    });
-
-    replaceTimer(
-      this.guessTimers,
-      match.matchId,
-      GUESS_WINDOW_SECONDS * SECOND_MS,
-      () => {
-        resolveGuess({
-          match,
-          lockOwnerId: player.userId,
-          correct: false,
-          reason: "timeout",
-          selectedTrack: null,
-          emit,
-          guessTimers: this.guessTimers,
-          resumeTimers: this.resumeTimers,
-          onMatchFinished: (finishedMatch) =>
-            this.releasePlayersFromMatch(finishedMatch),
-        });
-      },
+    return requestLockAction(
+      this.registry,
+      this.timers,
+      this.connectionContext,
+      socketId,
+      time,
+      emit,
     );
-
-    return match;
   }
 
   submitGuess(
@@ -339,39 +118,16 @@ export class MatchService {
     artist: string,
     emit: EmitMatchEvent,
   ): MatchState {
-    const match = this.getMatchBySocketOrThrow(socketId);
-    if (match.phase !== "in-game" || !match.round) {
-      throw new Error("INVALID_STATE");
-    }
-
-    const player = match.players.find((entry) => entry.socketId === socketId);
-    if (!player) {
-      throw new Error("PLAYER_NOT_IN_MATCH");
-    }
-
-    if (match.round.phase !== "guessing") {
-      throw new Error("GUESS_NOT_ALLOWED");
-    }
-
-    if (match.round.lockOwnerId !== player.userId) {
-      throw new Error("NOT_LOCK_OWNER");
-    }
-
-    const previewIsrc = match.round.preview?.isrc ?? null;
-    const isCorrect = Boolean(previewIsrc && isrc === previewIsrc);
-    resolveGuess({
-      match,
-      lockOwnerId: player.userId,
-      correct: isCorrect,
-      reason: isCorrect ? null : "wrong",
-      selectedTrack: { isrc, track, artist },
+    return submitGuessAction(
+      this.registry,
+      this.timers,
+      this.connectionContext,
+      socketId,
+      isrc,
+      track,
+      artist,
       emit,
-      guessTimers: this.guessTimers,
-      resumeTimers: this.resumeTimers,
-      onMatchFinished: (finishedMatch) =>
-        this.releasePlayersFromMatch(finishedMatch),
-    });
-    return match;
+    );
   }
 
   handlePreviewEnded(
@@ -379,207 +135,52 @@ export class MatchService {
     roundIndex: number,
     emit: EmitMatchEvent,
   ): MatchState {
-    const match = this.getMatchBySocketOrThrow(socketId);
-
-    if (match.phase !== "in-game" || !match.round) {
-      return match;
-    }
-
-    if (match.round.roundIndex !== roundIndex) {
-      return match;
-    }
-
-    if (match.round.phase !== "playing" || match.round.lockOwnerId) {
-      return match;
-    }
-
-    if (match.roundIndex + 1 >= match.roundsTotal) {
-      const previousPhase = match.phase;
-      match.phase = "finished";
-      emit(match.matchId, "match:phase", {
-        matchId: match.matchId,
-        phase: match.phase,
-        previousPhase,
-      });
-      emit(match.matchId, "match:end", {
-        matchId: match.matchId,
-        scores: match.scores,
-      });
-      this.releasePlayersFromMatch(match);
-      return match;
-    }
-
-    match.roundIndex += 1;
-    startRound(match);
-    emit(match.matchId, "round:sync", toRoundSyncPayload(match));
-    return match;
+    return handlePreviewEndedAction(
+      this.registry,
+      this.connectionContext,
+      socketId,
+      roundIndex,
+      emit,
+    );
   }
 
   getRoundSyncPayload(matchId: string) {
-    const match = this.getMatch(matchId);
-    if (!match || !match.round) {
-      return null;
-    }
-
-    return toRoundSyncPayload(match);
+    return getRoundSyncPayloadFromRegistry(this.registry, matchId);
   }
 
   getMatch(matchId: string): MatchState | undefined {
-    return this.matches.get(matchId);
+    return getMatchFromRegistry(this.registry, matchId);
   }
 
   getMatchBySocket(socketId: string): MatchState | undefined {
-    const matchId = this.socketToMatch.get(socketId);
-
-    if (!matchId) {
-      return undefined;
-    }
-
-    return this.matches.get(matchId);
+    return getMatchBySocketFromRegistry(this.registry, socketId);
   }
 
   removeSocket(socketId: string): MatchState | undefined {
-    const match = this.getMatchBySocket(socketId);
-
-    if (!match) {
-      return undefined;
-    }
-
-    const player = match.players.find((p) => p.socketId === socketId);
-    if (player) {
-      this.detachPlayerFromMatch(player, match);
-    }
-
-    this.socketToMatch.delete(socketId);
-
-    return match;
+    return removeSocketConnection(this.connectionContext, socketId);
   }
 
-  leaveMatch(input: { socketId: string; userId?: string }): MatchState | undefined {
-    const match = this.removeSocket(input.socketId);
-    if (match) {
-      return match;
-    }
-
-    if (!input.userId) {
-      return undefined;
-    }
-
-    for (const currentMatch of this.matches.values()) {
-      const player = currentMatch.players.find(
-        (entry) => entry.userId === input.userId && entry.connected,
-      );
-      if (!player) {
-        continue;
-      }
-
-      this.detachPlayerFromMatch(player, currentMatch);
-      return currentMatch;
-    }
-
-    return undefined;
+  leaveMatch(input: {
+    socketId: string;
+    userId?: string;
+  }): MatchState | undefined {
+    return leaveMatchConnection(this.connectionContext, input);
   }
 
   reconnectSocket(playerId: string, newSocketId: string): MatchState {
-    for (const match of this.matches.values()) {
-      const player = match.players.find((p) => p.userId === playerId);
-      if (player) {
-        player.socketId = newSocketId;
-        player.connected = true;
-        player.disconnectedAt = null;
-        this.userToMatch.set(playerId, match.matchId);
-        this.socketToMatch.set(newSocketId, match.matchId);
-        console.log(`Player ${playerId} reconnected to match ${match.matchId}`);
-        return match;
-      }
-    }
-
-    throw new Error("MATCH_NOT_FOUND");
+    return reconnectSocketConnection(
+      this.connectionContext,
+      playerId,
+      newSocketId,
+    );
   }
 
   getPlayerByUserId(userId: string): MatchPlayer | undefined {
-    for (const match of this.matches.values()) {
-      if (match.phase === "finished") {
-        continue;
-      }
-
-      const player = match.players.find(
-        (p: MatchPlayer) => p.userId === userId,
-      );
-      if (player && player.connected) {
-        return player;
-      }
-    }
-    return undefined;
-  }
-
-  private releasePlayersFromMatch(match: MatchState): void {
-    for (const player of match.players) {
-      this.userToMatch.delete(player.userId);
-    }
-  }
-
-  private detachPlayerFromMatch(
-    player: MatchPlayer,
-    match: MatchState,
-  ): void {
-    if (player.socketId) {
-      this.socketToMatch.delete(player.socketId);
-    }
-
-    this.userToMatch.delete(player.userId);
-    player.socketId = null;
-    player.connected = false;
-    player.disconnectedAt = new Date().toISOString();
-    console.log(
-      `Player ${player.userId} disconnected from match ${match.matchId}`,
-    );
-
-    this.scheduleMatchRemovalIfEmpty(match);
-  }
-
-  private scheduleMatchRemovalIfEmpty(match: MatchState): void {
-    const allDisconnected = match.players.every((p) => !p.connected);
-    if (!allDisconnected) {
-      return;
-    }
-
-    console.log(
-      `All players disconnected. Match ${match.matchId} will be removed after timeout if no reconnection occurs.`,
-    );
-
-    global.setTimeout(() => {
-      const stillDisconnected = match.players.every((p) => !p.connected);
-      if (stillDisconnected) {
-        console.log(`Match ${match.matchId} removed due to inactivity.`);
-
-        const syncTimer = this.syncTimers.get(match.matchId);
-        if (syncTimer) global.clearTimeout(syncTimer);
-        this.syncTimers.delete(match.matchId);
-
-        this.matches.delete(match.matchId);
-      }
-    }, DISCONNECT_TTL_MS);
+    return getPlayerByUserIdFromRegistry(this.registry, userId);
   }
 
   getMatchOrThrow(matchId: string): MatchState {
-    const match = this.matches.get(matchId);
-
-    if (!match) {
-      throw new Error("MATCH_NOT_FOUND");
-    }
-
-    return match;
-  }
-
-  private getMatchBySocketOrThrow(socketId: string): MatchState {
-    const match = this.getMatchBySocket(socketId);
-
-    if (!match) {
-      throw new Error("MATCH_NOT_FOUND");
-    }
-
-    return match;
+    return getMatchOrThrowFromRegistry(this.registry, matchId);
   }
 }
 
