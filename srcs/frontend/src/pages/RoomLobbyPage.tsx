@@ -23,7 +23,7 @@ function normalizeCode(raw: string) {
 }
 
 function isMatchNotFoundError(message: string) {
-  return message === "MATCH_NOT_FOUND" || message === "Match not found";
+  return message === "MATCH_NOT_FOUND";
 }
 
 export default function RoomLobbyPage() {
@@ -173,7 +173,11 @@ export default function RoomLobbyPage() {
       <div className="mx-auto max-w-3xl">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            <TypingText text={t("lobby.lobbyCode")} size="md" className="ms-1" />
+            <TypingText
+              text={t("lobby.lobbyCode")}
+              size="md"
+              className="ms-1"
+            />
           </div>
           <div className="select-text mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-white sm:text-5xl">
             {code || "———"}
@@ -192,9 +196,7 @@ export default function RoomLobbyPage() {
               onMouseMove={handleMouseMoveToSetFillOrigin}
               disabled={!matchState}
             >
-              <span>
-                {me?.ready ? t("lobby.ready") : t("lobby.markReady")}
-              </span>
+              <span>{me?.ready ? t("lobby.ready") : t("lobby.markReady")}</span>
             </button>
             <button className="btn-ghost flex-1" type="button" onClick={leave}>
               {t("lobby.leaveRoom")}

@@ -193,7 +193,7 @@ export async function apiJsonPost<T>(
 
   if (!res.ok)
     throw new Error(
-      data.message === "MATCH_NOT_FOUND" ? "Match not found" : "",
+      data.message === "MATCH_NOT_FOUND" ? "MATCH_NOT_FOUND" : "",
     );
 
   return data as T;
