@@ -244,6 +244,9 @@
     "LOGIN_REQUIRED": "Je moet inloggen om toegang te krijgen tot een actieve gamekamer.",
     "MATCH_FINISHED": "Deze wedstrijd is al afgelopen.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Niet genoeg nummers beschikbaar om het spel te starten.",
-    "NOT_ENOUGH_SONGS_AVAILABLE": "Niet genoeg nummers beschikbaar om het spel te starten."
+    "NOT_ENOUGH_SONGS_AVAILABLE": "Niet genoeg nummers beschikbaar om het spel te starten.",
+    "INVALID_USER": "Ongeldige gebruiker",
+    "MISSING_PARAMETER": "Ontbrekende of ongeldige 'term' queryparameter",
+    "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Ophalen van gegevens van de Spotify API is mislukt"
   }
 }

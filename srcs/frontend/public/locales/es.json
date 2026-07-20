@@ -244,6 +244,9 @@
     "LOGIN_REQUIRED": "Debes iniciar sesión para acceder a una sala de juego activa.",
     "MATCH_FINISHED": "Esta partida ya ha terminado.",
     "NOT_ENOUGH_SONGS_MESSAGE": "No hay suficientes canciones disponibles para iniciar el juego.",
-    "NOT_ENOUGH_SONGS_AVAILABLE": "No hay suficientes canciones disponibles para iniciar el juego."
+    "NOT_ENOUGH_SONGS_AVAILABLE": "No hay suficientes canciones disponibles para iniciar el juego.",
+    "INVALID_USER": "Usuario no válido",
+    "MISSING_PARAMETER": "Parámetro de consulta 'term' ausente o no válido",
+    "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Error al obtener datos de la API de Spotify"
   }
 }

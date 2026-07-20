@@ -245,6 +245,9 @@
     "LOGIN_REQUIRED": "Вы должны войти в систему, чтобы получить доступ к активной игровой комнате.",
     "MATCH_FINISHED": "Этот матч уже завершен.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Недостаточно песен для начала игры.",
-    "NOT_ENOUGH_SONGS_AVAILABLE": "Недостаточно песен для начала игры."
+    "NOT_ENOUGH_SONGS_AVAILABLE": "Недостаточно песен для начала игры.",
+    "INVALID_USER": "Недействительный пользователь",
+    "MISSING_PARAMETER": "Отсутствует или недействителен параметр запроса 'term'",
+    "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Не удалось получить данные из API Spotify"
   }
 }

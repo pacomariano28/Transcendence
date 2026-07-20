@@ -246,6 +246,10 @@
     "LOGIN_REQUIRED": "You must log in to access an active game room.",
     "MATCH_FINISHED": "This match has already finished.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Not enough songs available to start the game.",
-    "NOT_ENOUGH_SONGS_AVAILABLE": "Not enough songs available to start the game."
+    "NOT_ENOUGH_SONGS_AVAILABLE": "Not enough songs available to start the game.",
+    "USER_NOT_AUTH": "User not authenticated",
+    "INVALID_USER": "Invalid user",
+    "MISSING_PARAMETER": "Missing or invalid 'term' query parameter",
+    "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Failed to fetch data from Spotify API"
   }
 }
