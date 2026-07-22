@@ -5,8 +5,9 @@ set -e
 export PATH="$HOME/.local/bin:$PATH"
 
 # 1. Definición de rutas absolutas
-TARGET_DIR="/home/frmarian/Desktop/transcendence/srcs/frontend/public/media"
-SEED_FILE="/home/frmarian/Desktop/transcendence/srcs/backend/playlist-service/prisma/seed.ts"
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
+TARGET_DIR="$ROOT_DIR/srcs/frontend/public/media"
+SEED_FILE="$ROOT_DIR/srcs/backend/playlist-service/prisma/seed.ts"
 
 # 2. Comprobación del CSV
 if [ -z "$1" ]; then
