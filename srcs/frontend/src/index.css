@@ -6,6 +6,7 @@
 
 /* Utilities */
 @import "./styles/utilities/selection.css";
+@import "./styles/utilities/scrollbars.css";
 
 /* Layout */
 @import "./styles/layout/shell.css";

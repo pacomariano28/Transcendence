@@ -1,7 +1,7 @@
 /** Lock status label and Spotify search form for the lock owner. */
 import { useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
-//import { translateError } from "../../i18n/translateError";
+import { translateError } from "../../i18n/translateError";
 
 type MatchGuessSectionProps = {
   isMatchFinished: boolean;
@@ -38,8 +38,10 @@ export default function MatchGuessSection({
 
   return (
     <section
-      className={`card order-2 overflow-hidden p-6 lg:col-span-2 lg:row-start-2 ${
-        isMatchFinished ? "animate-match-guess-exit !m-0 !border-0 !p-0" : ""
+      className={`card order-2 p-6 lg:col-span-2 lg:row-start-2 ${
+        roundPhase === "guessing" ? "relative z-40" : ""
+      } ${
+        isMatchFinished ? "animate-match-guess-exit overflow-hidden !m-0 !border-0 !p-0" : ""
       }`}
     >
       <div className="flex flex-col gap-1">
@@ -68,37 +70,65 @@ export default function MatchGuessSection({
       </div>
 
       <div
-        className={`transition-all duration-700 ease-in-out origin-top overflow-hidden
-            ${roundPhase === "guessing" ? "opacity-100 scale-100 max-h-[600px] mt-5" : "opacity-0 scale-95 max-h-0 mt-0 pointer-events-none"}`}
+        className={`transition-all duration-700 ease-in-out origin-top
+            ${
+              roundPhase === "guessing"
+                ? "mt-5 max-h-[600px] scale-100 opacity-100"
+                : "pointer-events-none mt-0 max-h-0 scale-95 overflow-hidden opacity-0"
+            }`}
       >
         <div className="rounded-2xl bg-black/20 p-4">
           {canGuess ? (
             <div className="mt-2">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <input
-                  autoFocus
-                  className="lock-input input flex-1 text-center uppercase"
-                  placeholder={t("match.guessingPanel.searchPlaceholder")}
-                  value={searchTerm}
-                  onChange={(event) => {
-                    onSearchTermChange(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    onSubmitGuess();
-                  }}
-                  disabled={!canGuess}
-                />
-                <button
-                  className={`btn-glow submit-guess w-full sm:w-44 transition-all duration-300 ${!canGuess || !selectedTrack ? "opacity-50" : "animate-bounce scale-95"}`}
-                  style={{ "--btn-color": "#4ade80" } as React.CSSProperties}
-                  type="button"
-                  onClick={onSubmitGuess}
-                  disabled={!canGuess || !selectedTrack}
-                >
-                  <span>{t("match.guessingPanel.submitButton")}</span>
-                </button>
+              <div className="relative">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    autoFocus
+                    className="lock-input input flex-1 text-center uppercase"
+                    placeholder={t("match.guessingPanel.searchPlaceholder")}
+                    value={searchTerm}
+                    onChange={(event) => {
+                      onSearchTermChange(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      onSubmitGuess();
+                    }}
+                    disabled={!canGuess}
+                  />
+                  <button
+                    className={`btn-glow submit-guess w-full sm:w-44 transition-all duration-300 ${!canGuess || !selectedTrack ? "opacity-50" : "animate-bounce scale-95"}`}
+                    style={{ "--btn-color": "#4ade80" } as React.CSSProperties}
+                    type="button"
+                    onClick={onSubmitGuess}
+                    disabled={!canGuess || !selectedTrack}
+                  >
+                    <span>{t("match.guessingPanel.submitButton")}</span>
+                  </button>
+                </div>
+
+                {searchResults.length > 0 &&
+                  !selectedTrack &&
+                  searchTerm.trim().length >= 2 && (
+                    <div className="select-text scrollbar-hidden animate-guess-dropdown-enter absolute bottom-full left-0 right-0 z-50 mb-2 grid max-h-40 origin-bottom gap-2 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#141416] p-2 shadow-[0_-8px_30px_rgba(0,0,0,0.45)] backdrop-blur sm:max-h-48 lg:max-h-60">
+                      {searchResults.map((track) => (
+                        <button
+                          key={track.id}
+                          className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
+                          type="button"
+                          onClick={() => onSelectTrack(track)}
+                        >
+                          <div className="text-sm font-medium text-zinc-100">
+                            {track.track}
+                          </div>
+                          <div className="text-xs text-zinc-400">
+                            {track.artist}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
               </div>
 
               {selectedTrack && (
@@ -132,27 +162,6 @@ export default function MatchGuessSection({
                   </div>
                 )}
 
-              {searchResults.length > 0 &&
-                !selectedTrack &&
-                searchTerm.trim().length >= 2 && (
-                  <div className="select-text mt-3 grid gap-2 animate-fade-in">
-                    {searchResults.map((track) => (
-                      <button
-                        key={track.id}
-                        className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
-                        type="button"
-                        onClick={() => onSelectTrack(track)}
-                      >
-                        <div className="text-sm font-medium text-zinc-100">
-                          {track.track}
-                        </div>
-                        <div className="text-xs text-zinc-400">
-                          {track.artist}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
             </div>
           ) : (
             <div className="mt-2 text-sm text-zinc-400">
