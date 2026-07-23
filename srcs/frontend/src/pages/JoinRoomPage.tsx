@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { useAuth } from "../auth/auth-context";
 import TypingText from "../components/TypingText";
+import MatchCodePreview from "../components/MatchCodePreview";
 import { getMatchState } from "../api/state";
 import type { MatchStatePayload } from "../types/socket.payloads";
 import { translateError } from "../i18n/translateError";
@@ -19,7 +20,7 @@ export default function JoinRoomPage() {
   const [error, setError] = useState<string | null>(null);
 
   const normalized = useMemo(() => normalizeCode(code), [code]);
-  const isValid = normalized.length >= 4 && normalized.length <= 8;
+  const isValid = normalized.length === 6;
 
   const { user } = useAuth();
 
@@ -31,7 +32,7 @@ export default function JoinRoomPage() {
   async function pasteFromClipboard() {
     try {
       const text = await navigator.clipboard.readText();
-      setCode(normalizeCode(text).slice(0, 8));
+      setCode(normalizeCode(text).slice(0, 6));
       setTouched(true);
     } catch {
       // ignore: clipboard permissions
@@ -67,9 +68,7 @@ export default function JoinRoomPage() {
             <TypingText text={t("join.lobby_page")} size="md" />
           </div>
 
-          <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-zinc-500 sm:text-5xl uppercase">
-            {normalized || "———"}
-          </div>
+          <MatchCodePreview code={normalized} />
 
           {disabledReason && (
             <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200 text-sm animate-fade-in">
@@ -91,7 +90,7 @@ export default function JoinRoomPage() {
               </button>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 relative">
               <input
                 autoFocus
                 className={[
@@ -103,7 +102,7 @@ export default function JoinRoomPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder={t("join.placeholder")}
-                maxLength={16}
+                maxLength={6}
                 onBlur={() => setTouched(true)}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
@@ -111,21 +110,26 @@ export default function JoinRoomPage() {
                   onJoin();
                 }}
               />
+              <span className="pointer-events-none absolute bottom-2 right-3 text-xs font-mono text-zinc-500">
+                {t("join.char_counter", {
+                  current: normalized.length,
+                  max: 6,
+                })}
+              </span>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs font-mono text-zinc-500">
-              <div className="relative h-4 flex-1">
+            <div className="mt-3 text-xs font-mono text-zinc-500">
+              <div className="relative h-4">
                 {touched && !isValid ? (
                   <span className="absolute left-0 text-rose-400 animate-fade-in font-sans tracking-wide">
                     {t("join.error_validation_failed")}
                   </span>
-                ) : (
+                ) : !isValid ? (
                   <span className="absolute left-0 text-zinc-500 font-sans tracking-wide">
                     {t("join.validation_hint")}
                   </span>
-                )}
+                ) : null}
               </div>
-              <span className="shrink-0">{normalized.length}/8</span>
             </div>
           </div>
 
