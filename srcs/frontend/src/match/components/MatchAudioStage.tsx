@@ -3,6 +3,7 @@
  * countdown, equalizer canvas, and guess/resolution states.
  */
 import type { RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import TypingText from "../../components/TypingText";
 import type { GuessSelectedTrack, GuessStatus } from "../types";
 
@@ -41,6 +42,8 @@ export default function MatchAudioStage({
   guessResultTrack,
   onGuessTransitionEnd,
 }: MatchAudioStageProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-52 lg:min-h-0 lg:h-auto lg:flex-1">
       <div
@@ -54,7 +57,7 @@ export default function MatchAudioStage({
           <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
         </span>
         <span className="relative transform translate-y-[1px]">
-          Track: {songRemainingSeconds ?? 0}s
+          {t("match.hud.trackTime", { seconds: songRemainingSeconds ?? 0 })}
         </span>
       </div>
 
@@ -77,10 +80,10 @@ export default function MatchAudioStage({
                   ${showAudioNotice ? "cursor-pointer opacity-100 scale-100" : "pointer-events-none opacity-0 scale-95"}`}
       >
         <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-          Audio unavailable
+          {t("match.hud.audioUnavailable")}
         </div>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-300">
-          Audio is unavailable after reloading. Tap here to restore playback.
+          {t("match.hud.audioRestoreInstructions")}
         </p>
       </div>
 
@@ -89,7 +92,7 @@ export default function MatchAudioStage({
                   ${showCountdown ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
       >
         <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-          Starts in
+          {t("match.hud.startsIn")}
         </div>
         <div className="mt-3 text-6xl font-semibold text-white sm:text-7xl">
           {countdownSeconds ?? ""}
@@ -119,7 +122,7 @@ export default function MatchAudioStage({
                     ${guessStatus === "countdown" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
         >
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
-            Guess time remaining
+            {t("match.hud.guessTimeRemaining")}
           </div>
           <div
             className={`mt-3 text-7xl font-bold transition-all duration-500
@@ -127,7 +130,7 @@ export default function MatchAudioStage({
           >
             {guessSeconds ?? 0}
           </div>
-          <div className="mt-2 text-sm text-zinc-500">seconds</div>
+          <div className="mt-2 text-sm text-zinc-500">{t("match.hud.seconds")}</div>
         </div>
 
         <div
@@ -135,7 +138,7 @@ export default function MatchAudioStage({
                     ${guessStatus === "expired" ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
         >
           {showResultText && guessStatus === "expired" && (
-            <TypingText key="timeout" text="TIMEOUT!" size="md" />
+            <TypingText key="timeout" text={t("match.hud.timeout")} size="md" />
           )}
         </div>
 
@@ -145,7 +148,7 @@ export default function MatchAudioStage({
         >
           {showResultText && guessStatus === "wrong" && (
             <>
-              <TypingText key="wrong" text="WRONG ANSWER!" size="md" />
+              <TypingText key="wrong" text={t("match.hud.wrongAnswer")} size="md" />
               {guessResultTrack && (
                 <div className="mt-4 max-w-md px-4 text-sm font-medium text-rose-400">
                   {guessResultTrack.track} - {guessResultTrack.artist}
@@ -161,7 +164,7 @@ export default function MatchAudioStage({
         >
           {showResultText && guessStatus === "correct" && (
             <>
-              <TypingText key="correct" text="CORRECT ANSWER!" size="md" />
+              <TypingText key="correct" text={t("match.hud.correctAnswer")} size="md" />
               {guessResultTrack && (
                 <div className="mt-4 max-w-md px-4 text-sm font-medium text-emerald-400">
                   {guessResultTrack.track} - {guessResultTrack.artist}

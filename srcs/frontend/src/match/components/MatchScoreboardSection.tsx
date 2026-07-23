@@ -1,4 +1,5 @@
 /** Live scoreboard during play; animated final results when the match ends. */
+import { useTranslation } from "react-i18next";
 import type { ScoreEntry } from "../../types/socket.payloads";
 import { handleMouseMoveToSetFillOrigin } from "../../utils/buttonHover";
 import type { ScoreboardEntry } from "../types";
@@ -22,6 +23,8 @@ export default function MatchScoreboardSection({
   lockOwnerId,
   roundPhase,
 }: MatchScoreboardSectionProps) {
+  const { t } = useTranslation();
+
   return (
     <section
       className={`card order-3 p-6 ${
@@ -34,10 +37,10 @@ export default function MatchScoreboardSection({
         <>
           <div className="animate-match-title-reveal">
             <div className="text-xs font-medium uppercase tracking-[0.24em] text-[#f7d046]">
-              Match complete
+              {t("match.header.matchComplete")}
             </div>
             <div className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
-              Final results
+              {t("match.header.finalResults")}
             </div>
           </div>
 
@@ -68,7 +71,7 @@ export default function MatchScoreboardSection({
                     <span className="truncate">{entry.displayName}</span>
                     {entry.userId === myUserId ? (
                       <span className="shrink-0 text-zinc-500 font-normal">
-                        (you)
+                        {t("match.header.you")}
                       </span>
                     ) : null}
                   </div>
@@ -93,18 +96,18 @@ export default function MatchScoreboardSection({
               onClick={onLeaveFinishedMatch}
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              <span>back</span>
+              <span>{t("match.header.backButton")}</span>
             </button>
           </div>
         </>
       ) : (
         <>
           <div className="shrink-0 text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            Scoreboard
+            {t("match.scoreboard.title")}
           </div>
           {scoreboard.length === 0 ? (
             <div className="mt-4 flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-              Waiting for players.
+              {t("match.scoreboard.waitingForPlayers")}
             </div>
           ) : (
             <div className="mt-4 grid gap-2.5 lg:min-h-0 lg:flex-1 lg:grid-rows-5 lg:gap-2">
@@ -135,12 +138,12 @@ export default function MatchScoreboardSection({
                       <span className="truncate">{entry.displayName}</span>
                       {entry.userId === myUserId ? (
                         <span className="shrink-0 text-zinc-500 font-normal">
-                          (you)
+                          {t("match.scoreboard.you")}
                         </span>
                       ) : null}
                       {!entry.connected ? (
                         <span className="shrink-0 text-zinc-500 font-normal text-xs">
-                          (offline)
+                          {t("match.scoreboard.offline")}
                         </span>
                       ) : null}
                     </div>

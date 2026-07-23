@@ -1,0 +1,252 @@
+{
+  "header": {
+    "nav_home": "Inicio",
+    "nav_profile": "Perfil",
+    "change_lang": "Cambiar idioma",
+    "signed_in_as": "Sesión iniciada como",
+    "live_match_in_progress": "PARTIDA EN CURSO",
+    "room": "Sala:"
+  },
+  "footer": {
+    "game_description": "Juego multijugador minimalista",
+    "built_with": "Creado con React"
+  },
+  "home": {
+    "title": "Adivina la canción",
+    "create_room": "Crear sala",
+    "creating": "Creando...",
+    "join_room": "Unirse a la sala",
+    "checking_session": "Comprobando sesión…",
+    "signed_in_prefix": "Has iniciado sesión como ",
+    "signed_in_suffix": ". Ir a ",
+    "profile_link": "Perfil",
+    "not_signed_in": "No has iniciado sesión. ",
+    "login_link": "Iniciar sesión",
+    "login_prompt_suffix": " para mantener tu sesión al recargar la página.",
+    "disabled_login_required": "Inicio de sesión obligatorio",
+    "disabled_creating": "Creando sala...",
+    "made_by": "HECHO POR"
+  },
+  "join": {
+    "lobby_page": "UNIRSE A PARTIDA",
+    "room_credentials": "CÓDIGO DE LA PARTIDA",
+    "paste": "Pegar",
+    "placeholder": "AB12CD",
+    "error_validation_failed": "El código debe tener entre 4 y 8 caracteres (A–Z, 0–9).",
+    "validation_hint": "Usa entre 4 y 8 caracteres.",
+    "join_room": "Unirse a la sala",
+    "back": "Volver",
+    "tip_prefix": "Consejo: se cambiará automáticamente a ",
+    "tip_suffix": "MAYÚSCULAS"
+  },
+  "auth": {
+    "welcome_back": "Bienvenido de nuevo",
+    "create_account": "Crear cuenta",
+    "continue_with": "Continuar con",
+    "or": "o",
+    "email": "Correo electrónico",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "working": "Procesando…",
+    "login": "Iniciar sesión",
+    "create_an_account_switch": "Crear una cuenta",
+    "already_have_account": "Ya tengo una cuenta",
+    "completing_spotify_login": "Completando el inicio de sesión con Spotify...",
+    "errors": {
+      "spotify_cancelled": "La autorización de Spotify fue cancelada. Puedes intentarlo de nuevo o iniciar sesión con tu correo electrónico.",
+      "WRONG_CREDENTIALS": "Correo electrónico o contraseña incorrectos.",
+      "USER_ALREADY_EXISTS": "Ya existe una cuenta con este correo electrónico o nombre de usuario.",
+      "INTERNAL_ERROR": "Algo salió mal de nuestro lado. Por favor, inténtalo de nuevo más tarde."
+    }
+  },
+  "validation": {
+    "invalid_email": "Correo electrónico no válido",
+    "username_required": "El nombre de usuario es obligatorio",
+    "username_too_long": "Máximo 12 caracteres permitidos para el nombre de usuario",
+    "password_too_short": "La contraseña debe tener al menos 3 caracteres",
+    "password_too_long": "Máximo 12 caracteres permitidos para la contraseña"
+  },
+  "profile": {
+    "title": "PERFIL",
+    "session_data": "Datos de sesión",
+    "protected": "Protegido",
+    "user_email": "Correo del usuario",
+    "username": "Nombre de usuario",
+    "top_genre": "Género principal",
+    "weight": "Peso",
+    "no_genre_data": "Sin datos de género",
+    "top_tracks": "Canciones principales",
+    "song_of_the_month": "Canción del mes",
+    "recent_listening": "Escuchado recientemente",
+    "song_of_all_time": "Canción de todos los tiempos",
+    "all_time_listening": "Historial completo",
+    "no_track_available": "No hay canciones disponibles.",
+    "popularity": "Popularidad",
+    "no_img": "Sin img",
+    "top_artists": "Artistas principales",
+    "rank": "Puesto",
+    "no_genres": "Sin géneros",
+    "no_artists_yet": "Aún no hay artistas.",
+    "spotify_not_connected": "Spotify no conectado",
+    "spotify_connect_prompt": "Inicia sesión con tu cuenta de Spotify для desbloquear tus artistas principales, géneros y tu perfil musical.",
+    "connect_spotify": "Conectar Spotify"
+  },
+  "match": {
+    "rounds": {
+      "label": "Ronda {{current}} / {{total}}",
+      "waiting": "Esperando la ronda"
+    },
+    "cooldown": {
+      "active": "¡Tiempo de espera activo! Por favor, espera...",
+      "secondsRemaining": "Segundos restantes: {seconds}"
+    },
+    "user": {
+      "guest": "Invitado",
+      "playerFallback": "Jugador",
+      "player": "jugador"
+    },
+    "errors": {
+      "audioLoadFailed": "No se pudo cargar el audio. Comprueba tu conexión.",
+      "searchFailed": "La búsqueda ha fallado. Verifica tu consulta o inténtalo de nuevo más tarde.",
+      "matchNotFoundTitle": "¡PARTIDA NO ENCONTRADA!"
+    },
+    "header": {
+      "matchComplete": "Partida completada",
+      "finalResults": "Resultados finales",
+      "you": "(tú)",
+      "backButton": "volver"
+    },
+    "hud": {
+      "trackTime": "Pista: {{seconds}}s",
+      "audioUnavailable": "Audio no disponible",
+      "audioRestoreInstructions": "El audio no está disponible después de recargar. Toca aquí para restaurar la reproducción.",
+      "startsIn": "Empieza en",
+      "guessTimeRemaining": "Tiempo restante para adivinar",
+      "seconds": "segundos",
+      "timeout": "¡TIEMPO AGOTADO!",
+      "wrongAnswer": "¡RESPUESTA INCORRECTA!",
+      "correctAnswer": "¡RESPUESTA CORRECTA!",
+      "lockedBy": "Bloqueado por {{name}}",
+      "firstLockWins": "El primero en bloquear gana",
+      "lockLabel": "Bloquear y adivinar"
+    },
+    "buttons": {
+      "locking": "Bloqueando...",
+      "cooldown": "Espera ({{seconds}}s)",
+      "lockDefault": "Bloquear (Espacio)"
+    },
+    "guessingPanel": {
+      "searchPlaceholder": "Buscar canción",
+      "submitButton": "Enviar respuesta",
+      "selectedPrefix": "Seleccionado: {{track}} — {{artist}}",
+      "searching": "Buscando...",
+      "noResults": "Sin resultados.",
+      "waitingForOwner": "Esperando a que el propietario del bloqueo envíe una respuesta."
+    },
+    "scoreboard": {
+      "title": "Marcador",
+      "waitingForPlayers": "Esperando jugadores.",
+      "you": "(tú)",
+      "offline": "(desconectado)"
+    }
+  },
+  "lobby": {
+    "notFoundTitle": "¡SALA NO ENCONTRADA!",
+    "lobbyCode": "Código de la sala",
+    "ready": "Listo",
+    "markReady": "Marcar listo",
+    "leaveRoom": "Salir de la sala",
+    "errorPrefix": "Error:",
+    "connectedPlayers": "Jugadores conectados",
+    "waitingPlayers": "Esperando a que se conecten jugadores.",
+    "youSuffix": " (tú)",
+    "guestFallback": "Invitado"
+  },
+  "terms": {
+    "title": "Términos de Servicio",
+    "lastUpdated": "Última actualización: 8 de julio de 2026",
+    "intro": "Estos Términos de Servicio (\"Términos\") regulan el uso de <1>Songuess</1>, un juego de trivia musical multijugador en tiempo real. Al acceder o usar Songuess, aceptas estos Términos.",
+    "sections": {
+      "academicTitle": "1. Proyecto académico",
+      "academicBody": "Songuess es un proyecto académico desarrollado por estudiantes de <1>42</1> como parte del plan de estudios de ft_transcendence. Es un ejercicio de aprendizaje y un MVP, no un producto comercial ni un servicio en línea operado públicamente.",
+      "intendedTitle": "2. Uso previsto",
+      "intendedBody1": "Songuess está destinado exclusivamente para el desarrollo local, pruebas y evaluación, incluyendo revisiones de proyectos y evaluaciones por pares en 42. No está diseñado para uso público general en Internet, y no lo ofrecemos como un servicio alojado para usuarios externos.",
+      "intendedBody2": "Puedes acceder a Songuess solo en entornos donde el proyecto esté desplegado con fines académicos (por ejemplo, una configuración local o provista por la escuela utilizada durante la evaluación).",
+      "acceptableTitle": "3. Uso aceptable",
+      "acceptableIntro": "Aceptas usar Songuess de manera responsable y de buena fe. No debes:",
+      "acceptableRule1": "Intentar interrumpir, explotar o realizar ingeniería inversa de la aplicación o su infraestructura.",
+      "acceptableRule2": "Usar el servicio para acosar, suplantar la identidad o dañar a otros jugadores.",
+      "acceptableRule3": "Compartir credenciales o intentar acceder a cuentas que no te pertenecen.",
+      "acceptableRule4": "Usar herramientas o scripts automatizados para interferir con el juego o las operaciones del servidor.",
+      "acceptableOutro": "Podemos restringir o dar por terminado el acceso si determinamos que el uso es abusivo o incompatible con el propósito académico del proyecto.",
+      "availabilityTitle": "4. Sin garantía de disponibilidad",
+      "availabilityBody": "Songuess se proporciona \"tal cual\" y \"según disponibilidad\". Debido a que es un MVP en desarrollo activo, <1>no</1> garantizamos la disponibilidad continua, el tiempo de actividad, la persistencia de datos o el funcionamiento libre de errores. El servicio puede estar fuera de línea, reiniciarse o no estar disponible en cualquier momento sin previo aviso, incluso durante evaluaciones, demostraciones o trabajo de desarrollo.",
+      "changesDevTitle": "5. Cambios durante el desarrollo",
+      "changesDevBody": "El equipo de desarrollo puede agregar, modificar o eliminar características, reglas o datos en cualquier momento como parte del trabajo continuo en el proyecto. Las mecánicas del juego, los flujos de autenticación y los modelos de datos almacenados pueden cambiar sin previo aviso. Reconoces que tu experiencia puede diferir entre versiones y sesiones de evaluación.",
+      "spotifyTitle": "6. Spotify como servicio de terceros",
+      "spotifyBody1": "Songuess utiliza <1>Spotify</1> únicamente para la autenticación de usuarios y, con tu consentimiento, para recuperar información de perfil y gustos musicales utilizada dentro de la aplicación. Tu uso del inicio de sesión de Spotify también está sujeto a los propios términos y políticas de privacidad de Spotify.",
+      "spotifyBody2": "No estamos afiliados, respaldados ni somos responsables de Spotify. Si Spotify no está disponible o cambia su API, el inicio de sesión de Spotify o las funciones relacionadas en Songuess pueden dejar de funcionar sin previo aviso.",
+      "accountsTitle": "7. Cuentas y contenido",
+      "accountsBody1": "Eres responsable de la exactitud de la información que proporcionas al registrarte (correo electrónico, nombre de usuario y contraseña) o al iniciar sesión con Spotify. Eres responsable de mantener la confidencialidad de tus credenciales.",
+      "accountsBody2": "Songuess no reclama la propiedad de los fragmentos de audio musical ni de los metadatos expuestos a través de Spotify durante el juego. Todo el contenido relacionado con la música sigue sujeto a los términos de Spotify y a la ley de derechos de autor aplicable.",
+      "liabilityTitle": "8. Limitación de responsabilidad",
+      "liabilityBody": "En la máxima medida permitida en este contexto académico, los desarrolladores de Songuess no son responsables de ninguna pérdida de datos, interrupción del juego u otros daños que surjan del uso de este MVP. El proyecto se proporciona de forma gratuita, sin monetización, publicidad ni garantías de ningún tipo.",
+      "contactTitle": "9. Contacto",
+      "contactBody": "Para preguntas sobre estos Términos o sobre tus datos, comunícate con el equipo de desarrollo a través de los perfiles de GitHub que figuran en la <1>página de inicio</1>.",
+      "changesTermsTitle": "10. Cambios a estos Términos",
+      "changesTermsBody": "Podemos actualizar estos Términos a medida que el proyecto evolucione. El uso continuo de Songuess después de que se publiquen los cambios constituye la aceptación de los Términos revisados. La fecha de \"Última actualización\" en la parte superior de esta página indica la revisión más reciente."
+    },
+    "seeAlso": "Consulte también nuestra <PrivacyLink>Política de privacidad</PrivacyLink>."
+  },
+  "privacy": {
+    "title": "Política de Privacidad",
+    "lastUpdated": "Última actualización: 8 de julio de 2026",
+    "intro": "Esta Política de Privacidad describe cómo <1>Songuess</1> —un juego de trivia musical multijugador en tiempo real desarrollado como un proyecto académico en 42— recopila, utiliza y almacena información personal. Songuess es actualmente un MVP destinado exclusivamente al desarrollo local, pruebas y evaluación. No está diseñado para su despliegue público en Internet.",
+    "sections": {
+      "dataTitle": "1. Datos que almacenamos",
+      "dataIntro": "Cuando creas una cuenta o inicias sesión, almacenamos solo la información necesaria para ejecutar la aplicación:",
+      "dataRule1": "<1>Datos de la cuenta:</1> dirección de correo electrónico, nombre de usuario y una contraseña cifrada con bcrypt (nunca almacenamos tu contraseña en texto plano).",
+      "dataRule2": "<1>Datos de la sesión:</1> tokens de actualización cifrados vinculados a tu cuenta, además de tokens de acceso de corta duración entregados a través de cookies HTTP-only (<3>access_token</3>, <5>refresh_token</5>).",
+      "dataRule3": "<1>Datos del perfil de Spotify</1> (opcional, solo si inicias sesión con Spotify): ID de usuario de Spotify, nombre de pantalla, correo electrónico, URL de la imagen de perfil, tus artistas y géneros principales, y tus pistas más escuchadas (recientes y de todos los tiempos). Estos datos se actualizan cada vez que te autenticas con Spotify.",
+      "dataOutro1": "Durante las partidas multijugador activas, tu nombre de pantalla y tu puntuación se mantienen en la memoria del servidor para que otros jugadores puedan verlos. Los resultados de las partidas no se almacenan de forma permanente en nuestra base de datos.",
+      "dataOutro2": "Tu navegador también puede almacenar un indicador de inicio de sesión, valores de tiempo de sesión y marcas de tiempo de enfriamiento del juego en <1>localStorage</1>. Estos se utilizan únicamente para la gestión de sesiones y las mecánicas del juego.",
+      "spotifyTitle": "2. Información obtenida a través de Spotify OAuth",
+      "spotifyBody1": "Si eliges \"Continuar con Spotify\", te redirigimos a la página de autorización de Spotify. Con tu consentimiento, Spotify comparte datos de perfil y gustos musicales a través de los siguientes permisos: <1>user-read-email</1>, <3>user-read-private</3> y <5>user-top-read</5>.",
+      "spotifyBody2": "De Spotify recibimos tu información de perfil (ID, correo electrónico, nombre de pantalla, avatar) y tus artistas principales, géneros derivados y pistas principales. Los tokens de acceso de Spotify OAuth se utilizan solo durante la devolución de llamada de inicio de sesión y <1>no</1> se almacenan a largo plazo en nuestros servidores.",
+      "spotifyBody3": "Spotify es el único servicio de terceros utilizado para la autenticación de usuarios. No nos integramos con ningún otro proveedor de inicio de sesión externo.",
+      "useTitle": "3. Cómo utilizamos tus datos",
+      "useIntro": "Utilizamos los datos descritos anteriormente exclusivamente para:",
+      "useRule1": "Crear y gestionar tu cuenta y sesión de Songuess.",
+      "useRule2": "Mostrar tu perfil y los datos opcionales de tus gustos de Spotify dentro de la aplicación.",
+      "useRule3": "Identificarte durante las salas y partidas multijugador (nombre de pantalla y puntuación).",
+      "useRule4": "Mantener la aplicación segura y funcionando correctamente.",
+      "useOutro": "No vendemos, alquilamos ni compartimos tus datos personales con terceros para marketing o publicidad. Songuess no tiene monetización, ni publicidad, ni servicios de análisis o seguimiento.",
+      "academicTitle": "4. Uso local y académico",
+      "academicBody": "Songuess es un proyecto de estudiantes desarrollado para el plan de estudios de ft_transcendence en 42. Se ejecuta en un entorno de desarrollo local y evaluación. No lo operamos como un servicio comercial ni alojado públicamente, y no garantizamos las mismas protecciones o disponibilidad que esperarías de una aplicación de producción.",
+      "retentionTitle": "5. Retención y eliminación de datos",
+      "retentionBody1": "Los datos de la cuenta y del perfil de Spotify permanecen almacenados mientras exista tu cuenta. Los tokens de sesión caducan automáticamente (tokens de acceso después de 15 minutos; tokens de actualización después de 30 días, o antes si cierras sesión).",
+      "retentionBody2": "Songuess actualmente no ofrece una función de eliminación de cuenta dentro de la aplicación. Si deseas que se eliminen tus datos almacenados, ponte en contacto con el equipo de desarrollo a través de sus perfiles de GitHub que figuran en la <1>página de inicio</1>. Gestionaremos las solicitudes de eliminación de la mejor manera posible dentro del contexto de este proyecto académico.",
+      "changesTitle": "6. Cambios en esta política",
+      "changesBody": "Podemos actualizar esta Política de Privacidad a medida que el proyecto evolucione durante el desarrollo y la evaluación. La fecha de \"Última actualización\" en la parte superior de esta página reflejará la revisión más reciente."
+    },
+    "seeAlso": "Consulte también nuestros <TermsLink>Términos de servicio</TermsLink>."
+  },
+  "common": {
+    "loading": "Cargando..."
+  },
+  "errors": {
+    "WRONG_CREDENTIALS": "Credenciales incorrectas",
+    "404_NOT_FOUND": "¡404 PÁGINA NO ENCONTRADA!",
+    "MATCH_NOT_FOUND": "Partida no encontrada",
+    "USER_ALREADY_IN_GAME": "Ya estás activo en otra sesión de juego.",
+    "MATCH_CREATE_FAILED": "No se pudo establecer la conexión o crear la sala.",
+    "DEFAULT_ERROR": "Ha ocurrido un error inesperado.",
+    "LOGIN_REQUIRED": "Debes iniciar sesión para acceder a una sala de juego activa.",
+    "MATCH_FINISHED": "Esta partida ya ha terminado.",
+    "NOT_ENOUGH_SONGS_MESSAGE": "No hay suficientes canciones disponibles para iniciar el juego.",
+    "NOT_ENOUGH_SONGS_AVAILABLE": "No hay suficientes canciones disponibles para iniciar el juego.",
+    "INVALID_USER": "Usuario no válido",
+    "MISSING_PARAMETER": "Parámetro de consulta 'term' ausente o no válido",
+    "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Error al obtener datos de la API de Spotify"
+  }
+}

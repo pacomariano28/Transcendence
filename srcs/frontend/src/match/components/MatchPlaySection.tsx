@@ -1,5 +1,6 @@
 /** Left column: audio stage + lock button (+ playlist error). */
 import type { RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../../utils/buttonHover";
 import type { GuessSelectedTrack, GuessStatus } from "../types";
 import MatchAudioStage from "./MatchAudioStage";
@@ -53,6 +54,8 @@ export default function MatchPlaySection({
   requestLock,
   playlistError,
 }: MatchPlaySectionProps) {
+  const { t } = useTranslation();
+
   return (
     <section
       className={`card order-1 overflow-hidden p-6 lg:col-start-1 lg:row-start-1 lg:flex lg:h-[24rem] lg:flex-col ${
@@ -92,10 +95,10 @@ export default function MatchPlaySection({
         >
           <span>
             {lockRequested
-              ? "Locking..."
+              ? t("match.buttons.locking")
               : showCooldownUi
-                ? `Cooldown (${cooldownSeconds}s)`
-                : "Lock (Space)"}
+                ? t("match.buttons.cooldown", { seconds: cooldownSeconds })
+                : t("match.buttons.lockDefault")}
           </span>
         </button>
       </div>

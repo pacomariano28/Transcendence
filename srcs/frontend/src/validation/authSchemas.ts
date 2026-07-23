@@ -1,23 +1,25 @@
 import { z } from "zod";
 
 export const registerSchema = z.object({
-  email: z.email("Invalid email"),
+  // Use z.email() directly instead of z.string().email()
+  email: z.email({ message: "validation.invalid_email" }),
   username: z
     .string()
-    .min(1, "Username is required")
-    .max(12, "Max 12 characters for user name"),
+    .min(1, "validation.username_required")
+    .max(12, "validation.username_too_long"),
   password: z
     .string()
-    .min(3, "Password requires at least 3 characters ")
-    .max(12, "Max 12 characters for password"),
+    .min(3, "validation.password_too_short")
+    .max(12, "validation.password_too_long"),
 });
 
 export const loginSchema = z.object({
-  email: z.email("Invalid email"),
+  // Fix it here as well
+  email: z.email({ message: "validation.invalid_email" }),
   password: z
     .string()
-    .min(3, "Password requires at least 3 characters")
-    .max(12, "Max 12 characters for password"),
+    .min(3, "validation.password_too_short")
+    .max(12, "validation.password_too_long"),
 });
 
 export type RegisterValues = z.infer<typeof registerSchema>;

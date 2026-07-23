@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function Footer() {
+  const { t } = useTranslation();
   return (
     <footer className="mt-auto border-t border-white/10 bg-black/10">
       <div className="container-page py-4">
@@ -9,15 +11,15 @@ export default function Footer() {
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <Link to="/privacy" className="link">
-              Privacy Policy
+              {t("privacy.title")}
             </Link>
             <Link to="/terms" className="link">
-              Terms of Service
+              {t("terms.title")}
             </Link>
           </div>
 
           <span className="text-zinc-600">
-            Minimal multiplayer game • Built with React
+            {t("footer.game_description")} • {t("footer.built_with")}
           </span>
         </div>
       </div>

@@ -11,9 +11,7 @@ export async function getTracks(req: Request, res: Response): Promise<void> {
 
     // Input validation
     if (!term || typeof term !== "string") {
-      res
-        .status(400)
-        .json({ error: "Missing or invalid 'term' query parameter" });
+      res.status(400).json({ error: "MISSING_PARAMETER" });
       return;
     }
 
@@ -23,6 +21,6 @@ export async function getTracks(req: Request, res: Response): Promise<void> {
     // Return data to the client
     res.status(200).json(tracks);
   } catch {
-    res.status(502).json({ error: "Failed to fetch data from Spotify API" });
+    res.status(502).json({ error: "ERROR_FETCHING_DATA_FROM_SPOTIFY" });
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
@@ -10,8 +11,9 @@ import {
   ensureEnoughSongsForMatch,
   getAvailableSongCount,
   MATCH_ROUNDS_TOTAL,
-  NOT_ENOUGH_SONGS_MESSAGE,
 } from "../api/playlist";
+import { translateError } from "../i18n/translateError";
+import i18n from "../i18n/i18n";
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
@@ -40,6 +42,7 @@ async function ensureSocketConnected() {
 }
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
@@ -73,13 +76,13 @@ export default function HomePage() {
   }, []);
 
   const disabledReason = useMemo(() => {
-    if (!user) return "Login required";
-    if (isCreating) return "Creating room...";
+    if (!user) return t("home.disabled_login_required");
+    if (isCreating) return t("home.disabled_creating");
     if (songsAvailable !== null && !hasEnoughSongs) {
-      return NOT_ENOUGH_SONGS_MESSAGE;
+      return t("errors.NOT_ENOUGH_SONGS_MESSAGE");
     }
     return "";
-  }, [user, isCreating, songsAvailable, hasEnoughSongs]);
+  }, [user, isCreating, songsAvailable, hasEnoughSongs, t]);
 
   async function createRoom() {
     if (!user || isCreating || !hasEnoughSongs) return;
@@ -90,13 +93,14 @@ export default function HomePage() {
     try {
       const res = await getState();
 
-      if (!res.ok) throw new Error("User already in game");
+      if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
 
       await ensureEnoughSongsForMatch();
       await ensureSocketConnected();
 
       let matchId = "";
-      const playerName = user.username ?? user.email ?? "Guest";
+      const playerName =
+        user.username ?? user.email ?? i18n.t("match.user.guest");
 
       await new Promise<void>((resolve, reject) => {
         const handleCreated = (payload: { matchId: string }) => {
@@ -129,9 +133,9 @@ export default function HomePage() {
       });
 
       navigate(`/room/${matchId}`);
-    } catch (error) {
-      console.error("Error creating room:", error);
-      setError(error instanceof Error ? error.message : String(error));
+    } catch (err) {
+      console.error("Error creating room:", err);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsCreating(false);
     }
@@ -146,14 +150,14 @@ export default function HomePage() {
     try {
       const res = await getState();
 
-      if (!res.ok) throw new Error("User already in game");
+      if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
 
       await ensureEnoughSongsForMatch();
 
       navigate(`/join`);
-    } catch (error) {
-      console.error("Error joining room:", error);
-      setError(error instanceof Error ? error.message : String(error));
+    } catch (err) {
+      console.error("Error joining room:", err);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsCreating(false);
     }
@@ -165,7 +169,7 @@ export default function HomePage() {
         <div className="page-card">
           <div className="section-stack">
             <div className="space-y-3">
-              <h1 className="page-title">Guess the song.</h1>
+              <h1 className="page-title">{t("home.title")}</h1>
 
               <TypingText text="SONGUESS" size="md" className="ms-1" />
             </div>
@@ -179,7 +183,9 @@ export default function HomePage() {
                 disabled={!user || isCreating || !hasEnoughSongs}
                 title={disabledReason}
               >
-                <span>{isCreating ? "Creating..." : "Create room"}</span>
+                <span>
+                  {isCreating ? t("home.creating") : t("home.create_room")}
+                </span>
               </button>
 
               <button
@@ -191,40 +197,44 @@ export default function HomePage() {
                 disabled={!user || isCreating || !hasEnoughSongs}
                 title={disabledReason}
               >
-                <span>Join room</span>
+                <span>{t("home.join_room")}</span>
               </button>
             </div>
 
             {(error || (songsAvailable !== null && !hasEnoughSongs)) && (
               <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
-                <strong>{error || NOT_ENOUGH_SONGS_MESSAGE}</strong>
+                <strong>
+                  {error
+                    ? translateError(error, t)
+                    : t("errors.NOT_ENOUGH_SONGS_MESSAGE")}
+                </strong>
               </div>
             )}
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
               {loading ? (
                 <span className="animate-pulse text-zinc-400">
-                  Checking session…
+                  {t("home.checking_session")}
                 </span>
               ) : user ? (
                 <span>
-                  You’re signed in as{" "}
+                  {t("home.signed_in_prefix")}
                   <span className="text-zinc-100">
                     {user.username ?? user.email}
                   </span>
-                  . Go to{" "}
+                  {t("home.signed_in_suffix")}
                   <Link className="link" to="/profile">
-                    Profile
+                    {t("home.profile_link")}
                   </Link>
                   .
                 </span>
               ) : (
                 <span>
-                  You’re not signed in.{" "}
+                  {t("home.not_signed_in")}
                   <Link className="link" to="/login">
-                    Login
+                    {t("home.login_link")}
                   </Link>{" "}
-                  to keep your session across refreshes.
+                  {t("home.login_prompt_suffix")}
                 </span>
               )}
             </div>
@@ -232,7 +242,7 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <TypingText text="MADE BY" size="md" className="ms-1" />
+          <TypingText text={t("home.made_by")} size="md" className="ms-1" />
           <div className="grid grid-cols-2 gap-3 sm:gap-5">
             <a
               href="https://github.com/pacomariano28"

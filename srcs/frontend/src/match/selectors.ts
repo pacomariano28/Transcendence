@@ -42,6 +42,7 @@ export function buildResultsData(
   finalScores: ScoreEntry[] | null,
   playersList: MatchStatePayload["players"],
   scores: Record<string, number>,
+  playerFallback = "Player",
 ): ScoreEntry[] {
   const entries = finalScores
     ? finalScores
@@ -50,7 +51,7 @@ export function buildResultsData(
         displayName:
           (player as { username?: string; displayName?: string }).username ||
           (player as { displayName?: string }).displayName ||
-          "Jugador",
+          playerFallback,
         score:
           scores[player.userId] ||
           (player as { score?: number }).score ||

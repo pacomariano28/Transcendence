@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { login, register } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { loginSchema, registerSchema } from "../validation/authSchemas";
@@ -8,14 +9,16 @@ import SpotifyIcon from "../components/icons/SpotifyIcon";
 import TypingText from "../components/TypingText";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { reload } = useAuth();
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const title = useMemo(
-    () => (mode === "login" ? "Welcome back" : "Create account"),
-    [mode],
+    () =>
+      mode === "login" ? t("auth.welcome_back") : t("auth.create_account"),
+    [mode, t],
   );
 
   const [email, setEmail] = useState("");
@@ -30,11 +33,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams.get("spotify") !== "cancelled") return;
 
-    setSpotifyCancelledMessage(
-      "Spotify authorization was cancelled. You can try again or sign in with email.",
-    );
+    setSpotifyCancelledMessage(t("auth.errors.spotify_cancelled"));
     setSearchParams({}, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, t]);
 
   function loginWithSpotify() {
     window.location.href = "/api/auth/spotify/login";
@@ -52,7 +53,7 @@ export default function LoginPage() {
 
     if (!parsed.success) {
       const firstIssue = parsed.error.issues[0];
-      setError(firstIssue?.message ?? "Invalid input");
+      setError(firstIssue?.message ?? "validation.unknown_error");
       setSubmitting(false);
       return;
     }
@@ -115,21 +116,21 @@ export default function LoginPage() {
               onMouseMove={handleMouseMoveToSetFillOrigin}
             >
               <span className="flex items-center gap-2">
-                Continue with
+                {t("auth.continue_with")}
                 <SpotifyIcon className="h-6 w-6" />
               </span>
             </button>
 
             <div className="my-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-zinc-500">or</span>
+              <span className="text-xs text-zinc-500">{t("auth.or")}</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
             <form className="space-y-4" onSubmit={onSubmit}>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-zinc-400">
-                  Email
+                  {t("auth.email")}
                 </span>
                 <input
                   className="input"
@@ -143,13 +144,13 @@ export default function LoginPage() {
               {mode === "register" && (
                 <label className="block pop-in">
                   <span className="mb-1 block text-xs font-medium text-zinc-400">
-                    Username
+                    {t("auth.username")}
                   </span>
                   <input
                     className="input"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="paco"
+                    placeholder="lana"
                     autoComplete="username"
                   />
                 </label>
@@ -157,7 +158,7 @@ export default function LoginPage() {
 
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-zinc-400">
-                  Password
+                  {t("auth.password")}
                 </span>
                 <input
                   className="input"
@@ -173,7 +174,12 @@ export default function LoginPage() {
 
               {error && (
                 <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200 nudge">
-                  {error}
+                  {t(
+                    error.startsWith("validation.")
+                      ? error
+                      : `auth.errors.${error}`,
+                    error,
+                  )}
                 </div>
               )}
 
@@ -186,10 +192,10 @@ export default function LoginPage() {
               >
                 <span>
                   {submitting
-                    ? "Working…"
+                    ? t("auth.working")
                     : mode === "login"
-                      ? "Login"
-                      : "Create account"}
+                      ? t("auth.login")
+                      : t("auth.create_account")}
                 </span>
               </button>
 
@@ -201,8 +207,8 @@ export default function LoginPage() {
                 }
               >
                 {mode === "login"
-                  ? "Create an account"
-                  : "I already have an account"}
+                  ? t("auth.create_an_account_switch")
+                  : t("auth.already_have_account")}
               </button>
             </form>
           </div>

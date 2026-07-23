@@ -1,5 +1,7 @@
 /** Lock status label and Spotify search form for the lock owner. */
+import { useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
+//import { translateError } from "../../i18n/translateError";
 
 type MatchGuessSectionProps = {
   isMatchFinished: boolean;
@@ -32,6 +34,8 @@ export default function MatchGuessSection({
   onSelectTrack,
   onSubmitGuess,
 }: MatchGuessSectionProps) {
+  const { t } = useTranslation();
+
   return (
     <section
       className={`card order-2 overflow-hidden p-6 lg:col-span-2 lg:row-start-2 ${
@@ -40,7 +44,7 @@ export default function MatchGuessSection({
     >
       <div className="flex flex-col gap-1">
         <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-          Lock and guess
+          {t("match.hud.lockLabel")}
         </div>
 
         <div className="relative h-7 mt-1">
@@ -49,17 +53,16 @@ export default function MatchGuessSection({
                 ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
                 text-lg text-zinc-300`}
           >
-            Locked by{" "}
-            <span className="font-extrabold tracking-wider">
-              {lockOwnerName || "player"}
-            </span>
+            {t("match.hud.lockedBy", {
+              name: lockOwnerName || t("match.user.player"),
+            })}
           </div>
           <div
             className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
                 ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
                 text-sm text-zinc-400`}
           >
-            First lock wins
+            {t("match.hud.firstLockWins")}
           </div>
         </div>
       </div>
@@ -75,7 +78,7 @@ export default function MatchGuessSection({
                 <input
                   autoFocus
                   className="lock-input input flex-1 text-center uppercase"
-                  placeholder="Search track"
+                  placeholder={t("match.guessingPanel.searchPlaceholder")}
                   value={searchTerm}
                   onChange={(event) => {
                     onSearchTermChange(event.target.value);
@@ -94,25 +97,28 @@ export default function MatchGuessSection({
                   onClick={onSubmitGuess}
                   disabled={!canGuess || !selectedTrack}
                 >
-                  <span>Submit guess</span>
+                  <span>{t("match.guessingPanel.submitButton")}</span>
                 </button>
               </div>
 
               {selectedTrack && (
                 <div className="select-text mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
-                  Selected: {selectedTrack.track} - {selectedTrack.artist}
+                  {t("match.guessingPanel.selectedPrefix", {
+                    track: selectedTrack.track,
+                    artist: selectedTrack.artist,
+                  })}
                 </div>
               )}
 
               {searchError && (
                 <div className="mt-3 text-xs text-rose-300 animate-fade-in">
-                  {searchError}
+                  {translateError(searchError, t)}
                 </div>
               )}
 
               {searching && (
                 <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                  Searching...
+                  {t("match.guessingPanel.searching")}
                 </div>
               )}
 
@@ -122,7 +128,7 @@ export default function MatchGuessSection({
                 searchResults.length === 0 &&
                 !selectedTrack && (
                   <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                    No results.
+                    {t("match.guessingPanel.noResults")}
                   </div>
                 )}
 
@@ -150,7 +156,7 @@ export default function MatchGuessSection({
             </div>
           ) : (
             <div className="mt-2 text-sm text-zinc-400">
-              Waiting for the lock owner to submit a guess.
+              {t("match.guessingPanel.waitingForOwner")}
             </div>
           )}
         </div>

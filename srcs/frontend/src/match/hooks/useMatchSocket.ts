@@ -46,6 +46,7 @@ import type {
 } from "../types";
 import { isMatchNotFoundError, normalizeCode } from "../utils";
 import { mergeScoresFromPayload } from "../utils/scoreUtils";
+import i18n from "../../i18n/i18n";
 
 type AuthUser = {
   id: string | number;
@@ -143,7 +144,8 @@ export function useMatchSocket({
     const joinMatch = () => {
       socket.emit("match:join", {
         matchId: code,
-        displayName: user.username ?? user.email ?? "Guest",
+        displayName:
+          user.username ?? user.email ?? i18n.t("match.user.guest"),
       });
     };
 

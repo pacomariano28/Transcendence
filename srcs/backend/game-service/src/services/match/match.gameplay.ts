@@ -31,7 +31,7 @@ export function requestLock(
   }
 
   if (match.round.phase !== "playing") {
-    throw new Error("ROUND_NOT_PLAYING");
+    throw new Error("Someone already locked");
   }
 
   if (match.round.lockOwnerId) {

@@ -21,6 +21,6 @@ export async function getAvailableSongCount(): Promise<number> {
 export async function ensureEnoughSongsForMatch(): Promise<void> {
   const count = await getAvailableSongCount();
   if (count < MATCH_ROUNDS_TOTAL) {
-    throw new Error(NOT_ENOUGH_SONGS_MESSAGE);
+    throw new Error("NOT_ENOUGH_SONGS_AVAILABLE");
   }
 }

@@ -13,6 +13,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
 import type { MatchStatePayload, ScoreEntry } from "../types/socket.payloads";
@@ -37,6 +38,7 @@ import {
   getMatchDisplayFlags,
 } from "../match/selectors";
 import { normalizeCode } from "../match/utils";
+import { translateError } from "../i18n/translateError";
 import type {
   GuessSelectedTrack,
   GuessStatus,
@@ -44,6 +46,7 @@ import type {
 } from "../match/types";
 
 export default function MatchPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const { code: codeParam } = useParams();
   const { user } = useAuth();
@@ -132,6 +135,12 @@ export default function MatchPage() {
     notFound,
     roundPhase,
     finalScores,
+    compactRoundLabel: roundInfo
+      ? t("match.rounds.lbl", {
+          current: roundInfo.roundIndex + 1,
+          total: roundInfo.roundsTotal,
+        })
+      : undefined,
     setActiveMatch,
   });
 
@@ -204,8 +213,11 @@ export default function MatchPage() {
   }, [guessStatus, showResultText]);
 
   const roundLabel = roundInfo
-    ? `Round ${roundInfo.roundIndex + 1} / ${roundInfo.roundsTotal}`
-    : "Waiting for round";
+    ? t("match.rounds.label", {
+        current: roundInfo.roundIndex + 1,
+        total: roundInfo.roundsTotal,
+      })
+    : t("match.rounds.waiting");
 
   const lockOwnerName = useMemo(
     () => getLockOwnerName(matchState, lockOwnerId),
@@ -219,8 +231,14 @@ export default function MatchPage() {
 
   const playersList = matchState?.players || [];
   const resultsData = useMemo(
-    () => buildResultsData(finalScores, playersList, scores),
-    [finalScores, playersList, scores],
+    () =>
+      buildResultsData(
+        finalScores,
+        playersList,
+        scores,
+        t("match.user.playerFallback"),
+      ),
+    [finalScores, playersList, scores, t],
   );
 
   // Derive which overlays are visible in the audio stage (mutually exclusive layers)
@@ -240,7 +258,7 @@ export default function MatchPage() {
   });
 
   if (!code || notFound) {
-    return <NotFoundPage title="MATCH NOT FOUND!" />;
+    return <NotFoundPage title={t("match.errors.matchNotFoundTitle")} />;
   }
 
   return (
@@ -255,13 +273,15 @@ export default function MatchPage() {
 
         {error && (
           <div className="rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200">
-            {error}
+            {translateError(error, t)}
           </div>
         )}
 
         <div
           className={`flex flex-col ${
-            isMatchFinished ? "gap-0" : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
+            isMatchFinished
+              ? "gap-0"
+              : "gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_auto] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
           }`}
         >
           <MatchPlaySection

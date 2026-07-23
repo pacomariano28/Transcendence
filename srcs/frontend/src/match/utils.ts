@@ -1,5 +1,5 @@
 export function isMatchNotFoundError(message: string) {
-  return message === "MATCH_NOT_FOUND" || message === "Match not found";
+  return message === "MATCH_NOT_FOUND";
 }
 
 /** Normalizes URL match codes to uppercase alphanumeric, max 6 chars. */
