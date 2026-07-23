@@ -32,7 +32,7 @@
     "room_credentials": "CÓDIGO DE LA PARTIDA",
     "paste": "Pegar",
     "placeholder": "AB12CD",
-    "error_validation_failed": "El código debe tener entre 4 y 8 caracteres (A–Z, 0–9).",
+    "error_validation_failed": "El código debe tener 6 caracteres alfanuméricos (A-Z, 0-9).",
     "validation_hint": "Usa entre 4 y 8 caracteres.",
     "join_room": "Unirse a la sala",
     "back": "Volver",

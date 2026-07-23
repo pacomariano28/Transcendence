@@ -32,7 +32,7 @@
     "room_credentials": "КОД ИГРЫ",
     "paste": "Вставить",
     "placeholder": "AB12CD",
-    "error_validation_failed": "Код должен быть от 4 до 8 символов (A–Z, 0–9).",
+    "error_validation_failed": "Код должен состоять из 6 буквенно-цифровых символов (A-Z, 0-9).",
     "validation_hint": "Используйте от 4 до 8 символов.",
     "join_room": "Войти в комнату",
     "back": "Назад",
