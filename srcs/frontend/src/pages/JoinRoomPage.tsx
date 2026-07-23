@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { useAuth } from "../auth/auth-context";
 import TypingText from "../components/TypingText";
+import MatchCodePreview from "../components/MatchCodePreview";
 import { getMatchState } from "../api/state";
 import type { MatchStatePayload } from "../types/socket.payloads";
 import { translateError } from "../i18n/translateError";
@@ -67,9 +68,7 @@ export default function JoinRoomPage() {
             <TypingText text={t("join.lobby_page")} size="md" />
           </div>
 
-          <div className="mt-3 font-mono text-4xl font-semibold tracking-[0.35em] text-zinc-500 sm:text-5xl uppercase">
-            {normalized || "———"}
-          </div>
+          <MatchCodePreview code={normalized} />
 
           {disabledReason && (
             <div className="mt-4 rounded-lg border border-rose-500/50 bg-rose-500/10 p-4 text-rose-200 text-sm animate-fade-in">
