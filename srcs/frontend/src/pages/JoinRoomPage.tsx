@@ -91,7 +91,7 @@ export default function JoinRoomPage() {
               </button>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 relative">
               <input
                 autoFocus
                 className={[
@@ -111,21 +111,26 @@ export default function JoinRoomPage() {
                   onJoin();
                 }}
               />
+              <span className="pointer-events-none absolute bottom-2 right-3 text-xs font-mono text-zinc-500">
+                {t("join.char_counter", {
+                  current: normalized.length,
+                  max: 6,
+                })}
+              </span>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs font-mono text-zinc-500">
-              <div className="relative h-4 flex-1">
+            <div className="mt-3 text-xs font-mono text-zinc-500">
+              <div className="relative h-4">
                 {touched && !isValid ? (
                   <span className="absolute left-0 text-rose-400 animate-fade-in font-sans tracking-wide">
                     {t("join.error_validation_failed")}
                   </span>
-                ) : (
+                ) : !isValid ? (
                   <span className="absolute left-0 text-zinc-500 font-sans tracking-wide">
                     {t("join.validation_hint")}
                   </span>
-                )}
+                ) : null}
               </div>
-              <span className="shrink-0">{normalized.length}/8</span>
             </div>
           </div>
 
