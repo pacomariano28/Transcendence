@@ -8,156 +8,180 @@ async function main() {
   await prisma.song.createMany({
     data: [
       {
-        isrc: "ARF112200051",
+        isrc: "USGF19942501",
         fileName: "preview_001.mp3",
       },
       {
-        isrc: "USWL12302753",
+        isrc: "USMC19959123",
         fileName: "preview_002.mp3",
       },
       {
-        isrc: "QM6MZ2214878",
+        isrc: "USA176610020",
         fileName: "preview_003.mp3",
       },
       {
-        isrc: "QMFME2364189",
+        isrc: "AUAP07900028",
         fileName: "preview_004.mp3",
       },
       {
-        isrc: "USWL12301086",
+        isrc: "USEW17500002",
         fileName: "preview_005.mp3",
       },
       {
-        isrc: "NLB630100326",
+        isrc: "AUAP08000046",
         fileName: "preview_006.mp3",
       },
       {
-        isrc: "USUM72222551",
+        isrc: "GBUM71505902",
         fileName: "preview_007.mp3",
       },
       {
-        isrc: "UYB282301041",
+        isrc: "USGF18714809",
         fileName: "preview_008.mp3",
       },
       {
-        isrc: "QZK6J2296117",
+        isrc: "AUAP07600012",
         fileName: "preview_009.mp3",
       },
       {
-        isrc: "TCAGM2208561",
+        isrc: "USSM17600644",
         fileName: "preview_010.mp3",
       },
       {
-        isrc: "QZDYA1800087",
+        isrc: "AUXN21001428",
         fileName: "preview_011.mp3",
       },
       {
-        isrc: "USAT21403439",
+        isrc: "USGF19142004",
         fileName: "preview_012.mp3",
       },
       {
-        isrc: "QZW9N2230661",
+        isrc: "USGF19141504",
         fileName: "preview_013.mp3",
       },
       {
-        isrc: "USSM12301258",
+        isrc: "GBCEG9400014",
         fileName: "preview_014.mp3",
       },
       {
-        isrc: "USUM71814888",
+        isrc: "USIR10000454",
         fileName: "preview_015.mp3",
       },
       {
-        isrc: "GBBBN8300002",
+        isrc: "USAT21300959",
         fileName: "preview_016.mp3",
       },
       {
-        isrc: "TCAGU2367052",
+        isrc: "AUXN21001429",
         fileName: "preview_017.mp3",
       },
       {
-        isrc: "MXF018801022",
+        isrc: "GBCEE9300020",
         fileName: "preview_018.mp3",
       },
       {
-        isrc: "QM24S2302185",
+        isrc: "GBUM71029607",
         fileName: "preview_019.mp3",
       },
       {
-        isrc: "ES5088500348",
+        isrc: "GBCEE9400035",
         fileName: "preview_020.mp3",
       },
       {
-        isrc: "USUM72302538",
+        isrc: "USGF19141510",
         fileName: "preview_021.mp3",
       },
       {
-        isrc: "QM24S2102952",
+        isrc: "USPR39609092",
         fileName: "preview_022.mp3",
       },
       {
-        isrc: "USUG12305255",
-        fileName: "preview_023.mp3",
-      },
-      {
-        isrc: "USUG12305257",
+        isrc: "USAT21300957",
         fileName: "preview_024.mp3",
       },
       {
-        isrc: "USUM72024485",
+        isrc: "USPR37509157",
         fileName: "preview_025.mp3",
       },
       {
-        isrc: "QMFME2364195",
-        fileName: "preview_026.mp3",
-      },
-      {
-        isrc: "GBGLW2300286",
+        isrc: "USRH11505155",
         fileName: "preview_027.mp3",
       },
       {
-        isrc: "FR8GV1838010",
+        isrc: "USPR39330175",
         fileName: "preview_028.mp3",
       },
       {
-        isrc: "QZES72201359",
+        isrc: "USMR18210013",
         fileName: "preview_029.mp3",
       },
       {
-        isrc: "ES5021800572",
+        isrc: "USAT29900476",
         fileName: "preview_030.mp3",
       },
       {
-        isrc: "ES5021800323",
-        fileName: "preview_031.mp3",
-      },
-      {
-        isrc: "USSM12109219",
+        isrc: "USPR38700083",
         fileName: "preview_032.mp3",
       },
       {
-        isrc: "USSM12109224",
+        isrc: "USAT29900534",
         fileName: "preview_033.mp3",
       },
       {
-        isrc: "USSM12109229",
+        isrc: "USGF18714806",
         fileName: "preview_034.mp3",
       },
       {
-        isrc: "USQ4E2100678",
+        isrc: "USSM10011897",
         fileName: "preview_035.mp3",
       },
       {
-        isrc: "GBCNR8500002",
+        isrc: "USSM19906481",
         fileName: "preview_036.mp3",
       },
       {
-        isrc: "USEP41948003",
+        isrc: "USIR10000426",
         fileName: "preview_037.mp3",
       },
       {
-        isrc: "USSM12504035",
+        isrc: "USSM19801545",
         fileName: "preview_038.mp3",
+      },
+      {
+        isrc: "USAT21205843",
+        fileName: "preview_039.mp3",
+      },
+      {
+        isrc: "GBCEE9800022",
+        fileName: "preview_040.mp3",
+      },
+      {
+        isrc: "AUDD31502193",
+        fileName: "preview_042.mp3",
+      },
+      {
+        isrc: "USEE10180675",
+        fileName: "preview_043.mp3",
+      },
+      {
+        isrc: "USWB11403680",
+        fileName: "preview_045.mp3",
+      },
+      {
+        isrc: "USAT20000548",
+        fileName: "preview_046.mp3",
+      },
+      {
+        isrc: "NLAX60724472",
+        fileName: "preview_047.mp3",
+      },
+      {
+        isrc: "GBFFP0300052",
+        fileName: "preview_048.mp3",
+      },
+      {
+        isrc: "USIR10000463",
+        fileName: "preview_049.mp3",
       },
     ],
   });
