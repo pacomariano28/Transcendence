@@ -19,7 +19,7 @@ export default function JoinRoomPage() {
   const [error, setError] = useState<string | null>(null);
 
   const normalized = useMemo(() => normalizeCode(code), [code]);
-  const isValid = normalized.length >= 4 && normalized.length <= 8;
+  const isValid = normalized.length === 6;
 
   const { user } = useAuth();
 
@@ -31,7 +31,7 @@ export default function JoinRoomPage() {
   async function pasteFromClipboard() {
     try {
       const text = await navigator.clipboard.readText();
-      setCode(normalizeCode(text).slice(0, 8));
+      setCode(normalizeCode(text).slice(0, 6));
       setTouched(true);
     } catch {
       // ignore: clipboard permissions
@@ -103,7 +103,7 @@ export default function JoinRoomPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder={t("join.placeholder")}
-                maxLength={16}
+                maxLength={6}
                 onBlur={() => setTouched(true)}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
