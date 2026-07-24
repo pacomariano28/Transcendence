@@ -12,6 +12,99 @@ import { clearTimer, replaceTimer, type MatchTimerMap } from "./timers.js";
 import { createRoundState } from "./state.js";
 import type { ResolveGuessInput } from "../types/round.js";
 
+type ScheduleRoundAdvanceInput = {
+  match: MatchState;
+  resumeTimers: MatchTimerMap;
+  emit: EmitMatchEvent;
+  onMatchFinished?: (match: MatchState) => void;
+  delaySeconds?: number;
+};
+
+export function scheduleRoundAdvance({
+  match,
+  resumeTimers,
+  emit,
+  onMatchFinished,
+  delaySeconds = RESOLUTION_SECONDS,
+}: ScheduleRoundAdvanceInput): void {
+  replaceTimer(
+    resumeTimers,
+    match.matchId,
+    delaySeconds * SECOND_MS,
+    () => {
+      if (match.roundIndex + 1 >= match.roundsTotal) {
+        const previousPhase = match.phase;
+        match.phase = "finished";
+        emit(match.matchId, "match:phase", {
+          matchId: match.matchId,
+          phase: match.phase,
+          previousPhase,
+        });
+        emit(match.matchId, "match:end", {
+          matchId: match.matchId,
+          scores: match.scores,
+        });
+        onMatchFinished?.(match);
+        return;
+      }
+
+      match.roundIndex += 1;
+      startRound(match);
+      emit(match.matchId, "round:sync", toRoundSyncPayload(match));
+    },
+  );
+}
+
+type RevealUnansweredRoundInput = {
+  match: MatchState;
+  emit: EmitMatchEvent;
+  resumeTimers: MatchTimerMap;
+  onMatchFinished?: (match: MatchState) => void;
+};
+
+export function revealUnansweredRound({
+  match,
+  emit,
+  resumeTimers,
+  onMatchFinished,
+}: RevealUnansweredRoundInput): void {
+  const round = match.round;
+  if (!round) {
+    return;
+  }
+
+  round.phase = "resolution-win";
+
+  const preview = round.preview;
+  const selectedTrack = preview
+    ? {
+        isrc: preview.isrc,
+        track: preview.track ?? "",
+        artist: preview.artist ?? "",
+        imageUrl: preview.imageUrl ?? null,
+      }
+    : null;
+
+  emit(match.matchId, "round:guess_result", {
+    matchId: match.matchId,
+    roundIndex: round.roundIndex,
+    lockOwnerId: null,
+    correct: false,
+    reason: "no_guess",
+    isrc: preview?.isrc ?? null,
+    selectedTrack,
+    scoreDelta: 0,
+    totalScore: 0,
+  });
+
+  scheduleRoundAdvance({
+    match,
+    resumeTimers,
+    emit,
+    onMatchFinished,
+  });
+}
+
 export function startRound(match: MatchState): void {
   match.round = createRoundState(match);
 }
@@ -82,6 +175,14 @@ export function resolveGuess({
 
   round.phase = correct ? "resolution-win" : "resolution-fail";
 
+  const resultTrack =
+    correct && selectedTrack
+      ? {
+          ...selectedTrack,
+          imageUrl: round.preview?.imageUrl ?? selectedTrack.imageUrl ?? null,
+        }
+      : selectedTrack;
+
   emit(match.matchId, "round:guess_result", {
     matchId: match.matchId,
     roundIndex: round.roundIndex,
@@ -89,38 +190,18 @@ export function resolveGuess({
     correct,
     reason,
     isrc: round.preview?.isrc ?? null,
-    selectedTrack,
+    selectedTrack: resultTrack,
     scoreDelta,
     totalScore: scoreEntry?.score ?? scoreDelta,
   });
 
   if (correct) {
-    replaceTimer(
+    scheduleRoundAdvance({
+      match,
       resumeTimers,
-      match.matchId,
-      RESOLUTION_SECONDS * SECOND_MS,
-      () => {
-        if (match.roundIndex + 1 >= match.roundsTotal) {
-          const previousPhase = match.phase;
-          match.phase = "finished";
-          emit(match.matchId, "match:phase", {
-            matchId: match.matchId,
-            phase: match.phase,
-            previousPhase,
-          });
-          emit(match.matchId, "match:end", {
-            matchId: match.matchId,
-            scores: match.scores,
-          });
-          onMatchFinished?.(match);
-          return;
-        }
-
-        match.roundIndex += 1;
-        startRound(match);
-        emit(match.matchId, "round:sync", toRoundSyncPayload(match));
-      },
-    );
+      emit,
+      onMatchFinished,
+    });
     return;
   }
 

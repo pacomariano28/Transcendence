@@ -42,6 +42,7 @@ export type GuessSelectedTrack = {
   isrc: string;
   track: string;
   artist: string;
+  imageUrl?: string | null;
 };
 
 export type RoundPreviewEndedPayload = {

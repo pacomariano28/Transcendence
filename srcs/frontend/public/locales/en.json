@@ -129,7 +129,8 @@
       "timeout": "TIMEOUT!",
       "wrongAnswer": "WRONG ANSWER!",
       "correctAnswer": "CORRECT ANSWER!",
-      "lockedBy": "Locked by {{name}}",
+      "noGuessReveal": "THE SONG WAS...",
+      "lockedBy": "Locked by <bold>{{name}}</bold>",
       "firstLockWins": "First lock wins",
       "lockLabel": "Lock and guess"
     },

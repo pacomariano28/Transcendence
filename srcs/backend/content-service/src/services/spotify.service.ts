@@ -212,3 +212,44 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
 
   return uniqueTracks;
 }
+
+export type TrackMetadata = {
+  track: string;
+  artist: string;
+  imageUrl: string | null;
+};
+
+/**
+ * @brief Looks up a single track on Spotify by ISRC code.
+ */
+export async function lookupTrackByIsrc(
+  isrc: string,
+): Promise<TrackMetadata | null> {
+  const token = await getSpotifyToken();
+  if (!token) {
+    return null;
+  }
+
+  const response = await axios.get("https://api.spotify.com/v1/search", {
+    params: {
+      q: `isrc:${isrc}`,
+      type: "track",
+      market: "ES",
+      limit: 1,
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const track = response.data.tracks?.items?.[0];
+  if (!track) {
+    return null;
+  }
+
+  return {
+    track: formatTrackName(track.name),
+    artist: track.artists[0]?.name || "Unknown Artist",
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+  };
+}

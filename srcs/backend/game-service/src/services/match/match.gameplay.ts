@@ -5,7 +5,7 @@
  * are owned by MatchService and passed in via MatchTimerContext.
  */
 import { GUESS_WINDOW_SECONDS, SECOND_MS } from "../../utils/constants.js";
-import { resolveGuess, startRound, toRoundSyncPayload } from "../round.js";
+import { resolveGuess, revealUnansweredRound } from "../round.js";
 import { replaceTimer } from "../timers.js";
 import {
   releasePlayersFromMatch,
@@ -127,6 +127,7 @@ export function submitGuess(
 
 export function handlePreviewEnded(
   registry: MatchRegistry,
+  timers: MatchTimerContext,
   connectionCtx: MatchConnectionContext,
   socketId: string,
   roundIndex: number,
@@ -146,24 +147,13 @@ export function handlePreviewEnded(
     return match;
   }
 
-  if (match.roundIndex + 1 >= match.roundsTotal) {
-    const previousPhase = match.phase;
-    match.phase = "finished";
-    emit(match.matchId, "match:phase", {
-      matchId: match.matchId,
-      phase: match.phase,
-      previousPhase,
-    });
-    emit(match.matchId, "match:end", {
-      matchId: match.matchId,
-      scores: match.scores,
-    });
-    releasePlayersFromMatch(connectionCtx, match);
-    return match;
-  }
+  revealUnansweredRound({
+    match,
+    emit,
+    resumeTimers: timers.resumeTimers,
+    onMatchFinished: (finishedMatch) =>
+      releasePlayersFromMatch(connectionCtx, finishedMatch),
+  });
 
-  match.roundIndex += 1;
-  startRound(match);
-  emit(match.matchId, "round:sync", toRoundSyncPayload(match));
   return match;
 }

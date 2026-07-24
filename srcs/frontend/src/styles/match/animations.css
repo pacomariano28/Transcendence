@@ -95,6 +95,19 @@
   }
 }
 
+@keyframes guessStatusEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.92);
+    letter-spacing: 0.1em;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    letter-spacing: 0.35em;
+  }
+}
+
 @keyframes guessDropdownEnter {
   0% {
     opacity: 0;
@@ -103,6 +116,38 @@
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes songRevealCover {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-10deg);
+    filter: blur(10px);
+    box-shadow: 0 0 0 rgba(247, 208, 70, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.1) rotate(3deg);
+    filter: blur(0);
+    box-shadow: 0 0 28px rgba(247, 208, 70, 0.35);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: blur(0);
+    box-shadow: 0 0 18px rgba(247, 208, 70, 0.2);
+  }
+}
+
+@keyframes songRevealMeta {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -139,4 +184,20 @@
 .animate-guess-dropdown-enter {
   animation: guessDropdownEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
   transform-origin: bottom center;
+}
+
+.animate-guess-status-enter {
+  animation: guessStatusEnter 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-song-reveal-cover {
+  animation: songRevealCover 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.animate-song-reveal-title {
+  animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.28s both;
+}
+
+.animate-song-reveal-artist {
+  animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.42s both;
 }

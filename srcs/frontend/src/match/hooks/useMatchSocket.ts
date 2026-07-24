@@ -83,7 +83,6 @@ type UseMatchSocketOptions = {
   setShowVisualizer: (value: boolean) => void;
   setCooldownEndsAt: Dispatch<SetStateAction<number | null>>;
   setGuessStatus: Dispatch<SetStateAction<GuessStatus>>;
-  setShowResultText: Dispatch<SetStateAction<boolean>>;
   setGuessResultTrack: Dispatch<SetStateAction<GuessSelectedTrack | null>>;
   resetSearch: () => void;
 };
@@ -117,11 +116,11 @@ export function useMatchSocket({
   setShowVisualizer,
   setCooldownEndsAt,
   setGuessStatus,
-  setShowResultText,
   setGuessResultTrack,
   resetSearch,
 }: UseMatchSocketOptions) {
   const countdownTimerRef = useRef<number | null>(null);
+  const guessPanelClearTimerRef = useRef<number | null>(null);
   // Refs capture lock/user identity for handlers that fire after state is cleared
   const myUserIdRef = useRef<string | null>(null);
   const lockOwnerIdRef = useRef<string | null>(null);
@@ -181,6 +180,22 @@ export function useMatchSocket({
       }
     });
 
+    function clearGuessPanelClearTimer() {
+      if (guessPanelClearTimerRef.current !== null) {
+        window.clearTimeout(guessPanelClearTimerRef.current);
+        guessPanelClearTimerRef.current = null;
+      }
+    }
+
+    function scheduleGuessPanelClear() {
+      clearGuessPanelClearTimer();
+      guessPanelClearTimerRef.current = window.setTimeout(() => {
+        setGuessResultTrack(null);
+        setGuessStatus("countdown");
+        guessPanelClearTimerRef.current = null;
+      }, 500);
+    }
+
     socket.on("round:sync", (payload: RoundSyncPayload) => {
       if (payload.matchId !== code) return;
       setShowVisualizer(false);
@@ -196,7 +211,7 @@ export function useMatchSocket({
       setAudioReady(false);
       setError(payload.playlistError ?? null);
       resetSearch();
-      setGuessResultTrack(null);
+      scheduleGuessPanelClear();
 
       const storedCooldown = readStoredCooldown(code);
       const pendingRound = readPendingCooldown(code);
@@ -266,9 +281,9 @@ export function useMatchSocket({
 
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
       if (payload.matchId !== code) return;
+      clearGuessPanelClearTimer();
       setRoundPhase("guessing");
       setGuessStatus("countdown");
-      setShowResultText(false);
       setGuessResultTrack(null);
       setLockOwnerId(payload.lockOwnerId);
       setGuessEndsAt(payload.guessEndsAt ?? null);
@@ -286,30 +301,39 @@ export function useMatchSocket({
     socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
       if (payload.matchId !== code) return;
 
-      setShowResultText(false);
+      clearGuessPanelClearTimer();
       setGuessResultTrack(payload.selectedTrack ?? null);
 
-      if (payload.correct) {
+      if (payload.reason === "no_guess") {
+        setShowVisualizer(false);
+        setGuessStatus("revealed");
+        setRoundPhase("resolution-win");
+      } else if (payload.correct) {
         setGuessStatus("correct");
+        setRoundPhase("resolution-win");
       } else {
         if (payload.reason === "timeout") {
           setGuessStatus("expired");
         } else {
           setGuessStatus("wrong");
         }
+        setRoundPhase("resolution-fail");
       }
 
-      setRoundPhase(payload.correct ? "resolution-win" : "resolution-fail");
       setGuessEndsAt(null);
       setLockOwnerId(payload.lockOwnerId);
-      setScores((prev) => ({
-        ...prev,
-        [payload.lockOwnerId]: payload.totalScore,
-      }));
+      if (payload.lockOwnerId) {
+        setScores((prev) => ({
+          ...prev,
+          [payload.lockOwnerId as string]: payload.totalScore,
+        }));
+      }
       setLockRequested(false);
 
       if (
         !payload.correct &&
+        payload.reason !== "no_guess" &&
+        payload.lockOwnerId &&
         String(payload.lockOwnerId) === String(myUserIdRef.current)
       ) {
         writePendingCooldown(code, payload.roundIndex);
@@ -372,6 +396,7 @@ export function useMatchSocket({
       socket.off("match:end");
       socket.off("match:error");
       clearCountdownTimer();
+      clearGuessPanelClearTimer();
     };
   }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay, setActiveMatch]);
 }

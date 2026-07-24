@@ -127,7 +127,8 @@
       "timeout": "TIJD OM!",
       "wrongAnswer": "FOUT ANTWOORD!",
       "correctAnswer": "GOED ANTWOORD!",
-      "lockedBy": "Vergrendeld door {{name}}",
+      "noGuessReveal": "HET NUMMER WAS...",
+      "lockedBy": "Vergrendeld door <bold>{{name}}</bold>",
       "firstLockWins": "Wie het eerst vergrendelt wint",
       "lockLabel": "Vergrendel en raad"
     },

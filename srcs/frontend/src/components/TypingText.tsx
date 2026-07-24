@@ -10,6 +10,7 @@ type TypingTextProps = {
   pauseAfterCompleteMs?: number;
   pauseAfterDeleteMs?: number;
   cursorBlinkMs?: number;
+  loop?: boolean;
 };
 
 const DEFAULT_TYPING_DELAYS = [180, 260, 140, 220, 190, 300, 160, 240];
@@ -40,6 +41,7 @@ export default function TypingText({
   pauseAfterCompleteMs = 1800,
   pauseAfterDeleteMs = 500,
   cursorBlinkMs = 700,
+  loop = true,
 }: TypingTextProps) {
   const [phase, setPhase] = useState<"typing" | "pause" | "deleting" | "typo">(
     "typing",
@@ -110,11 +112,12 @@ export default function TypingText({
 
     if (phase === "pause") {
       timeoutId = window.setTimeout(() => {
+        if (!loop) return;
         setPhase("deleting");
       }, 200);
     }
 
-    if (phase === "deleting") {
+    if (loop && phase === "deleting") {
       if (charIndex > 0) {
         timeoutId = window.setTimeout(() => {
           const nextCharIndex = charIndex - 1;
@@ -138,6 +141,7 @@ export default function TypingText({
     text,
     typoChance,
     typoMap,
+    loop,
   ]);
 
   return (
