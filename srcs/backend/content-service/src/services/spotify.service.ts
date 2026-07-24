@@ -138,7 +138,7 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
     params: {
       q: term,
       type: "track",
-      market: "ES",
+      market: "US",
       limit: MAX_LIMIT_FETCH,
       offset: offset,
     },
@@ -247,7 +247,6 @@ export async function lookupTrackByIsrc(
     params: {
       q: `isrc:${isrc}`,
       type: "track",
-      market: "ES",
       limit: 1,
     },
     headers: {
@@ -257,6 +256,7 @@ export async function lookupTrackByIsrc(
 
   const track = response.data.tracks?.items?.[0];
   if (!track) {
+    console.warn(`[spotify] No track found for ISRC ${isrc}`);
     return null;
   }
 
