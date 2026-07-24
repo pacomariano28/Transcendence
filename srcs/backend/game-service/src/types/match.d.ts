@@ -16,6 +16,7 @@ declare global {
     track?: string;
     artist?: string;
     imageUrl?: string | null;
+    spotifyUrl?: string | null;
   };
 
   export type RoundState = {

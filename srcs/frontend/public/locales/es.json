@@ -130,7 +130,8 @@
       "noGuessReveal": "LA CANCIÓN ERA...",
       "lockedBy": "Bloqueado por <bold>{{name}}</bold>",
       "firstLockWins": "El primero en bloquear gana",
-      "lockLabel": "Bloquear y adivinar"
+      "lockLabel": "Bloquear y adivinar",
+      "openInSpotify": "Abrir \"{{track}}\" en Spotify"
     },
     "buttons": {
       "locking": "Bloqueando...",

@@ -132,7 +132,8 @@
       "noGuessReveal": "THE SONG WAS...",
       "lockedBy": "Locked by <bold>{{name}}</bold>",
       "firstLockWins": "First lock wins",
-      "lockLabel": "Lock and guess"
+      "lockLabel": "Lock and guess",
+      "openInSpotify": "Open \"{{track}}\" on Spotify"
     },
     "buttons": {
       "locking": "Locking...",

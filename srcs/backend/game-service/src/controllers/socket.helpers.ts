@@ -98,6 +98,7 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
               track: preview.track ?? "",
               artist: preview.artist ?? "",
               imageUrl: preview.imageUrl ?? null,
+              spotifyUrl: preview.spotifyUrl ?? null,
             }
           : null,
         scoreDelta: 0,
@@ -122,6 +123,7 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
               track: preview.track ?? "",
               artist: preview.artist ?? "",
               imageUrl: preview.imageUrl ?? null,
+              spotifyUrl: preview.spotifyUrl ?? null,
             }
           : null,
       scoreDelta: 0,

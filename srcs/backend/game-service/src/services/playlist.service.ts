@@ -63,6 +63,7 @@ export async function loadPlaylist(match: MatchState): Promise<void> {
         track: metadata?.track ?? "",
         artist: metadata?.artist ?? "",
         imageUrl: metadata?.imageUrl ?? null,
+        spotifyUrl: metadata?.spotifyUrl ?? null,
       };
     },
   );

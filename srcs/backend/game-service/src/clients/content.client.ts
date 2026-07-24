@@ -7,6 +7,7 @@ export type TrackMetadata = {
   track: string;
   artist: string;
   imageUrl: string | null;
+  spotifyUrl: string | null;
 };
 
 export async function fetchTrackByIsrc(

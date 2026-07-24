@@ -82,6 +82,7 @@ export function revealUnansweredRound({
         track: preview.track ?? "",
         artist: preview.artist ?? "",
         imageUrl: preview.imageUrl ?? null,
+        spotifyUrl: preview.spotifyUrl ?? null,
       }
     : null;
 
@@ -183,6 +184,7 @@ export function resolveGuess({
           track: preview.track ?? "",
           artist: preview.artist ?? "",
           imageUrl: preview.imageUrl ?? null,
+        spotifyUrl: preview.spotifyUrl ?? null,
         }
       : selectedTrack
     : selectedTrack;

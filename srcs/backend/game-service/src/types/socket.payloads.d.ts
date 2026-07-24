@@ -43,6 +43,7 @@ export type GuessSelectedTrack = {
   track: string;
   artist: string;
   imageUrl?: string | null;
+  spotifyUrl?: string | null;
 };
 
 export type RoundPreviewEndedPayload = {

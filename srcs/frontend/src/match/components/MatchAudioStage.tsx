@@ -6,6 +6,66 @@ import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { GuessSelectedTrack, GuessStatus } from "../types";
 
+function SpotifyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+    </svg>
+  );
+}
+
+type AlbumCoverProps = {
+  track: GuessSelectedTrack;
+  ringClassName: string;
+  openInSpotifyLabel: string;
+};
+
+function AlbumCover({ track, ringClassName, openInSpotifyLabel }: AlbumCoverProps) {
+  const coverInner = track.imageUrl ? (
+    <img
+      src={track.imageUrl}
+      alt=""
+      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+    />
+  ) : (
+    <div className="flex h-full w-full items-center justify-center bg-zinc-800/80 text-2xl text-white">
+      ♪
+    </div>
+  );
+
+  const coverShell = (
+    <div className="animate-song-reveal-cover h-full w-full overflow-hidden rounded-[10px]">
+      {coverInner}
+    </div>
+  );
+
+  const sharedClasses = `relative block h-20 w-20 shrink-0 rounded-xl shadow-2xl ring-2 sm:h-24 sm:w-24 ${ringClassName}`;
+
+  if (!track.spotifyUrl) {
+    return <div className={sharedClasses}>{coverShell}</div>;
+  }
+
+  return (
+    <a
+      href={track.spotifyUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={openInSpotifyLabel}
+      className={`group ${sharedClasses} cursor-pointer transition-all duration-300 ease-out hover:scale-[1.04] hover:shadow-[0_8px_28px_rgba(247,208,70,0.28)] hover:ring-[#f7d046]/55 focus-visible:outline-none focus-visible:ring-[#f7d046]/70`}
+    >
+      {coverShell}
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 opacity-0 transition-all duration-300 ease-out group-hover:bg-black/45 group-hover:opacity-100">
+        <SpotifyIcon className="h-7 w-7 text-[#1DB954] drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out group-hover:scale-110" />
+      </span>
+    </a>
+  );
+}
+
 type SongRevealDisplayProps = {
   track: GuessSelectedTrack;
   showCover: boolean;
@@ -17,22 +77,17 @@ function SongRevealDisplay({
   showCover,
   ringClassName = "ring-white/20",
 }: SongRevealDisplayProps) {
+  const { t } = useTranslation();
+
   return (
     <div key={track.isrc} className="flex max-w-md items-center gap-4 px-4">
-      {showCover &&
-        (track.imageUrl ? (
-          <img
-            src={track.imageUrl}
-            alt=""
-            className={`animate-song-reveal-cover h-20 w-20 shrink-0 rounded-xl object-cover shadow-2xl ring-2 sm:h-24 sm:w-24 ${ringClassName}`}
-          />
-        ) : (
-          <div
-            className={`animate-song-reveal-cover flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-zinc-800/80 text-2xl text-white shadow-2xl ring-2 sm:h-24 sm:w-24 ${ringClassName}`}
-          >
-            ♪
-          </div>
-        ))}
+      {showCover && (
+        <AlbumCover
+          track={track}
+          ringClassName={ringClassName}
+          openInSpotifyLabel={t("match.hud.openInSpotify", { track: track.track })}
+        />
+      )}
       <div className="flex min-w-0 flex-col items-start gap-1 text-left">
         <div className="animate-song-reveal-title text-sm font-bold text-white">
           {track.track}
