@@ -53,35 +53,49 @@ export function clearString(str: string): string {
     .replace(/\s\s+/g, " ");
 }
 
-const DISTINCT_VERSION_PATTERN =
-  /remix|live|acoustic|acústic|acústico|unplugged|radio edit|extended|instrumental|demo|cover|karaoke|reprise|en vivo|sped up/i;
-
 function normalizeDedupKey(str: string): string {
   return str.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 /**
- * @brief Formats a track name for display in search results.
+ * @brief Normalizes a track title for search grouping.
  *
- * @details Distinct versions (remix, live, acoustic, etc.) keep the original
- * Spotify title so they remain distinguishable from the base track. All other
- * titles use @ref clearString().
+ * @details Collapses all version variants (remix, live, remaster, single version,
+ * album version, etc.) to the base song title. Used only by the search experience.
  */
-export function formatTrackName(str: string): string {
-  if (DISTINCT_VERSION_PATTERN.test(str)) {
-    return str.trim().replace(/\s\s+/g, " ");
-  }
-
+export function normalizeSearchTitle(str: string): string {
   return clearString(str);
 }
 
 /**
- * @brief Builds a deduplication key for a track based on its display identity.
- *
- * @details Different Spotify editions of the same recording (single, album,
- * compilation, reissue) often carry distinct ISRCs but collapse to the same
- * display title after @ref formatTrackName(). Those are deduplicated here.
+ * @brief Builds a search grouping key from a raw track title and artist.
  */
-export function getTrackDedupKey(rawName: string, artist: string): string {
-  return `${normalizeDedupKey(formatTrackName(rawName))}|${normalizeDedupKey(artist)}`;
+export function getSearchGroupKey(rawName: string, artist: string): string {
+  return `${normalizeDedupKey(normalizeSearchTitle(rawName))}|${normalizeDedupKey(artist)}`;
+}
+
+/**
+ * @brief Returns whether a raw Spotify title looks like a version variant.
+ */
+export function isVersionVariant(rawName: string): boolean {
+  return (
+    normalizeDedupKey(normalizeSearchTitle(rawName)) !==
+    normalizeDedupKey(rawName)
+  );
+}
+
+/**
+ * @brief Formats a track name for metadata display (playlist/reveal).
+ *
+ * @details Version variants keep the original Spotify title so the real recording
+ * version remains visible. Base titles use @ref clearString().
+ */
+export function formatTrackName(str: string): string {
+  const trimmed = str.trim().replace(/\s+/g, " ");
+
+  if (isVersionVariant(trimmed)) {
+    return trimmed;
+  }
+
+  return clearString(trimmed);
 }

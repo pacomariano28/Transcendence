@@ -175,13 +175,17 @@ export function resolveGuess({
 
   round.phase = correct ? "resolution-win" : "resolution-fail";
 
-  const resultTrack =
-    correct && selectedTrack
+  const preview = round.preview;
+  const resultTrack = correct
+    ? preview
       ? {
-          ...selectedTrack,
-          imageUrl: round.preview?.imageUrl ?? selectedTrack.imageUrl ?? null,
+          isrc: preview.isrc,
+          track: preview.track ?? "",
+          artist: preview.artist ?? "",
+          imageUrl: preview.imageUrl ?? null,
         }
-      : selectedTrack;
+      : selectedTrack
+    : selectedTrack;
 
   emit(match.matchId, "round:guess_result", {
     matchId: match.matchId,

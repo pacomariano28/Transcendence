@@ -1,6 +1,11 @@
 import axios from "axios";
 import { getRedisClient } from "../lib/redis.js";
-import { formatTrackName, getTrackDedupKey } from "../utils/utils.js";
+import {
+  formatTrackName,
+  getSearchGroupKey,
+  isVersionVariant,
+  normalizeSearchTitle,
+} from "../utils/utils.js";
 
 interface AccessToken {
   access_token: string;
@@ -133,7 +138,7 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
     params: {
       q: term,
       type: "track",
-      market: "ES",
+      market: "US",
       limit: MAX_LIMIT_FETCH,
       offset: offset,
     },
@@ -153,11 +158,10 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
  * @brief Searches Spotify for tracks matching the given term with deduplication.
  *
  * @details Fetches tracks from two paginated result pages (20 total results) and
- * returns up to 10 unique tracks. Uniqueness is determined by normalized track
- * title plus artist, so duplicate Spotify editions collapse while remixes and
- * other distinct versions remain separate.
+ * returns up to 10 unique songs. Variants of the same song (remix, live, radio
+ * edit, etc.) are grouped into a single search result via @ref getSearchGroupKey().
  *
- * Uses @ref formatTrackName() to format display names.
+ * Uses @ref normalizeSearchTitle() for search display names.
  *
  * @param term The search query to find on Spotify
  *
@@ -165,7 +169,7 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
  *         containing track name, artist name, Spotify track ID, and ISRC
  *
  * @see searchTracks()
- * @see formatTrackName()
+ * @see normalizeSearchTitle()
  *
  * @note Results are limited to the Spanish market (@c market: 'ES')
  */
@@ -183,7 +187,7 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
   ];
 
   const uniqueTracks: TrackData[] = [];
-  const seenTrackKeys = new Set<string>();
+  const seenGroupKeys = new Map<string, { index: number; isVariant: boolean }>();
 
   for (const track of results) {
     const rawTrackName: string = track.name;
@@ -194,19 +198,28 @@ export async function searchTracks(term: string): Promise<TrackData[]> {
       continue;
     }
 
-    const dedupKey = getTrackDedupKey(rawTrackName, rawArtistName);
+    const groupKey = getSearchGroupKey(rawTrackName, rawArtistName);
+    const isVariant = isVersionVariant(rawTrackName);
+    const existing = seenGroupKeys.get(groupKey);
+    const nextTrack: TrackData = {
+      track: normalizeSearchTitle(rawTrackName),
+      artist: rawArtistName,
+      id: track.id,
+      isrc,
+    };
 
-    if (!seenTrackKeys.has(dedupKey)) {
-      seenTrackKeys.add(dedupKey);
-      uniqueTracks.push({
-        track: formatTrackName(rawTrackName),
-        artist: rawArtistName,
-        id: track.id,
-        isrc,
-      });
+    if (existing === undefined) {
+      seenGroupKeys.set(groupKey, { index: uniqueTracks.length, isVariant });
+      uniqueTracks.push(nextTrack);
       if (uniqueTracks.length === 10) {
         break;
       }
+      continue;
+    }
+
+    if (existing.isVariant && !isVariant) {
+      uniqueTracks[existing.index] = nextTrack;
+      seenGroupKeys.set(groupKey, { index: existing.index, isVariant: false });
     }
   }
 
@@ -234,7 +247,6 @@ export async function lookupTrackByIsrc(
     params: {
       q: `isrc:${isrc}`,
       type: "track",
-      market: "ES",
       limit: 1,
     },
     headers: {
@@ -244,6 +256,7 @@ export async function lookupTrackByIsrc(
 
   const track = response.data.tracks?.items?.[0];
   if (!track) {
+    console.warn(`[spotify] No track found for ISRC ${isrc}`);
     return null;
   }
 
