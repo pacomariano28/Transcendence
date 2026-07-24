@@ -3,6 +3,8 @@
     "nav_home": "Inicio",
     "nav_profile": "Perfil",
     "change_lang": "Cambiar idioma",
+    "logout": "Cerrar sesión",
+    "user_menu": "Menú de usuario",
     "signed_in_as": "Sesión iniciada como",
     "live_match_in_progress": "PARTIDA EN CURSO",
     "room": "Sala:"

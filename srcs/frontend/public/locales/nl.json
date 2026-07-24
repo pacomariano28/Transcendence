@@ -3,6 +3,8 @@
     "nav_home": "Home",
     "nav_profile": "Profiel",
     "change_lang": "Taal wijzigen",
+    "logout": "Uitloggen",
+    "user_menu": "Gebruikersmenu",
     "signed_in_as": "Ingelogd als",
     "live_match_in_progress": "WEDSTRIJD BEZIG",
     "room": "Kamer:"

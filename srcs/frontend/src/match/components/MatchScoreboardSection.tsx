@@ -92,9 +92,9 @@ export default function MatchScoreboardSection({
             })}
           </div>
 
-          <div className="animate-match-back-reveal mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <div className="animate-match-back-reveal mt-8 flex gap-3 sm:flex-row">
             <button
-              className="btn-glow px-6"
+              className="btn-glow flex-5 p-4"
               style={{ "--btn-color": "#4ade80" } as React.CSSProperties}
               type="button"
               onClick={onRequestRematch}
@@ -108,13 +108,11 @@ export default function MatchScoreboardSection({
               </span>
             </button>
             <button
-              className="btn-glow px-6"
-              style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
+              className="btn-ghost flex-1"
               type="button"
               onClick={onLeaveFinishedMatch}
-              onMouseMove={handleMouseMoveToSetFillOrigin}
             >
-              <span>{t("match.header.backButton")}</span>
+              {t("match.header.backButton")}
             </button>
           </div>
         </>

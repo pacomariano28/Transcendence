@@ -3,6 +3,8 @@
     "nav_home": "Главная",
     "nav_profile": "Профиль",
     "change_lang": "Сменить язык",
+    "logout": "Выйти",
+    "user_menu": "Меню пользователя",
     "signed_in_as": "Вы вошли как",
     "live_match_in_progress": "ИГРА В ПРОГРЕССЕ",
     "room": "Комната:"
