@@ -81,12 +81,32 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
 
   if (round.phase === "resolution-fail" || round.phase === "resolution-win") {
     const lockOwnerId = round.lockOwnerId;
+    const preview = round.preview;
+    const correct = round.phase === "resolution-win" && Boolean(lockOwnerId);
+
     if (!lockOwnerId) {
+      socket.emit("round:guess_result", {
+        matchId: match.matchId,
+        roundIndex: round.roundIndex,
+        lockOwnerId: null,
+        correct: false,
+        reason: "no_guess",
+        isrc: preview?.isrc ?? null,
+        selectedTrack: preview
+          ? {
+              isrc: preview.isrc,
+              track: preview.track ?? "",
+              artist: preview.artist ?? "",
+              imageUrl: preview.imageUrl ?? null,
+            }
+          : null,
+        scoreDelta: 0,
+        totalScore: 0,
+      });
       return;
     }
 
     const scoreEntry = match.scores.find((entry) => entry.userId === lockOwnerId);
-    const correct = round.phase === "resolution-win";
 
     socket.emit("round:guess_result", {
       matchId: match.matchId,
@@ -94,13 +114,14 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
       lockOwnerId,
       correct,
       reason: correct ? null : "wrong",
-      isrc: round.preview?.isrc ?? null,
+      isrc: preview?.isrc ?? null,
       selectedTrack:
-        correct && round.preview
+        correct && preview
           ? {
-              isrc: round.preview.isrc,
-              track: "",
-              artist: "",
+              isrc: preview.isrc,
+              track: preview.track ?? "",
+              artist: preview.artist ?? "",
+              imageUrl: preview.imageUrl ?? null,
             }
           : null,
       scoreDelta: 0,

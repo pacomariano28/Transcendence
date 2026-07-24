@@ -13,6 +13,9 @@ declare global {
   export type PlaylistItem = {
     isrc: string;
     fileName: string;
+    track?: string;
+    artist?: string;
+    imageUrl?: string | null;
   };
 
   export type RoundState = {

@@ -18,10 +18,8 @@ type MatchPlaySectionProps = {
   showEq: boolean;
   showGuessPanel: boolean;
   guessStatus: GuessStatus;
-  showResultText: boolean;
   guessSeconds: number | null;
   guessResultTrack: GuessSelectedTrack | null;
-  onGuessTransitionEnd: () => void;
   showCooldownUi: boolean;
   cooldownSeconds: number;
   canLock: boolean;
@@ -43,10 +41,8 @@ export default function MatchPlaySection({
   showEq,
   showGuessPanel,
   guessStatus,
-  showResultText,
   guessSeconds,
   guessResultTrack,
-  onGuessTransitionEnd,
   showCooldownUi,
   cooldownSeconds,
   canLock,
@@ -75,10 +71,8 @@ export default function MatchPlaySection({
           showEq={showEq}
           showGuessPanel={showGuessPanel}
           guessStatus={guessStatus}
-          showResultText={showResultText}
           guessSeconds={guessSeconds}
           guessResultTrack={guessResultTrack}
-          onGuessTransitionEnd={onGuessTransitionEnd}
         />
 
         <button

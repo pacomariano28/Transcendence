@@ -1,5 +1,5 @@
 /** Lock status label and Spotify search form for the lock owner. */
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
 import { translateError } from "../../i18n/translateError";
 
@@ -55,9 +55,15 @@ export default function MatchGuessSection({
                 ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
                 text-lg text-zinc-300`}
           >
-            {t("match.hud.lockedBy", {
-              name: lockOwnerName || t("match.user.player"),
-            })}
+            <Trans
+              i18nKey="match.hud.lockedBy"
+              values={{
+                name: lockOwnerName || t("match.user.player"),
+              }}
+              components={{
+                bold: <span className="font-bold text-white" />,
+              }}
+            />
           </div>
           <div
             className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
@@ -119,10 +125,10 @@ export default function MatchGuessSection({
                           type="button"
                           onClick={() => onSelectTrack(track)}
                         >
-                          <div className="text-sm font-medium text-zinc-100">
+                          <div className="text-sm font-bold text-white">
                             {track.track}
                           </div>
-                          <div className="text-xs text-zinc-400">
+                          <div className="text-sm font-light text-white">
                             {track.artist}
                           </div>
                         </button>

@@ -71,7 +71,6 @@ export default function MatchPage() {
 
   // Guess resolution overlays (countdown / wrong / correct / timeout) in MatchAudioStage
   const [guessStatus, setGuessStatus] = useState<GuessStatus>("countdown");
-  const [showResultText, setShowResultText] = useState(false);
   const [guessResultTrack, setGuessResultTrack] =
     useState<GuessSelectedTrack | null>(null);
 
@@ -174,7 +173,6 @@ export default function MatchPage() {
     setShowVisualizer,
     setCooldownEndsAt,
     setGuessStatus,
-    setShowResultText,
     setGuessResultTrack,
     resetSearch,
   });
@@ -199,18 +197,6 @@ export default function MatchPage() {
     setActiveMatch(null);
     nav("/");
   }, [nav, setActiveMatch]);
-
-  const handleGuessTransitionEnd = useCallback(() => {
-    // TypingText is shown only after the guess overlay CSS transition finishes
-    if (
-      (guessStatus === "wrong" ||
-        guessStatus === "expired" ||
-        guessStatus === "correct") &&
-      !showResultText
-    ) {
-      setShowResultText(true);
-    }
-  }, [guessStatus, showResultText]);
 
   const roundLabel = roundInfo
     ? t("match.rounds.label", {
@@ -297,10 +283,8 @@ export default function MatchPage() {
             showEq={showEq}
             showGuessPanel={showGuessPanel}
             guessStatus={guessStatus}
-            showResultText={showResultText}
             guessSeconds={guessSeconds}
             guessResultTrack={guessResultTrack}
-            onGuessTransitionEnd={handleGuessTransitionEnd}
             showCooldownUi={showCooldownUi}
             cooldownSeconds={cooldownSeconds}
             canLock={canLock}

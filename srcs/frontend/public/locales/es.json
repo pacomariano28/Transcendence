@@ -127,7 +127,8 @@
       "timeout": "¡TIEMPO AGOTADO!",
       "wrongAnswer": "¡RESPUESTA INCORRECTA!",
       "correctAnswer": "¡RESPUESTA CORRECTA!",
-      "lockedBy": "Bloqueado por {{name}}",
+      "noGuessReveal": "LA CANCIÓN ERA...",
+      "lockedBy": "Bloqueado por <bold>{{name}}</bold>",
       "firstLockWins": "El primero en bloquear gana",
       "lockLabel": "Bloquear y adivinar"
     },

@@ -38,14 +38,15 @@ export type GuessSelectedTrack = {
   isrc: string;
   track: string;
   artist: string;
+  imageUrl?: string | null;
 };
 
 export type RoundGuessResultPayload = {
   matchId: string;
   roundIndex: number;
-  lockOwnerId: string;
+  lockOwnerId: string | null;
   correct: boolean;
-  reason: "wrong" | "timeout" | null;
+  reason: "wrong" | "timeout" | "no_guess" | null;
   isrc: string | null;
   selectedTrack: GuessSelectedTrack | null;
   scoreDelta: number;
@@ -63,7 +64,7 @@ export type MatchEndPayload = {
   scores: ScoreEntry[];
 };
 
-export type GuessStatus = "countdown" | "expired" | "wrong" | "correct";
+export type GuessStatus = "countdown" | "expired" | "wrong" | "correct" | "revealed";
 
 export type ScoreboardEntry = {
   userId: string;

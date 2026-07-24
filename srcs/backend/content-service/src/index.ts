@@ -1,6 +1,7 @@
 import express from "express";
 import { initRedis } from "./lib/redis.js";
 import { getTracks } from "./controllers/search.controller.js";
+import { getTrackByIsrc } from "./controllers/track.controller.js";
 import { logInfo } from "./lib/logger.js";
 
 const app = express();
@@ -12,6 +13,7 @@ app.use(express.json());
 
 // Define the internal route
 app.get("/search", getTracks);
+app.get("/track-by-isrc", getTrackByIsrc);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({

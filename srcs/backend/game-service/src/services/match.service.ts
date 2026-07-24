@@ -137,6 +137,7 @@ export class MatchService {
   ): MatchState {
     return handlePreviewEndedAction(
       this.registry,
+      this.timers,
       this.connectionContext,
       socketId,
       roundIndex,
