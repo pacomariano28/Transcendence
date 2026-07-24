@@ -5,6 +5,7 @@
  * are owned by MatchService and passed in via MatchTimerContext.
  */
 import { GUESS_WINDOW_SECONDS, SECOND_MS } from "../../utils/constants.js";
+import { tracksMatchForGuess } from "../../utils/trackNormalization.js";
 import { resolveGuess, revealUnansweredRound } from "../round.js";
 import { replaceTimer } from "../timers.js";
 import {
@@ -109,7 +110,13 @@ export function submitGuess(
   }
 
   const previewIsrc = match.round.preview?.isrc ?? null;
-  const isCorrect = Boolean(previewIsrc && isrc === previewIsrc);
+  const previewTrack = match.round.preview?.track ?? "";
+  const previewArtist = match.round.preview?.artist ?? "";
+  const isCorrect = Boolean(
+    previewIsrc &&
+      (isrc === previewIsrc ||
+        tracksMatchForGuess(track, artist, previewTrack, previewArtist)),
+  );
   resolveGuess({
     match,
     lockOwnerId: player.userId,
