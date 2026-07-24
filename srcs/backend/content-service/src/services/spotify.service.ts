@@ -230,6 +230,7 @@ export type TrackMetadata = {
   track: string;
   artist: string;
   imageUrl: string | null;
+  spotifyUrl: string | null;
 };
 
 /**
@@ -264,5 +265,6 @@ export async function lookupTrackByIsrc(
     track: formatTrackName(track.name),
     artist: track.artists[0]?.name || "Unknown Artist",
     imageUrl: track.album?.images?.[0]?.url ?? null,
+    spotifyUrl: track.external_urls?.spotify ?? null,
   };
 }

@@ -131,7 +131,8 @@
       "noGuessReveal": "ЭТО БЫЛ ТРЕК...",
       "lockedBy": "Заблокировано игроком <bold>{{name}}</bold>",
       "firstLockWins": "Первый заблокировавший побеждает",
-      "lockLabel": "Заблокировать и ответить"
+      "lockLabel": "Заблокировать и ответить",
+      "openInSpotify": "Открыть «{{track}}» в Spotify"
     },
     "buttons": {
       "locking": "Блокировка...",

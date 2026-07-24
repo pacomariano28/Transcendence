@@ -130,7 +130,8 @@
       "noGuessReveal": "HET NUMMER WAS...",
       "lockedBy": "Vergrendeld door <bold>{{name}}</bold>",
       "firstLockWins": "Wie het eerst vergrendelt wint",
-      "lockLabel": "Vergrendel en raad"
+      "lockLabel": "Vergrendel en raad",
+      "openInSpotify": "Open \"{{track}}\" op Spotify"
     },
     "buttons": {
       "locking": "Bezig met vergrendelen...",
