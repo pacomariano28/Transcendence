@@ -164,7 +164,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container-page py-8 sm:py-10 lg:py-12 fade-in">
+    <div className="container-page py-8 sm:py-10 lg:py-12">
       <div className="mx-auto max-w-4xl flex flex-col gap-14">
         <div className="page-card">
           <div className="section-stack">

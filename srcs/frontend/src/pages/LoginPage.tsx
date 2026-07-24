@@ -80,7 +80,7 @@ export default function LoginPage() {
   return (
     <div className="container-page py-8 sm:py-10 lg:py-12">
       <div className="mx-auto grid w-full max-w-3xl gap-6 lg:max-w-4xl lg:grid-cols-2">
-        <section className="fade-in">
+        <section>
           <div className="max-w-xl">
             <h1 key={mode} className="page-title pop-in">
               {title}
@@ -100,7 +100,7 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="fade-in">
+        <section>
           <div className="page-card">
             {spotifyCancelledMessage && (
               <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 nudge">

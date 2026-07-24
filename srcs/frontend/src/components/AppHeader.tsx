@@ -81,8 +81,11 @@ export default function AppHeader() {
 
   const avatarUrl = user?.spotifyProfile?.avatarUrl ?? null;
 
-  // 👁️ Solo se muestra si hay partida activa Y NO estamos dentro de una pantalla de partida (/match/...)
-  const showLiveBar = activeMatch && !pathname.startsWith("/match");
+  // Hide while in lobby; the live bar is only useful during an active match screen.
+  const showLiveBar =
+    activeMatch &&
+    !pathname.startsWith("/match") &&
+    !pathname.startsWith("/room");
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/60 backdrop-blur">

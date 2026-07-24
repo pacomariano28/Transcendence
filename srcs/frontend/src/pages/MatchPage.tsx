@@ -11,12 +11,13 @@
  * `roundPhase` mirrors the client-side round UI state; `matchState.phase` is the
  * server match lifecycle (lobby / in-game / finished).
  */
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
-import type { MatchStatePayload, ScoreEntry } from "../types/socket.payloads";
+import { socket } from "../api/socket";
+import type { MatchStatePayload, RematchPayload, ScoreEntry } from "../types/socket.payloads";
 import NotFoundPage from "./NotFoundPage";
 import MatchPageHeader from "../match/components/MatchPageHeader";
 import MatchPlaySection from "../match/components/MatchPlaySection";
@@ -38,6 +39,7 @@ import {
   getMatchDisplayFlags,
 } from "../match/selectors";
 import { normalizeCode } from "../match/utils";
+import { PAGE_EXIT_MS } from "../match/constants";
 import { translateError } from "../i18n/translateError";
 import type {
   GuessSelectedTrack,
@@ -68,6 +70,9 @@ export default function MatchPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [finalScores, setFinalScores] = useState<ScoreEntry[] | null>(null);
   const [lockRequested, setLockRequested] = useState(false);
+  const [rematchPending, setRematchPending] = useState(false);
+  const [rematchExiting, setRematchExiting] = useState(false);
+  const rematchPayloadRef = useRef<RematchPayload | null>(null);
 
   // Guess resolution overlays (countdown / wrong / correct / timeout) in MatchAudioStage
   const [guessStatus, setGuessStatus] = useState<GuessStatus>("countdown");
@@ -123,6 +128,36 @@ export default function MatchPage() {
 
   useAudioVisualizer(analyserRef, canvasRef);
 
+  const handleRematchReceived = useCallback((payload: RematchPayload) => {
+    rematchPayloadRef.current = payload;
+    setRematchExiting(true);
+  }, []);
+
+  useEffect(() => {
+    if (!rematchExiting) return;
+
+    const timer = window.setTimeout(() => {
+      const payload = rematchPayloadRef.current;
+      if (!payload) return;
+
+      setActiveMatch(null);
+      nav(`/room/${payload.matchId}`, {
+        replace: true,
+        state: {
+          fromRematch: true,
+          createdMatch: {
+            matchId: payload.matchId,
+            roundsTotal: payload.roundsTotal,
+            phase: payload.phase,
+            players: payload.players,
+          },
+        },
+      });
+    }, PAGE_EXIT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [rematchExiting, nav, setActiveMatch]);
+
   // HTTP bootstrap before/alongside socket; socket remains authoritative during play
   useMatchHydration({ code, setNotFound, setMatchState, setScores });
 
@@ -175,6 +210,8 @@ export default function MatchPage() {
     setGuessStatus,
     setGuessResultTrack,
     resetSearch,
+    setRematchPending,
+    onRematchReceived: handleRematchReceived,
   });
 
   const showCooldownUi = isCooldownActive && roundPhase === "playing";
@@ -194,9 +231,20 @@ export default function MatchPage() {
   });
 
   const leaveFinishedMatch = useCallback(() => {
+    if (socket.connected) {
+      socket.emit("match:leave");
+    }
     setActiveMatch(null);
     nav("/");
   }, [nav, setActiveMatch]);
+
+  const requestRematch = useCallback(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+    setRematchPending(true);
+    socket.emit("match:rematch");
+  }, []);
 
   const roundLabel = roundInfo
     ? t("match.rounds.label", {
@@ -248,8 +296,16 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center px-4 py-10 fade-in sm:px-6 lg:px-8">
-      <div className="w-full space-y-6">
+    <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
+      <div
+        className={`w-full space-y-6 ${
+          rematchExiting
+            ? "page-exit"
+            : rematchPending && isMatchFinished
+              ? "page-content-dim"
+              : ""
+        }`}
+      >
         <MatchPageHeader
           code={code}
           roundLabel={roundLabel}
@@ -314,6 +370,8 @@ export default function MatchPage() {
             resultsData={resultsData}
             myUserId={myUserId}
             onLeaveFinishedMatch={leaveFinishedMatch}
+            onRequestRematch={requestRematch}
+            rematchPending={rematchPending}
             scoreboard={scoreboard}
             lockOwnerId={lockOwnerId}
             roundPhase={roundPhase}

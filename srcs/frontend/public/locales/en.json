@@ -117,7 +117,9 @@
       "matchComplete": "Match complete",
       "finalResults": "Final results",
       "you": "(you)",
-      "backButton": "back"
+      "backButton": "back",
+      "playAgain": "Play Again",
+      "rematchPending": "Starting rematch..."
     },
     "hud": {
       "trackTime": "Track: {{seconds}}s",
@@ -248,6 +250,8 @@
     "DEFAULT_ERROR": "An unexpected error occurred.",
     "LOGIN_REQUIRED": "You must log in to access an active game room.",
     "MATCH_FINISHED": "This match has already finished.",
+    "REMATCH_NO_PLAYERS": "No connected players are available for a rematch.",
+    "INVALID_STATE": "This action is not allowed in the current game state.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Not enough songs available to start the game.",
     "NOT_ENOUGH_SONGS_AVAILABLE": "Not enough songs available to start the game.",
     "USER_NOT_AUTH": "User not authenticated",

@@ -40,6 +40,7 @@ export function createMatchState(
     playlist: [],
     playlistError: null,
     round: null,
+    rematchTargetId: null,
   };
 }
 
