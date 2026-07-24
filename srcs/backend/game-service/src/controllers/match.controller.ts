@@ -106,6 +106,38 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     logInfo(`Socket dejó la partida voluntariamente: ${socket.id}`);
   });
 
+  socket.on("match:rematch", () => {
+    try {
+      const userId = readHeader(socket.handshake.headers, "x-user-id");
+      if (!userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+      const displayName =
+        readHeader(socket.handshake.headers, "x-user-username") ??
+        readHeader(socket.handshake.headers, "x-user-email") ??
+        "Guest";
+      const result = matchService.requestRematch({
+        socketId: socket.id,
+        userId,
+        displayName,
+      });
+      const { newMatch, oldMatchId } = result;
+      const statePayload = toPayload(newMatch);
+      const rematchPayload = {
+        previousMatchId: oldMatchId,
+        ...statePayload,
+      };
+
+      socket.leave(oldMatchId);
+      socket.join(newMatch.matchId);
+
+      socket.emit("match:rematch", rematchPayload);
+      emitMatchState(socket, newMatch);
+    } catch (error) {
+      emitMatchError(socket, error);
+    }
+  });
+
   socket.on("disconnect", () => {
     const match = matchService.removeSocket(socket.id);
 

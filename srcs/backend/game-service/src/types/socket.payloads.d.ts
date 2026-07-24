@@ -50,3 +50,11 @@ export type RoundPreviewEndedPayload = {
   matchId: string;
   roundIndex: number;
 };
+
+export type RematchPayload = {
+  previousMatchId: string;
+  matchId: string;
+  roundsTotal: number;
+  phase: MatchStatePayload["phase"];
+  players: MatchStatePayload["players"];
+};

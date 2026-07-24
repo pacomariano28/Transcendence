@@ -29,4 +29,13 @@ export type MatchPhasePayload = {
 
 export type RoomLobbyLocationState = {
   createdMatch?: MatchStatePayload;
+  fromRematch?: boolean;
+};
+
+export type RematchPayload = {
+  previousMatchId: string;
+  matchId: string;
+  roundsTotal: number;
+  phase: MatchStatePayload["phase"];
+  players: MatchStatePayload["players"];
 };

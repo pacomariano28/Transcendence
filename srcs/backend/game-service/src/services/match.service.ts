@@ -32,6 +32,7 @@ import {
   joinMatch as joinMatchAction,
 } from "./match/match.lifecycle.js";
 import { markReady as markReadyAction } from "./match/match.lobby.js";
+import { requestRematch as requestRematchAction } from "./match/match.rematch.js";
 import {
   getMatch as getMatchFromRegistry,
   getMatchBySocket as getMatchBySocketFromRegistry,
@@ -83,6 +84,10 @@ export class MatchService {
 
   joinMatch(input: JoinMatchInput): MatchState {
     return joinMatchAction(this.registry, input);
+  }
+
+  requestRematch(input: RematchRequestInput): RematchResult {
+    return requestRematchAction(this.registry, input);
   }
 
   markReady(socketId: string, emit: EmitMatchEvent): Promise<ReadyResult> {

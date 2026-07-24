@@ -55,6 +55,20 @@ declare global {
     playlist: PlaylistItem[];
     playlistError: string | null;
     round: RoundState | null;
+    /** Set when a rematch lobby was created from this finished match. */
+    rematchTargetId: string | null;
+  };
+
+  export type RematchResult = {
+    oldMatchId: string;
+    newMatch: MatchState;
+    alreadyExisted: boolean;
+  };
+
+  export type RematchRequestInput = {
+    socketId: string;
+    userId: string;
+    displayName: string;
   };
 
   export type CreateMatchInput = {

@@ -21,6 +21,7 @@ import { socket } from "../../api/socket";
 import type {
   MatchPhasePayload,
   MatchStatePayload,
+  RematchPayload,
   ScoreEntry,
 } from "../../types/socket.payloads";
 import {
@@ -85,6 +86,8 @@ type UseMatchSocketOptions = {
   setGuessStatus: Dispatch<SetStateAction<GuessStatus>>;
   setGuessResultTrack: Dispatch<SetStateAction<GuessSelectedTrack | null>>;
   resetSearch: () => void;
+  setRematchPending: Dispatch<SetStateAction<boolean>>;
+  onRematchReceived: (payload: RematchPayload) => void;
 };
 
 export function useMatchSocket({
@@ -118,6 +121,8 @@ export function useMatchSocket({
   setGuessStatus,
   setGuessResultTrack,
   resetSearch,
+  setRematchPending,
+  onRematchReceived,
 }: UseMatchSocketOptions) {
   const countdownTimerRef = useRef<number | null>(null);
   const guessPanelClearTimerRef = useRef<number | null>(null);
@@ -362,6 +367,12 @@ export function useMatchSocket({
       tryPlayAudio(payload.resumeTime);
     });
 
+    socket.on("match:rematch", (payload: RematchPayload) => {
+      if (payload.previousMatchId !== code) return;
+      setRematchPending(false);
+      onRematchReceived(payload);
+    });
+
     socket.on("match:end", (payload: MatchEndPayload) => {
       if (payload.matchId !== code) return;
       setFinalScores(payload.scores);
@@ -382,6 +393,7 @@ export function useMatchSocket({
       }
       setError(err.message);
       setLockRequested(false);
+      setRematchPending(false);
     });
 
     return () => {
@@ -393,10 +405,11 @@ export function useMatchSocket({
       socket.off("round:lock_confirmed");
       socket.off("round:guess_result");
       socket.off("round:resume");
+      socket.off("match:rematch");
       socket.off("match:end");
       socket.off("match:error");
       clearCountdownTimer();
       clearGuessPanelClearTimer();
     };
-  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay, setActiveMatch]);
+  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay, setActiveMatch, onRematchReceived]);
 }

@@ -61,7 +61,7 @@ export default function JoinRoomPage() {
   }
 
   return (
-    <div className="container-page py-10 fade-in mt-5">
+    <div className="container-page py-10 mt-5">
       <div className="mx-auto max-w-3xl">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">

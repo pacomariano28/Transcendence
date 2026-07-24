@@ -9,7 +9,7 @@ export function RequireAuth() {
 
   if (loading)
     return (
-      <div className="container-page py-10 fade-in">{t("common.loading")}</div>
+      <div className="container-page py-10">{t("common.loading")}</div>
     );
   if (!user) {
     const returnTo = encodeURIComponent(loc.pathname + loc.search);

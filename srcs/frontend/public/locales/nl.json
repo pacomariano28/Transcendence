@@ -115,7 +115,9 @@
       "matchComplete": "Wedstrijd voltooid",
       "finalResults": "Eindresultaten",
       "you": "(jij)",
-      "backButton": "terug"
+      "backButton": "terug",
+      "playAgain": "Opnieuw spelen",
+      "rematchPending": "Rematch starten..."
     },
     "hud": {
       "trackTime": "Nummer: {{seconds}}s",
@@ -246,6 +248,8 @@
     "DEFAULT_ERROR": "Er is een onverwachte fout opgetreden.",
     "LOGIN_REQUIRED": "Je moet inloggen om toegang te krijgen tot een actieve gamekamer.",
     "MATCH_FINISHED": "Deze wedstrijd is al afgelopen.",
+    "REMATCH_NO_PLAYERS": "Er zijn geen verbonden spelers beschikbaar voor een rematch.",
+    "INVALID_STATE": "Deze actie is niet toegestaan in de huidige spelstatus.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Niet genoeg nummers beschikbaar om het spel te starten.",
     "NOT_ENOUGH_SONGS_AVAILABLE": "Niet genoeg nummers beschikbaar om het spel te starten.",
     "INVALID_USER": "Ongeldige gebruiker",

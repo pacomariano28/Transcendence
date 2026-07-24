@@ -9,6 +9,8 @@ type MatchScoreboardSectionProps = {
   resultsData: ScoreEntry[];
   myUserId: string | null;
   onLeaveFinishedMatch: () => void;
+  onRequestRematch: () => void;
+  rematchPending: boolean;
   scoreboard: ScoreboardEntry[];
   lockOwnerId: string | null;
   roundPhase: string;
@@ -19,6 +21,8 @@ export default function MatchScoreboardSection({
   resultsData,
   myUserId,
   onLeaveFinishedMatch,
+  onRequestRematch,
+  rematchPending,
   scoreboard,
   lockOwnerId,
   roundPhase,
@@ -88,7 +92,21 @@ export default function MatchScoreboardSection({
             })}
           </div>
 
-          <div className="animate-match-back-reveal mt-8 text-center">
+          <div className="animate-match-back-reveal mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <button
+              className="btn-glow px-6"
+              style={{ "--btn-color": "#4ade80" } as React.CSSProperties}
+              type="button"
+              onClick={onRequestRematch}
+              disabled={rematchPending}
+              onMouseMove={handleMouseMoveToSetFillOrigin}
+            >
+              <span>
+                {rematchPending
+                  ? t("match.header.rematchPending")
+                  : t("match.header.playAgain")}
+              </span>
+            </button>
             <button
               className="btn-glow px-6"
               style={{ "--btn-color": "#f7d046" } as React.CSSProperties}

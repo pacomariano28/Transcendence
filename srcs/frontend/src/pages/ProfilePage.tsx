@@ -203,7 +203,7 @@ export default function ProfilePage() {
   const allTimeTrack = spotifyProfile?.topTrackAllTime?.[0] ?? null;
 
   return (
-    <div className="container-page py-10 fade-in">
+    <div className="container-page py-10">
       <div className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

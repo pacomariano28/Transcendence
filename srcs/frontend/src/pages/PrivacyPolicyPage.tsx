@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="container-page py-8 sm:py-10 lg:py-12 fade-in">
+    <div className="container-page py-8 sm:py-10 lg:py-12">
       <div className="mx-auto max-w-3xl">
         <div className="page-card section-stack">
           <div>

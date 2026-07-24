@@ -29,8 +29,8 @@ function isMatchNotFoundError(message: string) {
 export default function RoomLobbyPage() {
   const { t } = useTranslation();
   const location = useLocation();
-  const createdMatch = (location.state as RoomLobbyLocationState | null)
-    ?.createdMatch;
+  const locationState = location.state as RoomLobbyLocationState | null;
+  const createdMatch = locationState?.createdMatch;
 
   const nav = useNavigate();
   const { code: codeParam } = useParams();
@@ -99,7 +99,6 @@ export default function RoomLobbyPage() {
     }
 
     const joinMatch = () => {
-      if (createdMatch?.matchId === code) return;
       socket.emit("match:join", {
         matchId: code,
         displayName:
@@ -169,7 +168,7 @@ export default function RoomLobbyPage() {
   }
 
   return (
-    <div className="container-page py-10 fade-in mt-5">
+    <div className="container-page py-10 mt-5">
       <div className="mx-auto max-w-3xl">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
