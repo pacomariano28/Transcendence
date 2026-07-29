@@ -2,15 +2,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
-//Zod here actually is not necesary YET, but if the admin will want to change
-// the songs in the data base, i.e. this service will be reached by the client
-// through PUT, DELETE, etc.
-//Zod generator block:
 generator zod {
-  provider         = "zod-prisma-types"
-  output           = "../src/schemas/generated" // Indicate where Prisma has to put files.
-  useMultipleFiles = false                      // Gather all in one file, not multiple ones.
-  createInputTypes = true                       // Create shemas to to create/update 
+    provider         = "zod-prisma-types"
+    output           = "../src/schemas/generated"
+    useMultipleFiles = false
+    createInputTypes = true
 }
 
 datasource db {
@@ -18,11 +14,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SongStatus {
+  pending
+  ready
+  failed
+}
+
 model Song {
-  id        String   @id @default(uuid())
-  isrc      String
-  fileName  String   @unique
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String     @id @default(uuid())
+  isrc           String     @unique
+  fileName       String?    @unique
+  spotifyTrackId String?
+  title          String?
+  artist         String?
+  status         SongStatus @default(ready)
+  failReason     String?
+  source         String     @default("seed")
+  used           Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }

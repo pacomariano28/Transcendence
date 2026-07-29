@@ -146,6 +146,7 @@ services:
       NODE_ENV: development
       PORT: 4004
       SERVICE_NAME: playlist-service
+      MEDIA_DIR: /media
     env_file:
       - ./backend/playlist-service/.env
     container_name: songuess-playlist-service
@@ -161,6 +162,7 @@ services:
     volumes:
       - ./backend/playlist-service:/app
       - /app/node_modules
+      - ./frontend/public/media:/media
 
   # nginx-reload:
   #   image: alpine:latest

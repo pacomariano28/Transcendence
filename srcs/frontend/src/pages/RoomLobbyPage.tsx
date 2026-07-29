@@ -4,16 +4,25 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { socket } from "../api/socket";
 import TypingText from "../components/TypingText";
+import LobbyPlaylistPicker from "../components/LobbyPlaylistPicker";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { getMatchState } from "../api/state";
+import { fetchMySpotifyPlaylists } from "../api/spotifyPlaylists";
 import NotFoundPage from "./NotFoundPage";
 import type {
+  LobbyPlaylistOption,
   MatchPhasePayload,
   MatchStatePayload,
   RoomLobbyLocationState,
 } from "../types/socket.payloads";
 import { translateError } from "../i18n/translateError";
 import i18n from "../i18n/i18n";
+
+import {
+  GENRE_PLAYLISTS,
+  SYSTEM_PLAYLIST_OWNER_ID,
+  isSystemGenrePlaylist,
+} from "../constants/genrePlaylists";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -44,7 +53,11 @@ export default function RoomLobbyPage() {
 
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [playlistLoadError, setPlaylistLoadError] = useState<string | null>(
+    null,
+  );
   const navigatingToMatchRef = useRef(false);
+  const sharedPlaylistsRef = useRef(false);
 
   function leaveLobby() {
     if (!socket.connected) return;
@@ -57,10 +70,51 @@ export default function RoomLobbyPage() {
     return matchState.players.find((p) => p.userId === userId);
   }, [matchState, user]);
 
+  const isHost = Boolean(
+    matchState?.hostUserId && user && matchState.hostUserId === String(user.id),
+  );
+
   const connectedPlayers = useMemo(() => {
     if (!matchState) return [];
     return matchState.players.filter((player) => player.connected);
   }, [matchState]);
+
+  const playlistOptions = useMemo(() => {
+    const shared = matchState?.availablePlaylists ?? [];
+    const selected = matchState?.selectedPlaylist;
+
+    const genreOptions: LobbyPlaylistOption[] = GENRE_PLAYLISTS.map((genre) => {
+      const selectedCover =
+        selected?.id === genre.id ? (selected.imageUrl ?? null) : null;
+      return {
+        id: genre.id,
+        name: t(`lobby.genres.${genre.genreKey}`, { defaultValue: genre.name }),
+        imageUrl: selectedCover,
+        trackCount: 0,
+        ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
+        ownerDisplayName: "Spotify",
+      };
+    });
+
+    return [...genreOptions, ...shared];
+  }, [matchState?.availablePlaylists, matchState?.selectedPlaylist, t]);
+
+  const selectedPlaylist = matchState?.selectedPlaylist ?? null;
+
+  const selectedImageUrl = useMemo(() => {
+    if (!selectedPlaylist) return null;
+    if (selectedPlaylist.imageUrl) return selectedPlaylist.imageUrl;
+    const match = playlistOptions.find(
+      (option) =>
+        option.id === selectedPlaylist.id &&
+        (isSystemGenrePlaylist(option.id) ||
+          option.ownerUserId === selectedPlaylist.ownerUserId),
+    );
+    return match?.imageUrl ?? null;
+  }, [playlistOptions, selectedPlaylist]);
+
+  const playlistReady =
+    matchState?.playlistPrepStatus === "ready" && Boolean(selectedPlaylist);
 
   useEffect(() => {
     setNotFound(false);
@@ -93,6 +147,7 @@ export default function RoomLobbyPage() {
     if (!user || !code || notFound) return;
 
     navigatingToMatchRef.current = false;
+    sharedPlaylistsRef.current = false;
 
     if (!socket.connected) {
       socket.connect();
@@ -154,13 +209,63 @@ export default function RoomLobbyPage() {
     };
   }, [code, user, nav, createdMatch, notFound]);
 
+  useEffect(() => {
+    if (!user || !matchState || matchState.phase !== "lobby") return;
+    if (sharedPlaylistsRef.current) return;
+    if (!socket.connected) return;
+
+    sharedPlaylistsRef.current = true;
+
+    async function share() {
+      try {
+        if (!user?.spotifyProfile?.hasSpotifyTokens) {
+          socket.emit("match:share_playlists", { playlists: [] });
+          return;
+        }
+        const playlists = await fetchMySpotifyPlaylists();
+        socket.emit("match:share_playlists", {
+          playlists: playlists.map((p) => ({
+            id: p.id,
+            name: p.name,
+            imageUrl: p.imageUrl,
+            trackCount: p.trackCount,
+          })),
+        });
+        setPlaylistLoadError(null);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "PLAYLIST_LOAD_FAILED";
+        setPlaylistLoadError(message);
+        socket.emit("match:share_playlists", { playlists: [] });
+      }
+    }
+
+    share();
+  }, [user, matchState?.matchId, matchState?.phase]);
+
   function toggleReady() {
+    if (!playlistReady) {
+      setError("PLAYLIST_NOT_READY");
+      return;
+    }
     socket.emit("match:ready");
   }
 
   function leave() {
     leaveLobby();
     nav("/", { replace: true });
+  }
+
+  function onSelectPlaylist(option: LobbyPlaylistOption) {
+    if (!isHost) return;
+    socket.emit("match:select_playlist", {
+      playlistId: option.id,
+      ownerUserId: option.ownerUserId || String(user?.id ?? ""),
+      name: option.name,
+      imageUrl: option.imageUrl,
+      ownerDisplayName: option.ownerDisplayName,
+      kind: option.kind === "album" ? "album" : "playlist",
+    });
   }
 
   if (!code || notFound) {
@@ -182,6 +287,27 @@ export default function RoomLobbyPage() {
             {code || "———"}
           </div>
 
+          <LobbyPlaylistPicker
+            options={playlistOptions}
+            selected={selectedPlaylist}
+            selectedImageUrl={selectedImageUrl}
+            prepStatus={matchState?.playlistPrepStatus ?? "idle"}
+            prepReady={matchState?.playlistPrepReady ?? 0}
+            prepNeeded={matchState?.playlistPrepNeeded ?? 0}
+            prepError={matchState?.playlistPrepError ?? null}
+            isHost={isHost}
+            onSelect={onSelectPlaylist}
+          />
+
+          {playlistLoadError && (
+            <div className="mt-3 text-xs text-amber-200/90">
+              {t("lobby.playlistShareFailed")}{" "}
+              <a className="underline" href="/api/auth/spotify/login">
+                {t("lobby.reauthSpotify")}
+              </a>
+            </div>
+          )}
+
           <div className="mt-6 flex gap-3 sm:flex-row">
             <button
               className="btn-glow flex-5 p-4"
@@ -193,7 +319,7 @@ export default function RoomLobbyPage() {
               type="button"
               onClick={toggleReady}
               onMouseMove={handleMouseMoveToSetFillOrigin}
-              disabled={!matchState}
+              disabled={!matchState || !playlistReady}
             >
               <span>{me?.ready ? t("lobby.ready") : t("lobby.markReady")}</span>
             </button>
@@ -233,6 +359,11 @@ export default function RoomLobbyPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-zinc-100">
                         {player.displayName}
+                        {player.userId === matchState?.hostUserId ? (
+                          <span className="text-zinc-500">
+                            {t("lobby.hostSuffix")}
+                          </span>
+                        ) : null}
                         {player.userId === String(user?.id) ? (
                           <span className="text-zinc-500">
                             {t("lobby.youSuffix")}

@@ -16,6 +16,7 @@ export function toPayload(match: MatchState): MatchStatePayload {
     matchId: match.matchId,
     roundsTotal: match.roundsTotal,
     phase: match.phase,
+    hostUserId: match.hostUserId,
     players: match.players.map((player) => ({
       userId: player.userId,
       displayName: player.displayName,
@@ -23,6 +24,12 @@ export function toPayload(match: MatchState): MatchStatePayload {
       connected: player.connected,
       disconnectedAt: player.disconnectedAt,
     })),
+    availablePlaylists: match.availablePlaylists,
+    selectedPlaylist: match.selectedPlaylist,
+    playlistPrepStatus: match.playlistPrepStatus,
+    playlistPrepReady: match.playlistPrepReady,
+    playlistPrepNeeded: match.playlistPrepNeeded,
+    playlistPrepError: match.playlistPrepError,
   };
 }
 

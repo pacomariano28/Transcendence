@@ -4,10 +4,32 @@ export type ScoreEntry = {
   score: number;
 };
 
+export type LobbyPlaylistOption = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  trackCount: number;
+  ownerUserId: string;
+  ownerDisplayName: string;
+  kind?: "playlist" | "album";
+};
+
+export type SelectedLobbyPlaylist = {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  ownerDisplayName: string;
+  imageUrl?: string | null;
+  kind?: "playlist" | "album";
+};
+
+export type PlaylistPrepStatus = "idle" | "loading" | "ready" | "error";
+
 export type MatchStatePayload = {
   matchId: string;
   roundsTotal: number;
   phase: "lobby" | "countdown" | "in-game" | "finished";
+  hostUserId?: string;
   players: Array<{
     userId: string;
     displayName: string;
@@ -18,6 +40,12 @@ export type MatchStatePayload = {
     totalScore?: number;
   }>;
   scores?: ScoreEntry[] | Record<string, number>;
+  availablePlaylists?: LobbyPlaylistOption[];
+  selectedPlaylist?: SelectedLobbyPlaylist | null;
+  playlistPrepStatus?: PlaylistPrepStatus;
+  playlistPrepReady?: number;
+  playlistPrepNeeded?: number;
+  playlistPrepError?: string | null;
 };
 
 export type MatchPhasePayload = {
@@ -38,4 +66,5 @@ export type RematchPayload = {
   roundsTotal: number;
   phase: MatchStatePayload["phase"];
   players: MatchStatePayload["players"];
+  hostUserId?: string;
 };

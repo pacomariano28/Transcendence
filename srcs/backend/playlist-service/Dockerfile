@@ -20,9 +20,11 @@ CMD ["node", "dist/index.js"]
 
 FROM node:24.15.0-alpine3.22 AS development
 WORKDIR /app
+RUN apk add --no-cache ffmpeg python3 py3-pip \
+  && pip3 install --break-system-packages --no-cache-dir yt-dlp
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci
 # en dev montamos el código desde volumen, por eso no copiamos el resto
 EXPOSE 4004
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npx tsx prisma/seed.ts && npm run dev"]
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npx tsx prisma/seed.ts && npm run dev"]

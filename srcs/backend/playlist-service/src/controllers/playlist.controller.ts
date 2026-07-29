@@ -2,8 +2,13 @@ import type { Request, Response } from "express";
 import {
   countAvailableSongs,
   generateRandomPlaylist,
+  getSongsByIsrcs,
   selectRandomSongs,
 } from "../services/playlistGenerator.js";
+import {
+  ensureTracks,
+  type EnsureTrackInput,
+} from "../services/clipWorker.service.js";
 
 export async function getAvailableSongCount(req: Request, res: Response) {
   try {
@@ -52,6 +57,77 @@ export async function getPlaylist(req: Request, res: Response) {
     return res.status(200).json({ ok: true, ...playlist });
   } catch (err) {
     console.error("[playlist-service] Error in getPlaylist:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
+/**
+ * POST /ensure-songs
+ * Body: { tracks: [{ isrc, title?, artist?, spotifyTrackId? }] }
+ */
+export async function ensureSongs(req: Request, res: Response) {
+  try {
+    const tracks = Array.isArray(req.body?.tracks)
+      ? (req.body.tracks as EnsureTrackInput[])
+      : null;
+
+    if (!tracks || tracks.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_TRACKS" });
+    }
+
+    if (tracks.length > 50) {
+      return res.status(400).json({ ok: false, error: "TOO_MANY_TRACKS" });
+    }
+
+    const results = await ensureTracks(tracks);
+    const ready = results.filter((r) => r.status === "ready");
+    const pending = results.filter((r) => r.status === "pending");
+    const failed = results.filter((r) => r.status === "failed");
+
+    return res.status(200).json({
+      ok: true,
+      results,
+      summary: {
+        ready: ready.length,
+        pending: pending.length,
+        failed: failed.length,
+      },
+    });
+  } catch (err) {
+    console.error("[playlist-service] Error in ensureSongs:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
+/**
+ * GET /songs-status?isrcs=a,b,c
+ */
+export async function getSongsStatus(req: Request, res: Response) {
+  try {
+    const raw = typeof req.query.isrcs === "string" ? req.query.isrcs : "";
+    const isrcs = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 50);
+
+    if (isrcs.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_ISRCS" });
+    }
+
+    const songs = await getSongsByIsrcs(isrcs);
+
+    return res.status(200).json({
+      ok: true,
+      results: songs.map((song) => ({
+        isrc: song.isrc,
+        status: song.status,
+        fileName: song.fileName,
+        failReason: song.failReason,
+      })),
+    });
+  } catch (err) {
+    console.error("[playlist-service] Error in getSongsStatus:", err);
     return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
   }
 }

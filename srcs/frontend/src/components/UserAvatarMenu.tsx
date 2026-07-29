@@ -251,13 +251,11 @@ export default function UserAvatarMenu({
     <>
       {isVisible
         ? createPortal(
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-hidden="true"
+            <div
+              role="presentation"
               data-user-menu-backdrop
               className={[
-                "focus-backdrop fixed inset-0 border-0 bg-zinc-950/30 backdrop-blur-[2px]",
+                "focus-backdrop fixed inset-0 bg-zinc-950/30 backdrop-blur-[2px]",
                 menuState === "closing"
                   ? "focus-backdrop-exit"
                   : "focus-backdrop-enter",

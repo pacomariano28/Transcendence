@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { matchService } from "../services/match.service.js";
+import { toPayload } from "./socket.helpers.js";
 
 export async function getUserState(req: Request, res: Response) {
   const rawUserId = req.headers["x-user-id"];
@@ -29,7 +30,7 @@ export async function getMatchState(req: Request, res: Response) {
   try {
     const payload = req.body as { matchId: string };
     const match = matchService.getMatchOrThrow(payload?.matchId);
-    return res.status(200).json({ ok: true, match });
+    return res.status(200).json({ ok: true, match: toPayload(match) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "INVALID_USER";
     if (message === "MATCH_NOT_FOUND")

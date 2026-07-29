@@ -63,9 +63,13 @@ export async function spotifyLogin(_req: Request, res: Response) {
   // Keep cookie for backwards compatibility; validation uses server-side store.
   setSpotifyStateCookie(res, state);
 
-  const scope = ["user-read-email", "user-read-private", "user-top-read"].join(
-    " ",
-  );
+  const scope = [
+    "user-read-email",
+    "user-read-private",
+    "user-top-read",
+    "playlist-read-private",
+    "playlist-read-collaborative",
+  ].join(" ");
 
   const authorizeUrl = new URL("https://accounts.spotify.com/authorize");
   authorizeUrl.searchParams.set("client_id", clientId);

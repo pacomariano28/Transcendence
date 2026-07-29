@@ -32,6 +32,12 @@ import {
   joinMatch as joinMatchAction,
 } from "./match/match.lifecycle.js";
 import { markReady as markReadyAction } from "./match/match.lobby.js";
+import {
+  clearPlaylistsForUser,
+  selectPlaylist as selectPlaylistAction,
+  sharePlaylists as sharePlaylistsAction,
+  startPlaylistPreparation as startPlaylistPreparationAction,
+} from "./match/match.playlists.js";
 import { requestRematch as requestRematchAction } from "./match/match.rematch.js";
 import {
   getMatch as getMatchFromRegistry,
@@ -92,6 +98,37 @@ export class MatchService {
 
   markReady(socketId: string, emit: EmitMatchEvent): Promise<ReadyResult> {
     return markReadyAction(this.registry, socketId, emit);
+  }
+
+  sharePlaylists(
+    socketId: string,
+    playlists: Array<{
+      id: string;
+      name: string;
+      imageUrl?: string | null;
+      trackCount?: number;
+    }>,
+  ): MatchState {
+    return sharePlaylistsAction(this.registry, socketId, playlists);
+  }
+
+  selectPlaylist(
+    socketId: string,
+    input: {
+      playlistId: string;
+      ownerUserId: string;
+      name?: string;
+      imageUrl?: string | null;
+      ownerDisplayName?: string;
+      kind?: "playlist" | "album";
+    },
+    emit: EmitMatchEvent,
+  ): Promise<MatchState> {
+    return selectPlaylistAction(this.registry, socketId, input, emit);
+  }
+
+  startPlaylistPreparation(matchId: string, emit: EmitMatchEvent): void {
+    startPlaylistPreparationAction(this.registry, matchId, emit);
   }
 
   markRoundReady(
@@ -163,14 +200,29 @@ export class MatchService {
   }
 
   removeSocket(socketId: string): MatchState | undefined {
-    return removeSocketConnection(this.connectionContext, socketId);
+    const match = this.getMatchBySocket(socketId);
+    const userId = match?.players.find((p) => p.socketId === socketId)?.userId;
+    const result = removeSocketConnection(this.connectionContext, socketId);
+    if (result && userId) {
+      clearPlaylistsForUser(result, userId);
+    }
+    return result;
   }
 
   leaveMatch(input: {
     socketId: string;
     userId?: string;
   }): MatchState | undefined {
-    return leaveMatchConnection(this.connectionContext, input);
+    const matchBefore = this.getMatchBySocket(input.socketId);
+    const userId =
+      input.userId ??
+      matchBefore?.players.find((p) => p.socketId === input.socketId)?.userId;
+
+    const match = leaveMatchConnection(this.connectionContext, input);
+    if (match && userId) {
+      clearPlaylistsForUser(match, userId);
+    }
+    return match;
   }
 
   reconnectSocket(playerId: string, newSocketId: string): MatchState {

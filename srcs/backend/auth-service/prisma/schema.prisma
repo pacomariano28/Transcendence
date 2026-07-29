@@ -60,6 +60,13 @@ model SpotifyProfile {
   topTrackMonth   Json
   topTrackAllTime Json
 
+  /// AES-GCM encrypted Spotify access token (reversible).
+  accessTokenEnc  String?
+  /// AES-GCM encrypted Spotify refresh token (reversible).
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+  tokenScope      String?
+
   syncedAt        DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

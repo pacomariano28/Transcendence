@@ -140,6 +140,36 @@ async function buildValidatedPlaylist(
 export async function loadPlaylist(match: MatchState): Promise<void> {
   if (match.playlist.length > 0 || match.playlistError) return;
 
+  // Spotify-backed selection: use clips already prepared for this match.
+  if (match.selectedPlaylist && match.preparedSongs.length > 0) {
+    const targetCount = Math.min(
+      match.roundsTotal,
+      match.preparedSongs.length,
+    );
+    // Shuffle again at start so rematches don't reuse the first prepared entry.
+    const shuffledPrepared = [...match.preparedSongs];
+    for (let i = shuffledPrepared.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPrepared[i], shuffledPrepared[j]] = [
+        shuffledPrepared[j],
+        shuffledPrepared[i],
+      ];
+    }
+    const validated = await buildValidatedPlaylist(
+      targetCount,
+      shuffledPrepared,
+    );
+
+    if (!validated.ok) {
+      match.playlistError = validated.error;
+      return;
+    }
+
+    match.playlist = validated.songs;
+    match.roundsTotal = Math.min(match.roundsTotal, match.playlist.length);
+    return;
+  }
+
   const result = await fetchPlaylist();
 
   if (!result.ok) {

@@ -4,6 +4,8 @@ import { matchService } from "../services/match.service.js";
 import type {
   CreateMatchPayload,
   JoinMatchPayload,
+  SelectPlaylistPayload,
+  SharePlaylistsPayload,
 } from "../types/socket.payloads.js";
 import {
   toPayload,
@@ -15,6 +17,10 @@ import {
 import { ROUND_NUMBER } from "../utils/constants.js";
 
 export function registerMatchHandlers(io: Server, socket: Socket): void {
+  const emitToMatch = (matchId: string, event: string, data: unknown) => {
+    io.to(matchId).emit(event, data);
+  };
+
   socket.on("match:create", (payload: CreateMatchPayload) => {
     console.log("Event received: match:create", payload);
     try {
@@ -78,11 +84,43 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 
+  socket.on("match:share_playlists", (payload: SharePlaylistsPayload) => {
+    try {
+      const match = matchService.sharePlaylists(
+        socket.id,
+        payload?.playlists ?? [],
+      );
+      emitMatchState(socket, match);
+    } catch (error) {
+      emitMatchError(socket, error);
+    }
+  });
+
+  socket.on("match:select_playlist", async (payload: SelectPlaylistPayload) => {
+    try {
+      if (!payload?.playlistId || !payload?.ownerUserId) {
+        throw new Error("INVALID_PAYLOAD");
+      }
+      const match = await matchService.selectPlaylist(
+        socket.id,
+        {
+          playlistId: payload.playlistId,
+          ownerUserId: payload.ownerUserId,
+          name: payload.name,
+          imageUrl: payload.imageUrl,
+          ownerDisplayName: payload.ownerDisplayName,
+          kind: payload.kind,
+        },
+        emitToMatch,
+      );
+      emitMatchState(socket, match);
+    } catch (error) {
+      emitMatchError(socket, error);
+    }
+  });
+
   socket.on("match:ready", async () => {
     try {
-      const emitToMatch = (matchId: string, event: string, data: unknown) => {
-        io.to(matchId).emit(event, data);
-      };
       const result = await matchService.markReady(socket.id, emitToMatch);
 
       emitMatchState(socket, result.match);
@@ -131,6 +169,9 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       socket.leave(oldMatchId);
       socket.join(newMatch.matchId);
 
+      if (!result.alreadyExisted && newMatch.selectedPlaylist) {
+        matchService.startPlaylistPreparation(newMatch.matchId, emitToMatch);
+      }
       socket.emit("match:rematch", rematchPayload);
       emitMatchState(socket, newMatch);
     } catch (error) {

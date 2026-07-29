@@ -33,4 +33,8 @@ router.get("/health", globalLimiter, proxyOptions);
 router.get("/spotify/login", globalLimiter, proxyOptions);
 router.get("/spotify/callback", globalLimiter, proxyOptions);
 
+// Spotify playlists
+router.get("/spotify/playlists", requireAuth, proxyOptions);
+router.get("/spotify/playlists/:playlistId/tracks", requireAuth, proxyOptions);
+
 export default router;

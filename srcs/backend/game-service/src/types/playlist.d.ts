@@ -17,3 +17,18 @@ export type AvailableSongCountResponse = {
 export type AvailableSongCountResult =
   | { ok: true; count: number }
   | { ok: false; error: string };
+
+export type EnsureSongResult = {
+  isrc: string;
+  status: "ready" | "pending" | "failed";
+  fileName: string | null;
+  failReason: string | null;
+};
+
+export type EnsureSongsResponse =
+  | {
+      ok: true;
+      results: EnsureSongResult[];
+      summary: { ready: number; pending: number; failed: number };
+    }
+  | { ok: false; error: string };

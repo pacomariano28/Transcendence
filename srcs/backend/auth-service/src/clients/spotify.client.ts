@@ -12,6 +12,7 @@ export type SpotifyMe = {
   id: string;
   email?: string;
   display_name?: string;
+  images?: Array<{ url: string }>;
 };
 
 export type SpotifyArtist = {
@@ -271,4 +272,186 @@ export async function getTopTracks(
     popularity: track.popularity,
     imageUrl: track.album.images?.[0]?.url ?? null,
   }));
+}
+
+export type SpotifyPlaylistSummary = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  trackCount: number;
+  ownerName: string | null;
+};
+
+export type SpotifyPlaylistTrack = {
+  spotifyTrackId: string;
+  name: string;
+  artists: string;
+  isrc: string | null;
+  imageUrl: string | null;
+};
+
+/**
+ * Refreshes a Spotify access token using a refresh token.
+ */
+export async function refreshAccessToken(params: {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}): Promise<SpotifyTokenResponse> {
+  const basic = Buffer.from(
+    `${params.clientId}:${params.clientSecret}`,
+  ).toString("base64");
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "refresh_token");
+  body.set("refresh_token", params.refreshToken);
+
+  const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  const tokenJson = (await tokenRes.json()) as SpotifyTokenResponse;
+
+  if (!tokenRes.ok) {
+    throw Object.assign(new Error("SPOTIFY_TOKEN_REFRESH_FAILED"), {
+      details: tokenJson,
+    });
+  }
+
+  return tokenJson;
+}
+
+/**
+ * Lists the current user's playlists (first page, up to 50).
+ */
+export async function getUserPlaylists(
+  accessToken: string,
+  limit = 30,
+): Promise<SpotifyPlaylistSummary[]> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/playlists?limit=${Math.min(limit, 50)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as {
+    items?: Array<{
+      id: string;
+      name: string;
+      images?: Array<{ url: string }>;
+      tracks?: { total?: number };
+      owner?: { display_name?: string };
+    }>;
+  };
+
+  if (!res.ok) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLISTS_FAILED"), {
+      details: json,
+    });
+  }
+
+  return (json.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    imageUrl: item.images?.[0]?.url ?? null,
+    trackCount: item.tracks?.total ?? 0,
+    ownerName: item.owner?.display_name ?? null,
+  }));
+}
+
+/**
+ * Fetches the first `limit` tracks of a playlist, including ISRC when available.
+ */
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string,
+  limit = 30,
+): Promise<SpotifyPlaylistTrack[]> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=${Math.min(limit, 50)}&market=from_token`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as {
+    items?: Array<{
+      track?: {
+        id?: string;
+        name?: string;
+        artists?: Array<{ name: string }>;
+        external_ids?: { isrc?: string };
+        album?: { images?: Array<{ url: string }> };
+      } | null;
+    }>;
+    error?: { message?: string; status?: number };
+  };
+
+  if (!res.ok) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_TRACKS_FAILED"), {
+      details: json,
+    });
+  }
+
+  const tracks: SpotifyPlaylistTrack[] = [];
+
+  for (const item of json.items ?? []) {
+    const track = item.track;
+    if (!track?.id || !track.name) continue;
+
+    tracks.push({
+      spotifyTrackId: track.id,
+      name: track.name,
+      artists: (track.artists ?? []).map((a) => a.name).join(", "),
+      isrc: track.external_ids?.isrc ?? null,
+      imageUrl: track.album?.images?.[0]?.url ?? null,
+    });
+  }
+
+  return tracks;
+}
+
+/**
+ * Fetches playlist metadata (name, cover, track count) with a user access token.
+ * Works for public community playlists (user-created, not Spotify editorial).
+ */
+export async function getPlaylistMetadata(
+  accessToken: string,
+  playlistId: string,
+): Promise<SpotifyPlaylistSummary> {
+  const fields = "id,name,images,tracks.total,owner.display_name";
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=${encodeURIComponent(fields)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as {
+    id?: string;
+    name?: string;
+    images?: Array<{ url: string }>;
+    tracks?: { total?: number };
+    owner?: { display_name?: string };
+  };
+
+  if (!res.ok || !json.id) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_FAILED"), {
+      details: json,
+    });
+  }
+
+  return {
+    id: json.id,
+    name: json.name ?? "Playlist",
+    imageUrl: json.images?.[0]?.url ?? null,
+    trackCount: json.tracks?.total ?? 0,
+    ownerName: json.owner?.display_name ?? null,
+  };
 }
