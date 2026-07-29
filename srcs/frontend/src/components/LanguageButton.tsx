@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
-
-const SUPPORTED_LANGUAGES = ["en", "ru", "es", "nl"];
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n/languages";
 
 export default function LanguageButton() {
   const { t, i18n } = useTranslation();
@@ -10,7 +9,9 @@ export default function LanguageButton() {
   const currentLangBase = currentLang.split("-")[0];
 
   const toggleLanguage = (): void => {
-    const currentIndex = SUPPORTED_LANGUAGES.indexOf(currentLangBase);
+    const currentIndex = SUPPORTED_LANGUAGES.indexOf(
+      currentLangBase as SupportedLanguage,
+    );
     const actualIndex = currentIndex === -1 ? 0 : currentIndex;
     const nextIndex = (actualIndex + 1) % SUPPORTED_LANGUAGES.length;
 

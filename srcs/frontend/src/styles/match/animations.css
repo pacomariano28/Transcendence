@@ -119,6 +119,17 @@
   }
 }
 
+@keyframes guessDropdownExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
 @keyframes songRevealCover {
   0% {
     opacity: 0;
@@ -183,7 +194,30 @@
 
 .animate-guess-dropdown-enter {
   animation: guessDropdownEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-  transform-origin: bottom center;
+  transform-origin: top center;
+}
+
+.animate-guess-dropdown-exit {
+  animation: guessDropdownExit 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: top center;
+}
+
+.guess-search-dropdown-panel {
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.guess-search-dropdown-panel-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.guess-search-dropdown-panel-hidden {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  pointer-events: none;
 }
 
 .animate-guess-status-enter {
@@ -200,4 +234,22 @@
 
 .animate-song-reveal-artist {
   animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.42s both;
+}
+
+.focus-backdrop {
+  transition: opacity 300ms ease-out, backdrop-filter 300ms ease-out;
+}
+
+.focus-backdrop-enter {
+  opacity: 1;
+}
+
+.focus-backdrop-exit {
+  opacity: 0;
+}
+
+.user-avatar-tooltip {
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }

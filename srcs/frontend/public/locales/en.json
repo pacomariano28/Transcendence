@@ -3,6 +3,8 @@
     "nav_home": "Home",
     "nav_profile": "Profile",
     "change_lang": "Change Language",
+    "logout": "Logout",
+    "user_menu": "User menu",
     "signed_in_as": "Signed in as",
     "live_match_in_progress": "MATCH IN PROGRESS",
     "room": "Room:"

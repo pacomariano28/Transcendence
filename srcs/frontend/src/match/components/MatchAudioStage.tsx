@@ -204,7 +204,7 @@ export default function MatchAudioStage({
   return (
     <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-52 lg:min-h-0 lg:h-auto lg:flex-1">
       <div
-        className={`absolute top-4 left-4 z-30 flex h-7 items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity duration-700 ease-in-out
+        className={`absolute top-4 left-4 z-30 flex h-7 max-w-[calc(100%-2rem)] items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 font-mono text-xs font-medium text-zinc-300 backdrop-blur-md transition-opacity duration-700 ease-in-out
                     ${showTrackTimer ? "opacity-100" : "pointer-events-none opacity-0"}`}
       >
         <span className="relative h-2 w-2 shrink-0">
@@ -213,7 +213,7 @@ export default function MatchAudioStage({
           ></span>
           <span className="relative block h-2 w-2 rounded-full bg-[#f7d046]"></span>
         </span>
-        <span className="relative transform translate-y-[1px]">
+        <span className="relative shrink-0 translate-y-[1px] whitespace-nowrap">
           {t("match.hud.trackTime", { seconds: songRemainingSeconds ?? 0 })}
         </span>
       </div>
@@ -269,17 +269,18 @@ export default function MatchAudioStage({
       </div>
 
       <div
-        className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out
-                  ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
+        className={`absolute inset-0 flex flex-col items-center text-center transition-all duration-500 ease-in-out
+                  ${showGuessPanel ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}
+                  ${showGuessPanel && showTrackTimer ? "max-sm:justify-start max-sm:pt-14 sm:justify-center" : "justify-center"}`}
       >
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <div className="flex w-full flex-col items-center justify-center text-center max-sm:px-4 sm:absolute sm:inset-0">
           {guessStatus === "countdown" && (
             <div className="flex flex-col items-center justify-center text-center">
-              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-400">
+              <div className="max-w-[12rem] text-xs font-medium uppercase leading-snug tracking-[0.2em] text-zinc-400 sm:max-w-none sm:tracking-[0.24em]">
                 {t("match.hud.guessTimeRemaining")}
               </div>
               <div
-                className={`mt-3 text-7xl font-bold transition-all duration-500
+                className={`mt-3 text-6xl font-bold transition-all duration-500 sm:text-7xl
                           ${(guessSeconds ?? 10) <= 5 ? "text-red-500 animate-pulse scale-110" : "text-amber-300"}`}
               >
                 {guessSeconds ?? 0}

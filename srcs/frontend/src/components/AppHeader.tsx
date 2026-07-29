@@ -4,7 +4,7 @@ import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
-import LanguageButton from "./LanguageButton";
+import UserAvatarMenu from "./UserAvatarMenu";
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
@@ -20,46 +20,6 @@ function NavItem({ to, label }: { to: string; label: string }) {
     >
       {label}
     </NavLink>
-  );
-}
-
-function UserAvatar({
-  username,
-  email,
-  imageUrl,
-}: {
-  username?: string | null;
-  email?: string | null;
-  imageUrl?: string | null;
-}) {
-  const initials =
-    (username?.[0] ?? email?.[0] ?? "U").toUpperCase() +
-    ((username?.[1] ?? email?.[1] ?? "") || "").toUpperCase();
-
-  return (
-    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 ring-1 ring-white/10 transition-all duration-200 hover:ring-[#f7d046]/40">
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={username ?? email ?? "User avatar"}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="text-sm font-semibold text-zinc-200">{initials}</span>
-      )}
-    </div>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
-      <path
-        d="M10 17l1.5-1.5L8 12h9v-2H8l3.5-3.5L10 5l-6 7 6 7z"
-        fill="currentColor"
-      />
-      <path d="M20 5h-2v14h2V5z" fill="currentColor" opacity="0.75" />
-    </svg>
   );
 }
 
@@ -89,7 +49,6 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/60 backdrop-blur">
-      {/* 1. Contenedor del contenido principal (Logo, Nav, Usuario) */}
       <div className="container-page flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -100,7 +59,6 @@ export default function AppHeader() {
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">
-            <LanguageButton />
             <NavItem to="/" label={t("header.nav_home")} />
             <NavItem to="/profile" label={t("header.nav_profile")} />
           </nav>
@@ -112,43 +70,13 @@ export default function AppHeader() {
               {t("home.checking_session")}
             </div>
           ) : user ? (
-            <>
-              <div className="hidden items-center gap-3 md:flex fade-in">
-                <UserAvatar
-                  username={user.username}
-                  email={user.email}
-                  imageUrl={avatarUrl}
-                />
-                <div className="text-sm text-zinc-300">
-                  <span className="block text-zinc-400">
-                    {t("header.signed_in_as")}
-                  </span>
-                  <span className="text-zinc-200">
-                    {user.username ?? user.email}
-                  </span>
-                </div>
-              </div>
-
-              <div className="md:hidden">
-                <UserAvatar
-                  username={user.username}
-                  email={user.email}
-                  imageUrl={avatarUrl}
-                />
-              </div>
-
-              <button
-                className="btn-glow btn-glow-no-bold px-4"
-                style={{ "--btn-color": "#d12219" } as React.CSSProperties}
-                onMouseMove={handleMouseMoveToSetFillOrigin}
-                type="button"
-                onClick={onLogout}
-                aria-label="Logout"
-                title="Logout"
-              >
-                <LogoutIcon />
-              </button>
-            </>
+            <UserAvatarMenu
+              username={user.username}
+              email={user.email}
+              imageUrl={avatarUrl}
+              displayName={user.username ?? user.email}
+              onLogout={onLogout}
+            />
           ) : (
             <Link to="/login">
               <button
@@ -164,32 +92,26 @@ export default function AppHeader() {
         </div>
       </div>
 
-      {/* 2. 🟢 BARRA DE LIVE COMPLETA Y CLICKABLE (Oculta automáticamente en la pantalla de juego) */}
       {showLiveBar && user && (
         <Link
           to={`/match/${activeMatch.code}`}
           className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer animate-fade-in"
         >
-          {/* Lado izquierdo: Indicador de En Vivo */}
           <div className="flex items-center gap-2">
-            {/* Ajuste óptico: -translate-y-[1px] eleva la bolita exactamente al centro visual de las mayúsculas */}
             <span className="relative flex h-2 w-2 -translate-y-[1px]">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-60"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600"></span>
             </span>
-            {/* leading-none quita los márgenes invisibles de la tipografía por arriba y abajo */}
             <span className="leading-none">
               {t("header.live_match_in_progress")}
             </span>
           </div>
 
-          {/* Lado derecho: Datos de la sala y ronda */}
           <div className="flex items-center gap-4 sm:gap-6">
             <span className="select-text opacity-90">
               {t("header.room")} {activeMatch.code}
             </span>
             {activeMatch.roundLabel && (
-              /* Cambiamos inline-flex por inline-block y controlamos el padding píxel a píxel */
               <span
                 className="inline-block bg-zinc-950 text-emerald-400 px-1.5 rounded-md text-[9px] sm:text-xs font-bold tracking-wide shadow-sm font-mono text-center
       pt-[2px] pb-[3px]
