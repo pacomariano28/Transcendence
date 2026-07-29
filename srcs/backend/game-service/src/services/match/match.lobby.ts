@@ -60,8 +60,25 @@ export async function markReady(
     }
 
     const previousPhase = match.phase;
-    match.phase = "in-game";
     await loadPlaylist(match);
+
+    if (match.playlistError || match.playlist.length < requiredRounds) {
+      const errorMessage = match.playlistError ?? "NOT_ENOUGH_SONGS_AVAILABLE";
+      match.playlist = [];
+      match.playlistError = null;
+      connectedPlayers.forEach((entry) => {
+        entry.ready = false;
+      });
+      emit(match.matchId, "match:error", {
+        message: errorMessage,
+      });
+      return {
+        match,
+        countdownStarted: false,
+      };
+    }
+
+    match.phase = "in-game";
     startRound(match);
     emit(match.matchId, "match:phase", {
       matchId: match.matchId,

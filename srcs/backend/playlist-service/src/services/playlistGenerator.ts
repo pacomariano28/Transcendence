@@ -31,44 +31,62 @@ export async function countAvailableSongs(): Promise<number> {
   return unusedCount;
 }
 
-export async function generateRandomPlaylist() {
-  // 1. Consultar canciones no usadas
-  let unusedSongs: Song[] = await prisma.song.findMany({
-    where: { used: false },
+export async function selectRandomSongs(
+  count: number,
+  excludeIsrcs: string[] = [],
+): Promise<{ isrc: string; fileName: string }[]> {
+  if (count <= 0) {
+    return [];
+  }
+
+  const excludeFilter =
+    excludeIsrcs.length > 0 ? { isrc: { notIn: excludeIsrcs } } : {};
+
+  let availableSongs: Song[] = await prisma.song.findMany({
+    where: {
+      used: false,
+      ...excludeFilter,
+    },
   });
 
-  // si no hay suficientes canciones disponibles, reseteamos todas
-  if (unusedSongs.length < PLAYLIST_SIZE) {
+  if (availableSongs.length < count) {
     await prisma.song.updateMany({
+      where: excludeFilter,
       data: { used: false },
     });
 
-    unusedSongs = await prisma.song.findMany({
-      where: { used: false },
+    availableSongs = await prisma.song.findMany({
+      where: {
+        used: false,
+        ...excludeFilter,
+      },
     });
   }
 
-  // 2. Barajar y seleccionar las primeras 5
-  const shuffled = fisherYatesShuffle(unusedSongs);
-  const selectedSongs = shuffled.slice(0, PLAYLIST_SIZE);
+  if (availableSongs.length === 0) {
+    return [];
+  }
 
-  const playlistId = crypto.randomUUID();
-  const songIsrcs = selectedSongs.map((s) => s.isrc);
+  const shuffled = fisherYatesShuffle(availableSongs);
+  const selectedSongs = shuffled.slice(0, Math.min(count, shuffled.length));
+  const songIsrcs = selectedSongs.map((song) => song.isrc);
 
-  // 3. Marcar esas canciones como usadas
   await prisma.song.updateMany({
     where: { isrc: { in: songIsrcs } },
     data: { used: true },
   });
 
-  // 4. Preparar las canciones para la respuesta (omitimos campos internos)
-  const songs = selectedSongs.map(({ isrc, fileName }) => ({
+  return selectedSongs.map(({ isrc, fileName }) => ({
     isrc,
     fileName,
   }));
+}
+
+export async function generateRandomPlaylist() {
+  const songs = await selectRandomSongs(PLAYLIST_SIZE);
 
   return {
-    playlistId,
+    playlistId: crypto.randomUUID(),
     songs,
   };
 }
