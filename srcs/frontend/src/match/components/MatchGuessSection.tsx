@@ -19,6 +19,19 @@ type MatchGuessSectionProps = {
   onSubmitGuess: () => void;
 };
 
+type SearchDropdownState = "searching" | "error" | "results" | "empty";
+
+function getSearchDropdownState(options: {
+  searching: boolean;
+  searchError: string | null;
+  searchResults: SpotifySearchTrack[];
+}): SearchDropdownState {
+  if (options.searchError) return "error";
+  if (options.searching) return "searching";
+  if (options.searchResults.length > 0) return "results";
+  return "empty";
+}
+
 export default function MatchGuessSection({
   isMatchFinished,
   roundPhase,
@@ -36,12 +49,23 @@ export default function MatchGuessSection({
 }: MatchGuessSectionProps) {
   const { t } = useTranslation();
 
+  const showSearchDropdown =
+    canGuess && !selectedTrack && searchTerm.trim().length >= 2;
+
+  const dropdownState = getSearchDropdownState({
+    searching,
+    searchError,
+    searchResults,
+  });
+
   return (
     <section
       className={`card order-2 p-6 lg:col-span-2 lg:row-start-2 ${
         roundPhase === "guessing" ? "relative z-40" : ""
       } ${
-        isMatchFinished ? "animate-match-guess-exit overflow-hidden !m-0 !border-0 !p-0" : ""
+        isMatchFinished
+          ? "animate-match-guess-exit overflow-hidden !m-0 !border-0 !p-0"
+          : ""
       }`}
     >
       <div className="flex flex-col gap-1">
@@ -90,7 +114,9 @@ export default function MatchGuessSection({
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <input
                     autoFocus
-                    className="lock-input input flex-1 text-center uppercase"
+                    className={`lock-input input flex-1 text-center ${
+                      selectedTrack ? "normal-case" : "lowercase"
+                    }`}
                     placeholder={t("match.guessingPanel.searchPlaceholder")}
                     value={searchTerm}
                     onChange={(event) => {
@@ -114,60 +140,54 @@ export default function MatchGuessSection({
                   </button>
                 </div>
 
-                {searchResults.length > 0 &&
-                  !selectedTrack &&
-                  searchTerm.trim().length >= 2 && (
-                    <div className="select-text scrollbar-hidden animate-guess-dropdown-enter absolute bottom-full left-0 right-0 z-50 mb-2 grid max-h-40 origin-bottom gap-2 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#141416] p-2 shadow-[0_-8px_30px_rgba(0,0,0,0.45)] backdrop-blur sm:max-h-48 lg:max-h-60">
-                      {searchResults.map((track) => (
-                        <button
-                          key={track.id}
-                          className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
-                          type="button"
-                          onClick={() => onSelectTrack(track)}
-                        >
-                          <div className="text-sm font-bold text-white">
-                            {track.track}
-                          </div>
-                          <div className="text-sm font-light text-white">
-                            {track.artist}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-              </div>
-
-              {selectedTrack && (
-                <div className="select-text mt-3 text-xs text-emerald-300 transition-opacity animate-fade-in">
-                  {t("match.guessingPanel.selectedPrefix", {
-                    track: selectedTrack.track,
-                    artist: selectedTrack.artist,
-                  })}
-                </div>
-              )}
-
-              {searchError && (
-                <div className="mt-3 text-xs text-rose-300 animate-fade-in">
-                  {translateError(searchError, t)}
-                </div>
-              )}
-
-              {searching && (
-                <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                  {t("match.guessingPanel.searching")}
-                </div>
-              )}
-
-              {!searching &&
-                !searchError &&
-                searchTerm.trim().length >= 2 &&
-                searchResults.length === 0 &&
-                !selectedTrack && (
-                  <div className="mt-3 text-xs text-zinc-500 animate-fade-in">
-                    {t("match.guessingPanel.noResults")}
+                {showSearchDropdown ? (
+                  <div className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-2xl border border-white/10 bg-[#141416] shadow-[0_-8px_30px_rgba(0,0,0,0.45)] backdrop-blur">
+                    {dropdownState === "results" ? (
+                      <div
+                        key="results"
+                        className="select-text scrollbar-hidden animate-guess-dropdown-enter grid max-h-40 origin-bottom gap-2 overflow-y-auto overscroll-contain p-2 sm:max-h-48 lg:max-h-60"
+                      >
+                        {searchResults.map((track) => (
+                          <button
+                            key={track.id}
+                            className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
+                            type="button"
+                            onClick={() => onSelectTrack(track)}
+                          >
+                            <div className="text-sm font-bold text-white">
+                              {track.track}
+                            </div>
+                            <div className="text-sm font-light text-white">
+                              {track.artist}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div
+                        key={dropdownState}
+                        className="guess-search-dropdown-panel guess-search-dropdown-panel-active flex h-14 items-center justify-center px-4 text-center text-sm"
+                      >
+                        {dropdownState === "searching" ? (
+                          <span className="text-zinc-400">
+                            {t("match.guessingPanel.searching")}
+                          </span>
+                        ) : null}
+                        {dropdownState === "error" && searchError ? (
+                          <span className="text-rose-300">
+                            {translateError(searchError, t)}
+                          </span>
+                        ) : null}
+                        {dropdownState === "empty" ? (
+                          <span className="text-zinc-500">
+                            {t("match.guessingPanel.noResults")}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-                )}
-
+                ) : null}
+              </div>
             </div>
           ) : (
             <div className="mt-2 text-sm text-zinc-400">
