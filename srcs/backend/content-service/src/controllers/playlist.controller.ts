@@ -43,7 +43,13 @@ export async function getPlaylistTracks(req: Request, res: Response) {
     return res.status(200).json({ ok: true, tracks });
   } catch (err) {
     console.error("[content-service] getPlaylistTracks error:", err);
-    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+    const code =
+      err instanceof Error &&
+      "code" in err &&
+      typeof (err as Error & { code?: string }).code === "string"
+        ? (err as Error & { code: string }).code
+        : "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+    return res.status(502).json({ ok: false, error: code });
   }
 }
 

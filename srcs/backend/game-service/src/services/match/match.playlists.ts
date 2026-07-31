@@ -9,7 +9,6 @@ import {
   fetchPublicAlbum,
   fetchPublicAlbumTracks,
   fetchPublicPlaylist,
-  fetchPublicPlaylistTracks,
 } from "../../clients/content.client.js";
 import {
   ensureSongs,
@@ -86,6 +85,32 @@ function pickPreparedSongs(
     ...(title ? { title } : {}),
     ...(artist ? { artist } : {}),
   }));
+}
+
+async function applyLocalSeedLibrary(
+  match: MatchState,
+  emit: EmitMatchEvent,
+): Promise<boolean> {
+  const seedResult = await fetchSeedSongs(Math.max(match.roundsTotal, 5));
+  if (!seedResult.ok || seedResult.songs.length === 0) {
+    return false;
+  }
+
+  match.selectedPlaylist = {
+    id: LOCAL_SEED_PLAYLIST.id,
+    name: LOCAL_SEED_PLAYLIST.name,
+    ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
+    ownerDisplayName: LOCAL_SEED_PLAYLIST.ownerDisplayName,
+    imageUrl: match.selectedPlaylist?.imageUrl ?? null,
+    kind: "playlist",
+  };
+  match.preparedSongs = pickPreparedSongs(seedResult.songs, match.roundsTotal);
+  match.playlistPrepReady = match.preparedSongs.length;
+  match.playlistPrepNeeded = match.roundsTotal;
+  match.playlistPrepStatus = "ready";
+  match.playlistPrepError = null;
+  emitLobbyState(emit, match);
+  return true;
 }
 
 function clearPlayerReady(match: MatchState): void {
@@ -310,6 +335,12 @@ export async function selectPlaylist(
   const prepToken = Date.now();
   prepTokens.set(match.matchId, prepToken);
   emit(match.matchId, "match:state", toLobbyPayload(match));
+
+  if (isLocalSelection) {
+    await materializeSelectedPlaylist(registry, match.matchId, prepToken, emit);
+    return getMatchBySocketOrThrow(registry, socketId);
+  }
+
   void materializeSelectedPlaylist(registry, match.matchId, prepToken, emit);
 
   return match;
@@ -329,28 +360,14 @@ async function materializeSelectedPlaylist(
   const isLocalLibrary = isLocalSeedPlaylist(selected.id);
 
   if (isLocalLibrary) {
-    const seedResult = await fetchSeedSongs(
-      Math.max(match.roundsTotal, 5),
-    );
-
     if (prepTokens.get(matchId) !== prepToken) return;
 
-    if (!seedResult.ok || seedResult.songs.length === 0) {
+    const applied = await applyLocalSeedLibrary(match, emit);
+    if (!applied) {
       match.playlistPrepStatus = "error";
-      match.playlistPrepError =
-        seedResult.ok === false
-          ? seedResult.error
-          : "NOT_ENOUGH_SONGS_AVAILABLE";
+      match.playlistPrepError = "NOT_ENOUGH_SONGS_AVAILABLE";
       emitLobbyState(emit, match);
-      return;
     }
-
-    match.preparedSongs = pickPreparedSongs(seedResult.songs, match.roundsTotal);
-    match.playlistPrepReady = match.preparedSongs.length;
-    match.playlistPrepNeeded = match.roundsTotal;
-    match.playlistPrepStatus = "ready";
-    match.playlistPrepError = null;
-    emitLobbyState(emit, match);
     return;
   }
 
@@ -392,7 +409,8 @@ async function materializeSelectedPlaylist(
       lastError = "PLAYLIST_NO_ISRC_TRACKS";
     }
   } else if (isSystemOwned) {
-    // Public/system playlists: prefer Client Credentials via content-service.
+    // Playlist track lists are not available with Client Credentials (Spotify
+    // returns 403). Metadata may still work; tracks come from user OAuth below.
     const meta = await fetchPublicPlaylist(selected.id);
     if (meta.ok && prepTokens.get(matchId) === prepToken) {
       const genre = getGenrePlaylist(selected.id);
@@ -406,16 +424,6 @@ async function materializeSelectedPlaylist(
         kind: "playlist",
       };
       emitLobbyState(emit, match);
-    }
-
-    const tracksResult = await fetchPublicPlaylistTracks(selected.id, 50);
-    if (tracksResult.ok && tracksResult.tracks.length > 0) {
-      tracks = tracksResult.tracks;
-      lastError = "";
-    } else if (tracksResult.ok === false) {
-      lastError = tracksResult.error;
-    } else {
-      lastError = "PLAYLIST_NO_ISRC_TRACKS";
     }
   }
 
@@ -476,8 +484,18 @@ async function materializeSelectedPlaylist(
 
   if (!tracks.length) {
     if (prepTokens.get(matchId) !== prepToken) return;
+
+    const fallbackApplied = await applyLocalSeedLibrary(match, emit);
+    if (fallbackApplied) return;
+
     match.playlistPrepStatus = "error";
-    match.playlistPrepError = lastError || "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+    match.playlistPrepError =
+      lastError === "SPOTIFY_NOT_LINKED" ||
+      lastError === "SPOTIFY_NOT_CONFIGURED" ||
+      lastError === "SPOTIFY_PLAYLIST_FORBIDDEN" ||
+      lastError === "ERROR_FETCHING_DATA_FROM_SPOTIFY"
+        ? "SPOTIFY_NOT_LINKED"
+        : lastError || "SPOTIFY_PLAYLIST_TRACKS_FAILED";
     emitLobbyState(emit, match);
     return;
   }

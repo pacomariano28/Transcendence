@@ -330,7 +330,11 @@ export async function getPublicPlaylistTracks(
   limit = 30,
 ): Promise<PublicPlaylistTrack[]> {
   const token = await getSpotifyToken();
-  if (!token) return [];
+  if (!token) {
+    throw Object.assign(new Error("SPOTIFY_NOT_CONFIGURED"), {
+      code: "SPOTIFY_NOT_CONFIGURED",
+    });
+  }
 
   const fields =
     "items(track(id,name,artists(name),external_ids,album(images)))";
@@ -345,6 +349,15 @@ export async function getPublicPlaylistTracks(
       validateStatus: (status) => status < 500,
     },
   );
+
+  if (response.status === 403) {
+    console.warn(
+      `[spotify] Playlist tracks ${playlistId} forbidden (403) — Client Credentials cannot read playlist items; use a linked Spotify user token instead.`,
+    );
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_FORBIDDEN"), {
+      code: "SPOTIFY_PLAYLIST_FORBIDDEN",
+    });
+  }
 
   if (response.status !== 200) {
     console.warn(

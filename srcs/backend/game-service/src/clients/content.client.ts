@@ -106,7 +106,14 @@ export async function fetchPublicPlaylistTracks(
       error?: string;
     };
 
-    if (!response.ok || !payload.ok || !payload.tracks) {
+    if (!response.ok || !payload.ok || !Array.isArray(payload.tracks)) {
+      return {
+        ok: false,
+        error: payload.error || "SPOTIFY_PLAYLIST_TRACKS_FAILED",
+      };
+    }
+
+    if (payload.tracks.length === 0) {
       return {
         ok: false,
         error: payload.error || "SPOTIFY_PLAYLIST_TRACKS_FAILED",

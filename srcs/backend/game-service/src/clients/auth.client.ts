@@ -80,11 +80,15 @@ export async function fetchUserPlaylistTracks(
       error?: string;
     };
 
-    if (!response.ok || !payload.ok || !payload.tracks) {
+    if (!response.ok || !payload.ok || !Array.isArray(payload.tracks)) {
       return {
         ok: false,
         error: payload.error || "SPOTIFY_PLAYLIST_TRACKS_FAILED",
       };
+    }
+
+    if (payload.tracks.length === 0) {
+      return { ok: false, error: "PLAYLIST_NO_ISRC_TRACKS" };
     }
 
     return { ok: true, tracks: payload.tracks };

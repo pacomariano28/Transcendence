@@ -14,8 +14,8 @@ export type GenrePlaylistDef = {
 
 /**
  * Curated public playlists for the main genres.
- * IDs point at user-created playlists (not owned by Spotify) so the Web API
- * can return tracks with a normal user access token.
+ * Track lists require a player with Spotify linked (OAuth user token).
+ * Client Credentials cannot read /playlists/{id}/tracks (Spotify returns 403).
  */
 export const GENRE_PLAYLISTS: GenrePlaylistDef[] = [
   {
