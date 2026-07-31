@@ -148,6 +148,55 @@ export async function ensureSongs(
   }
 }
 
+export async function fetchSeedSongs(
+  count: number,
+): Promise<
+  | {
+      ok: true;
+      songs: Array<{
+        isrc: string;
+        fileName: string;
+        title: string | null;
+        artist: string | null;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const params = new URLSearchParams({ count: String(count) });
+    const response = await fetch(
+      `${PLAYLIST_SERVICE_URL}/seed-songs?${params.toString()}`,
+      { signal: controller.signal },
+    );
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      songs?: Array<{
+        isrc: string;
+        fileName: string;
+        title: string | null;
+        artist: string | null;
+      }>;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.songs) {
+      return { ok: false, error: payload.error || "SEED_SONGS_FETCH_FAILED" };
+    }
+
+    return { ok: true, songs: payload.songs };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "SEED_SONGS_FETCH_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchSongsStatus(
   isrcs: string[],
 ): Promise<

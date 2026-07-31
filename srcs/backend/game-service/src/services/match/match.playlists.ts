@@ -13,13 +13,16 @@ import {
 } from "../../clients/content.client.js";
 import {
   ensureSongs,
+  fetchSeedSongs,
   fetchSongsStatus,
 } from "../../clients/playlist.client.js";
 import {
   CLIP_PREP_POLL_MS,
   CLIP_PREP_TIMEOUT_MS,
+  LOCAL_SEED_PLAYLIST,
   SYSTEM_PLAYLIST_OWNER_ID,
   getGenrePlaylist,
+  isLocalSeedPlaylist,
   isSystemGenrePlaylist,
 } from "../../utils/constants.js";
 import {
@@ -61,18 +64,28 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
 }
 
 function pickPreparedSongs(
-  readySongs: Array<{ isrc: string; fileName: string | null }>,
+  readySongs: Array<{
+    isrc: string;
+    fileName: string | null;
+    title?: string | null;
+    artist?: string | null;
+  }>,
   roundsTotal: number,
-): Array<{ isrc: string; fileName: string }> {
+): Array<{ isrc: string; fileName: string; title?: string; artist?: string }> {
   const playable = readySongs.filter(
-    (song): song is { isrc: string; fileName: string } => Boolean(song.fileName),
+    (song): song is typeof song & { fileName: string } => Boolean(song.fileName),
   );
   const shuffled = fisherYatesShuffle(playable);
   const take = Math.min(
     shuffled.length,
     Math.max(roundsTotal, Math.min(5, shuffled.length)),
   );
-  return shuffled.slice(0, take);
+  return shuffled.slice(0, take).map(({ isrc, fileName, title, artist }) => ({
+    isrc,
+    fileName,
+    ...(title ? { title } : {}),
+    ...(artist ? { artist } : {}),
+  }));
 }
 
 function clearPlayerReady(match: MatchState): void {
@@ -161,6 +174,7 @@ export function sharePlaylists(
   for (const playlist of playlists) {
     if (!playlist?.id || !playlist?.name) continue;
     if (isSystemGenrePlaylist(playlist.id)) continue;
+    if (isLocalSeedPlaylist(playlist.id)) continue;
 
     match.availablePlaylists.push({
       id: playlist.id,
@@ -239,20 +253,31 @@ export async function selectPlaylist(
   match.preparedSongs = [];
 
   const kind = input.kind === "album" ? "album" : "playlist";
+  const isLocalSelection = isLocalSeedPlaylist(input.playlistId);
   const isSystemSelection =
+    isLocalSelection ||
     kind === "album" ||
     isSystemGenrePlaylist(input.playlistId) ||
     input.ownerUserId === SYSTEM_PLAYLIST_OWNER_ID;
 
   if (isSystemSelection) {
-    const genre = kind === "playlist" ? getGenrePlaylist(input.playlistId) : undefined;
+    const genre =
+      kind === "playlist" && !isLocalSelection
+        ? getGenrePlaylist(input.playlistId)
+        : undefined;
     match.selectedPlaylist = {
       id: input.playlistId,
-      name: input.name ?? genre?.name ?? (kind === "album" ? "Album" : "Playlist"),
+      name:
+        input.name ??
+        (isLocalSelection
+          ? LOCAL_SEED_PLAYLIST.name
+          : (genre?.name ?? (kind === "album" ? "Album" : "Playlist"))),
       ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
-      ownerDisplayName: genre
-        ? "Spotify"
-        : (input.ownerDisplayName ?? "Spotify"),
+      ownerDisplayName: isLocalSelection
+        ? LOCAL_SEED_PLAYLIST.ownerDisplayName
+        : genre
+          ? "Spotify"
+          : (input.ownerDisplayName ?? "Spotify"),
       imageUrl: input.imageUrl ?? null,
       kind,
     };
@@ -301,6 +326,34 @@ async function materializeSelectedPlaylist(
   if (!match.selectedPlaylist) return;
 
   const selected = match.selectedPlaylist;
+  const isLocalLibrary = isLocalSeedPlaylist(selected.id);
+
+  if (isLocalLibrary) {
+    const seedResult = await fetchSeedSongs(
+      Math.max(match.roundsTotal, 5),
+    );
+
+    if (prepTokens.get(matchId) !== prepToken) return;
+
+    if (!seedResult.ok || seedResult.songs.length === 0) {
+      match.playlistPrepStatus = "error";
+      match.playlistPrepError =
+        seedResult.ok === false
+          ? seedResult.error
+          : "NOT_ENOUGH_SONGS_AVAILABLE";
+      emitLobbyState(emit, match);
+      return;
+    }
+
+    match.preparedSongs = pickPreparedSongs(seedResult.songs, match.roundsTotal);
+    match.playlistPrepReady = match.preparedSongs.length;
+    match.playlistPrepNeeded = match.roundsTotal;
+    match.playlistPrepStatus = "ready";
+    match.playlistPrepError = null;
+    emitLobbyState(emit, match);
+    return;
+  }
+
   const isAlbum = selected.kind === "album";
   const isSystemOwned =
     isAlbum ||

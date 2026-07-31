@@ -185,6 +185,9 @@
     "playlistSearchLoading": "Buscando en Spotify…",
     "playlistSearchFailed": "No se pudieron buscar playlists en Spotify.",
     "playlistSectionGenres": "Géneros",
+    "playlistSectionBuiltin": "Integrada",
+    "localPlaylistName": "Mix clásico",
+    "localPlaylistSubtitle": "Sin Spotify",
     "playlistSectionPlayers": "De jugadores",
     "playlistSectionSearch": "Resultados de Spotify",
     "playlistSectionAlbums": "Álbumes",
@@ -283,6 +286,57 @@
   },
   "common": {
     "loading": "Cargando..."
+  },
+  "setup": {
+    "eyebrow": "Comprobación del entorno",
+    "title": "Guía de configuración",
+    "titleNewMachine": "Nuevo equipo detectado",
+    "intro": "Hemos revisado este entorno y marcado lo que aún requiere tu atención.",
+    "introNewMachine": "Parece un host distinto al anterior. Las URLs locales y certificados se ajustaron automáticamente donde fue posible.",
+    "close": "Cerrar",
+    "continue": "Entendido, continuar",
+    "autoAppliedTitle": "Aplicado automáticamente",
+    "playWithoutSpotify": "Puedes jugar ya con la playlist integrada Mix clásico — no hace falta cuenta de Spotify.",
+    "checksTitle": "Estado",
+    "checkServices": "Servicios backend",
+    "checkSongLibrary": "Biblioteca local de canciones",
+    "checkSpotifySearch": "Búsqueda Spotify (opcional)",
+    "statusOk": "OK",
+    "statusFail": "Problema",
+    "statusOptional": "Opcional",
+    "songCount": "{{count}} canciones listas",
+    "songCountLow": "{{count}} / {{minimum}} canciones listas",
+    "manualTitle": "Pasos manuales",
+    "autoApplied": {
+      "env_local_ip": "IPs locales en archivos .env",
+      "tls_certificates": "Certificados TLS para HTTPS"
+    },
+    "steps": {
+      "spotify_content_credentials": {
+        "title": "Configura credenciales de búsqueda Spotify",
+        "body": "Edita srcs/backend/content-service/.env y pon CLIENT_ID y CLIENT_SECRET de tu app en Spotify Developer. Activa la búsqueda de canciones en partida y el catálogo en el lobby."
+      },
+      "spotify_oauth_credentials": {
+        "title": "Configura login Spotify (opcional)",
+        "body": "Edita srcs/backend/auth-service/.env con SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET y TOKEN_ENCRYPTION_KEY. Solo necesario para vincular tu cuenta y compartir playlists personales."
+      },
+      "spotify_redirect_uri": {
+        "title": "Registra el redirect URI de Spotify",
+        "body": "En Spotify Developer Dashboard añade exactamente: {{redirectUri}}. Debe coincidir con SPOTIFY_REDIRECT_URI en auth-service/.env."
+      },
+      "media_library": {
+        "title": "Añade archivos de preview locales",
+        "body": "La playlist integrada necesita MP3 en srcs/frontend/public/media/. Ejecuta: bash infra/scripts/downloader_home.sh <playlist.csv> y luego make playlist (o make up)."
+      },
+      "trust_certificate": {
+        "title": "Confía en el certificado HTTPS local",
+        "body": "Abre {{accessUrl}} y acepta la advertencia del certificado autofirmado para que funcionen las APIs y WebSockets."
+      },
+      "run_make_up": {
+        "title": "Arranca el stack Docker",
+        "body": "Desde la raíz del proyecto ejecuta make up. Comprueba que Docker esté activo y los puertos 8443/5173 libres."
+      }
+    }
   },
   "errors": {
     "WRONG_CREDENTIALS": "Credenciales incorrectas",

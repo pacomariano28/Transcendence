@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+STATE_FILE="$SCRIPT_DIR/../.machine-state"
+
 find . -type f -name ".env.example" | while read -r example_file; do
 
     env_file="${example_file%.example}"
@@ -26,7 +29,17 @@ if [[ -z "$LOCAL_IP" ]]; then
     exit 1
 fi
 
-echo "Detected IP: $LOCAL_IP"
+PREVIOUS_IP=""
+if [[ -f "$STATE_FILE" ]]; then
+    PREVIOUS_IP=$(grep '^LOCAL_IP=' "$STATE_FILE" | cut -d= -f2- || true)
+fi
+
+if [[ "$PREVIOUS_IP" != "$LOCAL_IP" ]]; then
+    echo "Detected IP change: ${PREVIOUS_IP:-unknown} -> $LOCAL_IP"
+    echo "Updating .env URLs to match this machine..."
+else
+    echo "Detected IP: $LOCAL_IP (unchanged)"
+fi
 
 find . -type f -name ".env" | while read -r envfile; do
     echo "Updating $envfile"
@@ -36,3 +49,14 @@ find . -type f -name ".env" | while read -r envfile; do
     "$envfile"
 
 done
+
+mkdir -p "$(dirname "$STATE_FILE")"
+{
+  echo "LOCAL_IP=$LOCAL_IP"
+  echo "ENV_UPDATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+} > "$STATE_FILE"
+
+echo
+echo "Access the app at: https://$LOCAL_IP:8443"
+echo "If using Spotify OAuth, register this redirect URI in the Developer Dashboard:"
+echo "  https://$LOCAL_IP:8443/api/auth/spotify/callback"

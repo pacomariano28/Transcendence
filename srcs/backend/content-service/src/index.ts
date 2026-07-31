@@ -8,6 +8,7 @@ import {
   getPlaylist,
   getPlaylistTracks,
 } from "./controllers/playlist.controller.js";
+import { getSetupStatus } from "./controllers/setup.controller.js";
 import { logInfo } from "./lib/logger.js";
 
 const app = express();
@@ -33,6 +34,8 @@ app.get("/health", (_req, res) => {
     service: "content-service",
   });
 });
+
+app.get("/setup/status", getSetupStatus);
 
 app.listen(port, () => {
   logInfo(`Listening on port ${port}`);

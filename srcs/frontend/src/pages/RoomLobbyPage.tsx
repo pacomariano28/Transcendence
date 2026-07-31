@@ -23,6 +23,10 @@ import {
   SYSTEM_PLAYLIST_OWNER_ID,
   isSystemGenrePlaylist,
 } from "../constants/genrePlaylists";
+import {
+  LOCAL_SEED_PLAYLIST,
+  isLocalSeedPlaylist,
+} from "../constants/localPlaylist";
 
 function normalizeCode(raw: string) {
   return (raw ?? "")
@@ -96,7 +100,18 @@ export default function RoomLobbyPage() {
       };
     });
 
-    return [...genreOptions, ...shared];
+    const localOption: LobbyPlaylistOption = {
+      id: LOCAL_SEED_PLAYLIST.id,
+      name: t(LOCAL_SEED_PLAYLIST.nameKey, {
+        defaultValue: LOCAL_SEED_PLAYLIST.defaultName,
+      }),
+      imageUrl: LOCAL_SEED_PLAYLIST.imageUrl,
+      trackCount: 0,
+      ownerUserId: LOCAL_SEED_PLAYLIST.ownerUserId,
+      ownerDisplayName: LOCAL_SEED_PLAYLIST.ownerDisplayName,
+    };
+
+    return [localOption, ...genreOptions, ...shared];
   }, [matchState?.availablePlaylists, matchState?.selectedPlaylist, t]);
 
   const selectedPlaylist = matchState?.selectedPlaylist ?? null;
@@ -108,6 +123,7 @@ export default function RoomLobbyPage() {
       (option) =>
         option.id === selectedPlaylist.id &&
         (isSystemGenrePlaylist(option.id) ||
+          isLocalSeedPlaylist(option.id) ||
           option.ownerUserId === selectedPlaylist.ownerUserId),
     );
     return match?.imageUrl ?? null;

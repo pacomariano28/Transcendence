@@ -21,5 +21,6 @@ const proxyOptions = createProxyMiddleware({
 
 router.get("/available-count", /* requireAuth, */ globalLimiter, proxyOptions);
 router.get("/get-playlist", /* requireAuth, */ globalLimiter, proxyOptions);
+router.get("/seed-songs", globalLimiter, proxyOptions);
 
 export default router;

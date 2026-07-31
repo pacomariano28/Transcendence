@@ -12,6 +12,10 @@ import {
   isSystemGenrePlaylist,
 } from "../constants/genrePlaylists";
 import {
+  LOCAL_SEED_PLAYLIST,
+  isLocalSeedPlaylist,
+} from "../constants/localPlaylist";
+import {
   searchSpotifyCatalog,
   type CatalogSearchType,
 } from "../api/spotifyPlaylists";
@@ -232,7 +236,11 @@ export default function LobbyPlaylistPicker({
 
   const filteredOptions = useMemo(() => {
     if (!showLocalPlaylists) {
-      return { genres: [] as LobbyPlaylistOption[], players: [] as LobbyPlaylistOption[] };
+      return {
+        builtin: [] as LobbyPlaylistOption[],
+        genres: [] as LobbyPlaylistOption[],
+        players: [] as LobbyPlaylistOption[],
+      };
     }
 
     const q = trimmedQuery.toLowerCase();
@@ -246,8 +254,12 @@ export default function LobbyPlaylistPicker({
         });
 
     return {
+      builtin: list.filter((option) => isLocalSeedPlaylist(option.id)),
       genres: list.filter((option) => isSystemGenrePlaylist(option.id)),
-      players: list.filter((option) => !isSystemGenrePlaylist(option.id)),
+      players: list.filter(
+        (option) =>
+          !isSystemGenrePlaylist(option.id) && !isLocalSeedPlaylist(option.id),
+      ),
     };
   }, [options, showLocalPlaylists, trimmedQuery]);
 
@@ -384,6 +396,7 @@ export default function LobbyPlaylistPicker({
 
   const selectedGenre = getGenrePlaylist(selected?.id ?? "");
   const showEmpty =
+    filteredOptions.builtin.length === 0 &&
     filteredOptions.genres.length === 0 &&
     filteredOptions.players.length === 0 &&
     remoteAlbums.length === 0 &&
@@ -550,6 +563,34 @@ export default function LobbyPlaylistPicker({
                           })}
                         </div>
                       )}
+                    </section>
+                  ) : null}
+
+                  {filteredOptions.builtin.length > 0 ? (
+                    <section>
+                      <div className="mb-2 px-2 text-[10px] font-medium uppercase tracking-[0.24em] text-zinc-500">
+                        {t("lobby.playlistSectionBuiltin")}
+                      </div>
+                      <div className="grid gap-1.5">
+                        {filteredOptions.builtin.map((option) => {
+                          const selectedNow =
+                            selected?.id === option.id &&
+                            selected.kind !== "album";
+                          return (
+                            <PlaylistOptionButton
+                              key={`builtin:${option.id}`}
+                              option={{ ...option, kind: "playlist" }}
+                              selectedNow={selectedNow}
+                              preparingThis={isPreparing && selectedNow}
+                              isHost={isHost}
+                              isPreparing={isPreparing}
+                              subtitle={t("lobby.localPlaylistSubtitle")}
+                              accent={LOCAL_SEED_PLAYLIST.accent}
+                              onSelect={handleSelect}
+                            />
+                          );
+                        })}
+                      </div>
                     </section>
                   ) : null}
 

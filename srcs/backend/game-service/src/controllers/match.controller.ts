@@ -14,14 +14,19 @@ import {
   emitMatchState,
   emitRoundCatchUp,
 } from "./socket.helpers.js";
-import { ROUND_NUMBER } from "../utils/constants.js";
+import {
+  LOCAL_SEED_PLAYLIST,
+  LOCAL_SEED_PLAYLIST_ID,
+  ROUND_NUMBER,
+  SYSTEM_PLAYLIST_OWNER_ID,
+} from "../utils/constants.js";
 
 export function registerMatchHandlers(io: Server, socket: Socket): void {
   const emitToMatch = (matchId: string, event: string, data: unknown) => {
     io.to(matchId).emit(event, data);
   };
 
-  socket.on("match:create", (payload: CreateMatchPayload) => {
+  socket.on("match:create", async (payload: CreateMatchPayload) => {
     console.log("Event received: match:create", payload);
     try {
       const userId = readHeader(socket.handshake.headers, "x-user-id");
@@ -42,8 +47,22 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
       console.log("Match created:", match);
       socket.join(match.matchId);
-      emitMatchState(socket, match);
-      socket.emit("match:created", toPayload(match));
+
+      const matchWithPlaylist = await matchService.selectPlaylist(
+        socket.id,
+        {
+          playlistId: LOCAL_SEED_PLAYLIST_ID,
+          ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
+          name: LOCAL_SEED_PLAYLIST.name,
+          imageUrl: LOCAL_SEED_PLAYLIST.imageUrl,
+          ownerDisplayName: LOCAL_SEED_PLAYLIST.ownerDisplayName,
+          kind: "playlist",
+        },
+        emitToMatch,
+      );
+
+      emitMatchState(socket, matchWithPlaylist);
+      socket.emit("match:created", toPayload(matchWithPlaylist));
     } catch (error) {
       console.error("Error creating match:", error);
       emitMatchError(socket, error);

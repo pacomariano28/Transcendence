@@ -187,6 +187,9 @@
     "playlistSearchLoading": "Searching Spotify…",
     "playlistSearchFailed": "Could not search Spotify playlists.",
     "playlistSectionGenres": "Genres",
+    "playlistSectionBuiltin": "Built-in",
+    "localPlaylistName": "Classic Mix",
+    "localPlaylistSubtitle": "No Spotify required",
     "playlistSectionPlayers": "From players",
     "playlistSectionSearch": "Spotify results",
     "playlistSectionAlbums": "Albums",
@@ -285,6 +288,57 @@
   },
   "common": {
     "loading": "Loading..."
+  },
+  "setup": {
+    "eyebrow": "Environment check",
+    "title": "Setup guide",
+    "titleNewMachine": "New machine detected",
+    "intro": "We checked this environment and highlighted anything that still needs your attention.",
+    "introNewMachine": "This looks like a different host than before. Local URLs and certificates were adjusted automatically where possible.",
+    "close": "Close",
+    "continue": "Got it, continue",
+    "autoAppliedTitle": "Applied automatically",
+    "playWithoutSpotify": "You can play right now with the built-in Classic Mix playlist — no Spotify account required.",
+    "checksTitle": "Status",
+    "checkServices": "Backend services",
+    "checkSongLibrary": "Local song library",
+    "checkSpotifySearch": "Spotify search (optional)",
+    "statusOk": "OK",
+    "statusFail": "Issue",
+    "statusOptional": "Optional",
+    "songCount": "{{count}} songs ready",
+    "songCountLow": "{{count}} / {{minimum}} songs ready",
+    "manualTitle": "Manual steps",
+    "autoApplied": {
+      "env_local_ip": "Local IP addresses in .env files",
+      "tls_certificates": "TLS certificates for HTTPS"
+    },
+    "steps": {
+      "spotify_content_credentials": {
+        "title": "Configure Spotify search credentials",
+        "body": "Edit srcs/backend/content-service/.env and set CLIENT_ID and CLIENT_SECRET from your Spotify Developer app. This enables track search during matches and catalog search in the lobby."
+      },
+      "spotify_oauth_credentials": {
+        "title": "Configure Spotify login (optional)",
+        "body": "Edit srcs/backend/auth-service/.env with SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and TOKEN_ENCRYPTION_KEY. Required only to link your Spotify account and share personal playlists."
+      },
+      "spotify_redirect_uri": {
+        "title": "Register the Spotify redirect URI",
+        "body": "In the Spotify Developer Dashboard, add this exact redirect URI: {{redirectUri}}. It must match SPOTIFY_REDIRECT_URI in auth-service/.env."
+      },
+      "media_library": {
+        "title": "Add local preview files",
+        "body": "The built-in playlist needs MP3 previews in srcs/frontend/public/media/. Run: bash infra/scripts/downloader_home.sh <playlist.csv> then make playlist (or make up)."
+      },
+      "trust_certificate": {
+        "title": "Trust the local HTTPS certificate",
+        "body": "Open {{accessUrl}} and accept the self-signed certificate warning in your browser so API calls and WebSockets work."
+      },
+      "run_make_up": {
+        "title": "Start the Docker stack",
+        "body": "From the project root run make up. Ensure Docker is running and ports 8443/5173 are free."
+      }
+    }
   },
   "errors": {
     "WRONG_CREDENTIALS": "Wrong credentials",

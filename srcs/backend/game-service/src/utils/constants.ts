@@ -26,3 +26,9 @@ export {
   getGenrePlaylist,
   isSystemGenrePlaylist,
 } from "./genrePlaylists.js";
+
+export {
+  LOCAL_SEED_PLAYLIST,
+  LOCAL_SEED_PLAYLIST_ID,
+  isLocalSeedPlaylist,
+} from "./localPlaylist.js";

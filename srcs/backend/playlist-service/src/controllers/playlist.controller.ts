@@ -4,6 +4,7 @@ import {
   generateRandomPlaylist,
   getSongsByIsrcs,
   selectRandomSongs,
+  selectSeedSongs,
 } from "../services/playlistGenerator.js";
 import {
   ensureTracks,
@@ -102,6 +103,30 @@ export async function ensureSongs(req: Request, res: Response) {
 /**
  * GET /songs-status?isrcs=a,b,c
  */
+export async function getSeedSongs(req: Request, res: Response) {
+  try {
+    const rawCount = Number(req.query.count);
+    const count = Number.isFinite(rawCount) ? Math.floor(rawCount) : 0;
+
+    if (count <= 0 || count > 20) {
+      return res.status(400).json({ ok: false, error: "INVALID_COUNT" });
+    }
+
+    const songs = await selectSeedSongs(count);
+
+    if (songs.length === 0) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "NOT_ENOUGH_SONGS_AVAILABLE" });
+    }
+
+    return res.status(200).json({ ok: true, songs });
+  } catch (err) {
+    console.error("[playlist-service] Error in getSeedSongs:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
 export async function getSongsStatus(req: Request, res: Response) {
   try {
     const raw = typeof req.query.isrcs === "string" ? req.query.isrcs : "";

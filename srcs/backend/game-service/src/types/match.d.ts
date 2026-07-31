@@ -88,8 +88,13 @@ declare global {
     playlistPrepReady: number;
     playlistPrepNeeded: number;
     playlistPrepError: string | null;
-    /** Base songs resolved for the selected Spotify playlist (before metadata enrich). */
-    preparedSongs: Array<{ isrc: string; fileName: string }>;
+    /** Base songs resolved for the selected playlist (before metadata enrich). */
+    preparedSongs: Array<{
+      isrc: string;
+      fileName: string;
+      title?: string;
+      artist?: string;
+    }>;
     round: RoundState | null;
     /** Set when a rematch lobby was created from this finished match. */
     rematchTargetId: string | null;

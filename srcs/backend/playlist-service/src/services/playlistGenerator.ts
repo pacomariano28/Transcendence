@@ -111,3 +111,46 @@ export async function getSongsByIsrcs(isrcs: string[]) {
     where: { isrc: { in: isrcs } },
   });
 }
+
+export type SeedSongRow = {
+  isrc: string;
+  fileName: string;
+  title: string | null;
+  artist: string | null;
+};
+
+/**
+ * Returns ready seed-library songs (local media, no Spotify required).
+ */
+export async function selectSeedSongs(count: number): Promise<SeedSongRow[]> {
+  if (count <= 0) return [];
+
+  const songs = await prisma.song.findMany({
+    where: {
+      source: "seed",
+      status: "ready",
+      fileName: { not: null },
+    },
+    select: {
+      isrc: true,
+      fileName: true,
+      title: true,
+      artist: true,
+    },
+  });
+
+  if (songs.length === 0) return [];
+
+  const shuffled = fisherYatesShuffle(songs);
+  return shuffled
+    .slice(0, Math.min(count, shuffled.length))
+    .filter((song): song is typeof song & { fileName: string } =>
+      Boolean(song.fileName),
+    )
+    .map(({ isrc, fileName, title, artist }) => ({
+      isrc,
+      fileName,
+      title,
+      artist,
+    }));
+}

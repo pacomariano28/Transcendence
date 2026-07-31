@@ -16,9 +16,11 @@ import NotFoundPage from "./pages/NotFoundPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import Footer from "./components/AppFooter";
+import SetupGuideModal, { useSetupGuide } from "./components/SetupGuideModal";
 
 function AppShell() {
   const { loading } = useAuth();
+  const setupGuide = useSetupGuide();
 
   if (loading) {
     return (
@@ -59,6 +61,14 @@ function AppShell() {
       </main>
 
       <Footer />
+
+      {setupGuide.visible ? (
+        <SetupGuideModal
+          status={setupGuide.status}
+          hostChanged={setupGuide.hostChanged}
+          onDismiss={setupGuide.dismiss}
+        />
+      ) : null}
     </div>
   );
 }

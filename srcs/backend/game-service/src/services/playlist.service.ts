@@ -8,7 +8,10 @@ const METADATA_FETCH_CONCURRENCY = 5;
 const METADATA_FETCH_RETRIES = 2;
 const MAX_REPLACEMENT_ATTEMPTS = 50;
 
-type BaseSong = Pick<PlaylistItem, "isrc" | "fileName">;
+type BaseSong = Pick<PlaylistItem, "isrc" | "fileName"> & {
+  title?: string;
+  artist?: string;
+};
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -19,9 +22,7 @@ export function isValidPlaylistItem(song: PlaylistItem): boolean {
     isNonEmptyString(song.isrc) &&
     isNonEmptyString(song.fileName) &&
     isNonEmptyString(song.track) &&
-    isNonEmptyString(song.artist) &&
-    isNonEmptyString(song.imageUrl) &&
-    isNonEmptyString(song.spotifyUrl)
+    isNonEmptyString(song.artist)
   );
 }
 
@@ -66,10 +67,14 @@ async function fetchTrackMetadataWithRetry(isrc: string) {
 
 async function enrichSong(song: BaseSong): Promise<PlaylistItem> {
   const metadata = await fetchTrackMetadataWithRetry(song.isrc);
+  const fallbackTrack =
+    song.title?.trim() || `Track ${song.isrc.slice(-6)}`;
+  const fallbackArtist = song.artist?.trim() || "Unknown Artist";
+
   return {
     ...song,
-    track: metadata?.track ?? "",
-    artist: metadata?.artist ?? "",
+    track: metadata?.track ?? fallbackTrack,
+    artist: metadata?.artist ?? fallbackArtist,
     imageUrl: metadata?.imageUrl ?? null,
     spotifyUrl: metadata?.spotifyUrl ?? null,
   };
