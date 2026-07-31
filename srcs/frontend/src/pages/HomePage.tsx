@@ -211,7 +211,7 @@ export default function HomePage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
+            {/* <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
               {loading ? (
                 <span className="animate-pulse text-zinc-400">
                   {t("home.checking_session")}
@@ -237,7 +237,7 @@ export default function HomePage() {
                   {t("home.login_prompt_suffix")}
                 </span>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 
