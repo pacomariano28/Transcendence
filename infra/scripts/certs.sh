@@ -29,13 +29,21 @@ fi
 
 echo "Generating TLS certificates for $LOCAL_IP"
 
-openssl genrsa -out "$AUTHORITY_DIR/MyLocalCA.key" 2048 2>/dev/null || true
+# Always regenerate the full CA + dev cert chain together.
+# Reusing an old MyLocalCA.pem with a new MyLocalCA.key causes:
+#   "CA certificate and CA private key do not match"
+rm -f "$AUTHORITY_DIR/MyLocalCA.key" \
+      "$AUTHORITY_DIR/MyLocalCA.pem" \
+      "$AUTHORITY_DIR/MyLocalCA.srl" \
+      "$AUTHORITY_DIR/dev.key" \
+      "$AUTHORITY_DIR/dev.csr" \
+      "$AUTHORITY_DIR/dev.crt"
 
-if [[ ! -f "$AUTHORITY_DIR/MyLocalCA.pem" ]]; then
-  openssl req -x509 -new -nodes -key "$AUTHORITY_DIR/MyLocalCA.key" \
-    -sha256 -days 1825 -out "$AUTHORITY_DIR/MyLocalCA.pem" \
-    -subj "/C=ES/ST=Malaga/L=Malaga/O=company/OU=IT/CN=MyLocalCA"
-fi
+openssl genrsa -out "$AUTHORITY_DIR/MyLocalCA.key" 2048
+
+openssl req -x509 -new -nodes -key "$AUTHORITY_DIR/MyLocalCA.key" \
+  -sha256 -days 1825 -out "$AUTHORITY_DIR/MyLocalCA.pem" \
+  -subj "/C=ES/ST=Malaga/L=Malaga/O=company/OU=IT/CN=MyLocalCA"
 
 echo "authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
