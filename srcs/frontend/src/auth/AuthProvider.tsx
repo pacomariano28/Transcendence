@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AuthContext, type AuthState } from "./auth-context";
 import { getMe, refreshCookie, type AuthedUser } from "../api/auth";
-import {
-  markSessionValidated,
-  resetSessionValidation,
-} from "../api/http";
+import { markSessionValidated, resetSessionValidation } from "../api/http";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthedUser | null>(null);
@@ -12,10 +9,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadSeqRef = useRef(0);
   const inFlightLoadRef = useRef<Promise<void> | null>(null);
 
-  async function load(options?: {
-    silent?: boolean;
-    forceFetch?: boolean;
-  }) {
+  async function load(options?: { silent?: boolean; forceFetch?: boolean }) {
     if (inFlightLoadRef.current) {
       return inFlightLoadRef.current;
     }
@@ -31,9 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "/auth/spotify/success",
       );
       const hasLoginFlag = localStorage.getItem("isLoggedIn") === "true";
-
-      // Si es un invitado común en el Home, salimos sin llamar al servidor (CERO 401s)
-      // Pero si venimos rebotados de Spotify, la URL coincidirá y el IF nos dejará pasar a validar la cookie
+      // If it is a regular guest on the Home page, we exit without calling the server (ZERO 401s)
+      // But if we are redirected back from Spotify, the URL will match and the IF statement will allow us to validate the cookie
       if (!forceFetch && !hasLoginFlag && !isSpotifyRedirect) {
         if (seq === loadSeqRef.current) {
           setUser(null);

@@ -44,7 +44,7 @@ export function useMatchHydration({
           return;
         }
         console.error(
-          "Error al sincronizar puntuaciones por HTTP al montar:",
+          "Error trying to sincronyze points though HTTP when launching:",
           err,
         );
       }
