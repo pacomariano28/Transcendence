@@ -219,9 +219,12 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <StatCard label={t("profile.user_email")} value={user?.email ?? "-"}>
-            <div className="text-xs text-zinc-500">{t("profile.username")}</div>
-            <div className="text-sm text-zinc-200">{user?.username ?? "-"}</div>
+          <StatCard label={t("profile.username")} value={user?.username ?? "-"}>
+            <div className="text-xs text-zinc-500">
+              {" "}
+              {t("profile.user_email")}
+            </div>
+            <div className="text-sm text-zinc-200">{user?.email ?? "-"}</div>
           </StatCard>
 
           <StatCard
