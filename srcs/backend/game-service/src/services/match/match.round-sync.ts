@@ -69,7 +69,7 @@ export function markRoundReady(
         match.round.phase === "sync"
       ) {
         console.log(
-          `[Match ${match.matchId}] Forzando inicio de ronda por jugador ausente.`,
+          `[Match ${match.matchId}] Forcing round start due to missing player.`,
         );
 
         match.round.phase = "countdown";

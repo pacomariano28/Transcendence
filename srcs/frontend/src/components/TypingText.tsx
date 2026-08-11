@@ -151,7 +151,7 @@ export default function TypingText({
         BASE_CLASSNAME,
         SIZE_CLASSES[size],
         className,
-        isVisible ? "fade-in-visible" : "fade-in-initial", // Clases para la transición
+        isVisible ? "fade-in-visible" : "fade-in-initial", // Clases for the transition
       ].join(" ")}
       aria-label={text}
       style={{ transition: "opacity 0.2s ease-in" }}

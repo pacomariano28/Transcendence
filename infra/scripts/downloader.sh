@@ -4,25 +4,25 @@ set -e
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# 1. Definición de rutas absolutas
+# 1. Definition of absolute paths
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 TARGET_DIR="$ROOT_DIR/srcs/frontend/public/media"
 SEED_FILE="$ROOT_DIR/srcs/backend/playlist-service/prisma/seed.ts"
 
-# 2. Comprobación del CSV
+# 2. CSV file check
 if [ -z "$1" ]; then
-  echo "Uso: $0 <archivo_playlist.csv>"
+  echo "Usage: $0 <playlist_file.csv>"
   exit 1
 fi
 
 CSV_FILE="$1"
 
 if [ ! -f "$CSV_FILE" ]; then
-  echo "Error: El archivo '$CSV_FILE' no existe."
+  echo "Error: The file '$CSV_FILE' does not exist."
   exit 1
 fi
 
-# 3. Comprobación de dependencias
+# 3. Dependency check
 command -v yt-dlp >/dev/null 2>&1 || { echo "yt-dlp missing"; exit 1; }
 command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg missing"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 missing"; exit 1; }
@@ -31,18 +31,18 @@ GREEN="\033[0;32m"
 RED="\033[0;31m"
 NC="\033[0m"
 
-# 4. Limpieza del directorio de destino
-echo "Preparando directorio de destino..."
+# 4. Cleanup of destination directory
+echo "Preparing destination directory..."
 mkdir -p "$TARGET_DIR"
 rm -f "$TARGET_DIR"/preview_*.mp3
 rm -f "$TARGET_DIR"/song_*.mp3
 
-echo "Obteniendo datos del CSV..."
+echo "Fetching data from CSV..."
 
 songs=()
 isrcs=()
 
-# Extraer Canción + Artista
+# Extract Song + Artist
 while IFS= read -r line; do
   songs+=("$line")
 done < <(python3 -c '
@@ -54,7 +54,7 @@ with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
             print(row["Song"] + " " + row["Artist"])
 ' "$CSV_FILE")
 
-# Extraer ISRC
+# Extract ISRC
 while IFS= read -r line; do
   isrcs+=("$line")
 done < <(python3 -c '
@@ -70,42 +70,42 @@ with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
 ' "$CSV_FILE")
 
 if [ ${#songs[@]} -eq 0 ]; then
-  echo -e "${RED}❌ No se encontraron canciones en el CSV. Comprueba el formato.${NC}"
+  echo -e "${RED}❌ No songs found in CSV. Please check the format.${NC}"
   exit 1
 fi
 
-echo -e "${GREEN}✔ Se encontraron ${#songs[@]} canciones.${NC}"
+echo -e "${GREEN}✔ Found ${#songs[@]} songs.${NC}"
 echo "----------------------------------------"
 
-# 5. Archivo temporal para ir guardando los datos válidos del seed
+# 5. Temporary file to store valid seed data
 SEED_DATA_TMP=$(mktemp)
 
 i=0
 SUCCESS_COUNT=0
 
-# 6. Bucle de descarga con control de fallos
+# 6. Download loop with error handling
 for song in "${songs[@]}"
 do
   INDEX=$(printf "%03d" $((i+1)))
   ISRC="${isrcs[$i]}"
 
-  # Añadimos la palabra "audio" a la búsqueda para evitar videoclips
+  # Add the word "audio" to the search query to avoid music videos
   SEARCH_TERM="$song audio"
 
-  echo "🎧 [$INDEX] buscando y descargando: $SEARCH_TERM"
+  echo "🎧 [$INDEX] searching and downloading: $SEARCH_TERM"
 
   FILE="$TARGET_DIR/song_$INDEX.mp3"
   PREVIEW_NAME="preview_$INDEX.mp3"
   PREVIEW_PATH="$TARGET_DIR/$PREVIEW_NAME"
 
-  # Usamos ytsearch1 normal, pero guardamos el error por si falla
+  # Use standard ytsearch1, but save error in case it fails
   if yt-dlp --quiet --no-warnings -x --audio-format mp3 "ytsearch1:$SEARCH_TERM" -o "$FILE" 2> yt-error.log; then
     
     if ffmpeg -y -i "$FILE" -ss 00:00:00 -t 20 "$PREVIEW_PATH" >/dev/null 2>&1; then
 
       rm -f "$FILE"
 
-      # Guardamos usando la clave isrc como solicitaste
+      # Save using the isrc key as requested
       cat <<EOF >> "$SEED_DATA_TMP"
       {
         isrc: "$ISRC",
@@ -117,22 +117,22 @@ EOF
       SUCCESS_COUNT=$((SUCCESS_COUNT+1))
 
     else
-      echo -e "${RED}❌ ffmpeg error al cortar el audio (Skipeando)${NC}"
+      echo -e "${RED}❌ ffmpeg error while trimming audio (Skipping)${NC}"
       rm -f "$FILE"
     fi
   else
     ERROR_MSG=$(cat yt-error.log | head -n 1)
-    echo -e "${RED}❌ download error en yt-dlp: $ERROR_MSG (Skipeando)${NC}"
+    echo -e "${RED}❌ download error in yt-dlp: $ERROR_MSG (Skipping)${NC}"
   fi
 
   i=$((i+1))
 done
 
-# 7. Reconstrucción del archivo seed.ts
+# 7. Reconstruction of the seed.ts file
 echo "================================"
-echo "Generando $SEED_FILE..."
+echo "Generating $SEED_FILE..."
 
-# Escribir cabecera del seed
+# Write seed header
 cat <<EOF > "$SEED_FILE"
 import { PrismaClient } from "@prisma/client";
 import process from "node:process";
@@ -145,12 +145,12 @@ async function main() {
     data: [
 EOF
 
-# Volcar los datos válidos almacenados en el temporal
+# Append valid data saved in the temporary file
 if [ -s "$SEED_DATA_TMP" ]; then
   cat "$SEED_DATA_TMP" >> "$SEED_FILE"
 fi
 
-# Escribir el cierre del seed
+# Write seed footer
 cat <<EOF >> "$SEED_FILE"
     ],
   });
@@ -167,10 +167,10 @@ main()
   });
 EOF
 
-# Limpieza
+# Cleanup
 rm -f "$SEED_DATA_TMP"
 rm -f yt-error.log
 rm -f songs_tmp.json songs.json 2>/dev/null
 
-echo -e "${GREEN}DONE → $SUCCESS_COUNT canciones descargadas correctamente y seed.ts actualizado.${NC}"
+echo -e "${GREEN}DONE → $SUCCESS_COUNT songs downloaded successfully and seed.ts updated.${NC}"
 echo "================================"
