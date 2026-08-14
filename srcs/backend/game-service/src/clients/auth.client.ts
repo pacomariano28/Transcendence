@@ -87,10 +87,6 @@ export async function fetchUserPlaylistTracks(
       };
     }
 
-    if (payload.tracks.length === 0) {
-      return { ok: false, error: "PLAYLIST_NO_ISRC_TRACKS" };
-    }
-
     return { ok: true, tracks: payload.tracks };
   } catch (error) {
     return {

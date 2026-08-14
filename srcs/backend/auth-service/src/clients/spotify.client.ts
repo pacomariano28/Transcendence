@@ -312,18 +312,71 @@ function extractPlaylistTrackEntries(
   data: unknown,
 ): SpotifyPlaylistItemEntry[] {
   const payload = data as {
-    items?: { items?: SpotifyPlaylistItemEntry[] };
+    items?:
+      | SpotifyPlaylistItemEntry[]
+      | { items?: SpotifyPlaylistItemEntry[] };
     tracks?: { items?: SpotifyPlaylistItemEntry[] };
   };
-  return payload.items?.items ?? payload.tracks?.items ?? [];
+
+  if (Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if (
+    payload.items &&
+    typeof payload.items === "object" &&
+    Array.isArray(payload.items.items)
+  ) {
+    return payload.items.items;
+  }
+
+  return payload.tracks?.items ?? [];
 }
 
-function mapPlaylistTrackEntry(
-  item: SpotifyPlaylistItemEntry,
-): SpotifyPlaylistTrack | null {
-  const track = item.item ?? item.track;
-  if (!track?.id || !track.name) return null;
+function collectPlaylistTrackIds(data: unknown): string[] {
+  const ids: string[] = [];
 
+  for (const entry of extractPlaylistTrackEntries(data)) {
+    const track = entry?.item ?? entry?.track;
+    if (track?.id) ids.push(track.id);
+  }
+
+  return ids;
+}
+
+type SpotifyFullTrack = {
+  id: string;
+  name: string;
+  artists?: Array<{ name: string }>;
+  external_ids?: { isrc?: string };
+  album?: { images?: Array<{ url: string }> };
+};
+
+async function fetchFullTrackById(
+  accessToken: string,
+  trackId: string,
+): Promise<SpotifyFullTrack | null> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}?market=from_token`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as SpotifyFullTrack & {
+    error?: { message?: string };
+  };
+
+  if (!res.ok || !json.id || !json.name) {
+    return null;
+  }
+
+  return json;
+}
+
+function mapFullTrackToPlaylistTrack(
+  track: SpotifyFullTrack,
+): SpotifyPlaylistTrack {
   return {
     spotifyTrackId: track.id,
     name: track.name,
@@ -443,11 +496,13 @@ export async function getPlaylistTracks(
     });
   }
 
+  const trackIds = collectPlaylistTrackIds(json);
   const tracks: SpotifyPlaylistTrack[] = [];
 
-  for (const item of extractPlaylistTrackEntries(json)) {
-    const mapped = mapPlaylistTrackEntry(item);
-    if (mapped) tracks.push(mapped);
+  for (const trackId of trackIds.slice(0, cappedLimit)) {
+    const fullTrack = await fetchFullTrackById(accessToken, trackId);
+    if (!fullTrack) continue;
+    tracks.push(mapFullTrackToPlaylistTrack(fullTrack));
   }
 
   return tracks;

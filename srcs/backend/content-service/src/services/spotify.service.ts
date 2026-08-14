@@ -65,10 +65,90 @@ function extractPlaylistTrackEntries(
   data: unknown,
 ): SpotifyPlaylistTrackEntry[] {
   const payload = data as {
-    items?: { items?: SpotifyPlaylistTrackEntry[] };
+    items?:
+      | SpotifyPlaylistTrackEntry[]
+      | { items?: SpotifyPlaylistTrackEntry[] };
     tracks?: { items?: SpotifyPlaylistTrackEntry[] };
   };
-  return payload.items?.items ?? payload.tracks?.items ?? [];
+
+  if (Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if (
+    payload.items &&
+    typeof payload.items === "object" &&
+    Array.isArray(payload.items.items)
+  ) {
+    return payload.items.items;
+  }
+
+  return payload.tracks?.items ?? [];
+}
+
+function collectPlaylistTrackIds(data: unknown): string[] {
+  const ids: string[] = [];
+
+  for (const entry of extractPlaylistTrackEntries(data)) {
+    const track = entry?.item ?? entry?.track;
+    if (track?.id) ids.push(track.id);
+  }
+
+  return ids;
+}
+
+type SpotifyFullTrack = {
+  id: string;
+  name: string;
+  artists?: Array<{ name: string }>;
+  external_ids?: { isrc?: string };
+  album?: { images?: Array<{ url: string }> };
+};
+
+async function fetchFullTracksByIds(
+  token: string,
+  trackIds: string[],
+): Promise<SpotifyFullTrack[]> {
+  const uniqueIds = [...new Set(trackIds.filter(Boolean))];
+
+  const results = await Promise.all(
+    uniqueIds.map(async (trackId) => {
+      const trackRes = await axios.get(
+        `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          validateStatus: (status) => status < 500,
+        },
+      );
+
+      if (trackRes.status !== 200 || !trackRes.data?.id) {
+        logSpotifyError(
+          `Track ${trackId} unavailable`,
+          trackRes.status,
+          trackRes.data,
+        );
+        return null;
+      }
+
+      return trackRes.data as SpotifyFullTrack;
+    }),
+  );
+
+  return results.filter(
+    (track): track is SpotifyFullTrack => Boolean(track?.id && track?.name),
+  );
+}
+
+function mapFullTrackToPublicPlaylistTrack(
+  track: SpotifyFullTrack,
+): PublicPlaylistTrack {
+  return {
+    spotifyTrackId: track.id,
+    name: track.name,
+    artists: (track.artists ?? []).map((a) => a.name).join(", "),
+    isrc: track.external_ids?.isrc ?? null,
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+  };
 }
 
 function readPlaylistTrackCount(data: {
@@ -433,20 +513,15 @@ export async function getPublicPlaylistTracks(
     return [];
   }
 
-  const tracks: PublicPlaylistTrack[] = [];
-  for (const item of extractPlaylistTrackEntries(response.data)) {
-    const track = item?.item ?? item?.track;
-    if (!track?.id || !track?.name) continue;
-    tracks.push({
-      spotifyTrackId: track.id,
-      name: track.name,
-      artists: (track.artists ?? []).map((a: { name: string }) => a.name).join(", "),
-      isrc: track.external_ids?.isrc ?? null,
-      imageUrl: track.album?.images?.[0]?.url ?? null,
-    });
-  }
+  const trackIds = collectPlaylistTrackIds(response.data);
+  if (trackIds.length === 0) return [];
 
-  return tracks;
+  const fullTracks = await fetchFullTracksByIds(
+    token,
+    trackIds.slice(0, Math.min(limit, 50)),
+  );
+
+  return fullTracks.map(mapFullTrackToPublicPlaylistTrack);
 }
 
 export type PublicPlaylistSearchResult = {
@@ -664,46 +739,10 @@ export async function getPublicAlbumTracks(
 
   if (trackIds.length === 0) return [];
 
-  const fullTrackResponses = await Promise.all(
-    trackIds.slice(0, 50).map(async (trackId) => {
-      const trackRes = await axios.get(
-        `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          validateStatus: (status) => status < 500,
-        },
-      );
-      if (trackRes.status !== 200) {
-        logSpotifyError(
-          `Track ${trackId} unavailable`,
-          trackRes.status,
-          trackRes.data,
-        );
-        return null;
-      }
-      return trackRes.data as {
-        id?: string;
-        name?: string;
-        artists?: Array<{ name: string }>;
-        external_ids?: { isrc?: string };
-        album?: { images?: Array<{ url: string }> };
-      };
-    }),
+  const fullTracks = await fetchFullTracksByIds(
+    token,
+    trackIds.slice(0, 50),
   );
 
-  const tracks: PublicPlaylistTrack[] = [];
-  for (const track of fullTrackResponses) {
-    if (!track?.id || !track?.name) continue;
-    tracks.push({
-      spotifyTrackId: track.id,
-      name: track.name,
-      artists: (track.artists ?? [])
-        .map((a) => a.name)
-        .join(", "),
-      isrc: track.external_ids?.isrc ?? null,
-      imageUrl: track.album?.images?.[0]?.url ?? null,
-    });
-  }
-
-  return tracks;
+  return fullTracks.map(mapFullTrackToPublicPlaylistTrack);
 }

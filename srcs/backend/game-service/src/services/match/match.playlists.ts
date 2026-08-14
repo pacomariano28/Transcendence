@@ -681,8 +681,6 @@ async function materializeSelectedPlaylist(
     }
     if (tracksResult.ok === false) {
       lastError = tracksResult.error;
-    } else if (tracksResult.ok && tracksResult.tracks.length === 0) {
-      lastError = "PLAYLIST_NO_ISRC_TRACKS";
     }
   }
 
