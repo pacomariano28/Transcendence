@@ -15,8 +15,9 @@ function isPlaceholder(value: string | undefined): boolean {
 }
 
 export async function getSetupStatus(_req: Request, res: Response): Promise<void> {
-  const clientId = process.env.CLIENT_ID;
-  const clientSecret = process.env.CLIENT_SECRET;
+  const clientId = process.env.CLIENT_ID ?? process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret =
+    process.env.CLIENT_SECRET ?? process.env.SPOTIFY_CLIENT_SECRET;
   const credentialsConfigured =
     !isPlaceholder(clientId) && !isPlaceholder(clientSecret);
 

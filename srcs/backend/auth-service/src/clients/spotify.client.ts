@@ -290,6 +290,49 @@ export type SpotifyPlaylistTrack = {
   imageUrl: string | null;
 };
 
+type SpotifyPlaylistItemEntry = {
+  track?: {
+    id?: string;
+    name?: string;
+    artists?: Array<{ name: string }>;
+    external_ids?: { isrc?: string };
+    album?: { images?: Array<{ url: string }> };
+  } | null;
+  item?: SpotifyPlaylistItemEntry["track"];
+};
+
+function readPlaylistTrackCount(data: {
+  items?: { total?: number };
+  tracks?: { total?: number };
+}): number {
+  return data.items?.total ?? data.tracks?.total ?? 0;
+}
+
+function extractPlaylistTrackEntries(
+  data: unknown,
+): SpotifyPlaylistItemEntry[] {
+  const payload = data as {
+    items?: { items?: SpotifyPlaylistItemEntry[] };
+    tracks?: { items?: SpotifyPlaylistItemEntry[] };
+  };
+  return payload.items?.items ?? payload.tracks?.items ?? [];
+}
+
+function mapPlaylistTrackEntry(
+  item: SpotifyPlaylistItemEntry,
+): SpotifyPlaylistTrack | null {
+  const track = item.item ?? item.track;
+  if (!track?.id || !track.name) return null;
+
+  return {
+    spotifyTrackId: track.id,
+    name: track.name,
+    artists: (track.artists ?? []).map((a) => a.name).join(", "),
+    isrc: track.external_ids?.isrc ?? null,
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+  };
+}
+
 /**
  * Refreshes a Spotify access token using a refresh token.
  */
@@ -345,6 +388,7 @@ export async function getUserPlaylists(
       id: string;
       name: string;
       images?: Array<{ url: string }>;
+      items?: { total?: number };
       tracks?: { total?: number };
       owner?: { display_name?: string };
     }>;
@@ -360,7 +404,7 @@ export async function getUserPlaylists(
     id: item.id,
     name: item.name,
     imageUrl: item.images?.[0]?.url ?? null,
-    trackCount: item.tracks?.total ?? 0,
+    trackCount: readPlaylistTrackCount(item),
     ownerName: item.owner?.display_name ?? null,
   }));
 }
@@ -373,23 +417,23 @@ export async function getPlaylistTracks(
   playlistId: string,
   limit = 30,
 ): Promise<SpotifyPlaylistTrack[]> {
-  const res = await fetch(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=${Math.min(limit, 50)}&market=from_token`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
+  const cappedLimit = Math.min(limit, 50);
+  const query = `limit=${cappedLimit}&market=from_token`;
+  const headers = { Authorization: `Bearer ${accessToken}` };
+
+  let res = await fetch(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items?${query}`,
+    { headers },
   );
 
+  if (res.status === 404) {
+    res = await fetch(
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?${query}`,
+      { headers },
+    );
+  }
+
   const json = (await res.json()) as {
-    items?: Array<{
-      track?: {
-        id?: string;
-        name?: string;
-        artists?: Array<{ name: string }>;
-        external_ids?: { isrc?: string };
-        album?: { images?: Array<{ url: string }> };
-      } | null;
-    }>;
     error?: { message?: string; status?: number };
   };
 
@@ -401,17 +445,9 @@ export async function getPlaylistTracks(
 
   const tracks: SpotifyPlaylistTrack[] = [];
 
-  for (const item of json.items ?? []) {
-    const track = item.track;
-    if (!track?.id || !track.name) continue;
-
-    tracks.push({
-      spotifyTrackId: track.id,
-      name: track.name,
-      artists: (track.artists ?? []).map((a) => a.name).join(", "),
-      isrc: track.external_ids?.isrc ?? null,
-      imageUrl: track.album?.images?.[0]?.url ?? null,
-    });
+  for (const item of extractPlaylistTrackEntries(json)) {
+    const mapped = mapPlaylistTrackEntry(item);
+    if (mapped) tracks.push(mapped);
   }
 
   return tracks;
@@ -425,7 +461,8 @@ export async function getPlaylistMetadata(
   accessToken: string,
   playlistId: string,
 ): Promise<SpotifyPlaylistSummary> {
-  const fields = "id,name,images,tracks.total,owner.display_name";
+  const fields =
+    "id,name,images,items.total,tracks.total,owner.display_name";
   const res = await fetch(
     `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=${encodeURIComponent(fields)}`,
     {
@@ -437,6 +474,7 @@ export async function getPlaylistMetadata(
     id?: string;
     name?: string;
     images?: Array<{ url: string }>;
+    items?: { total?: number };
     tracks?: { total?: number };
     owner?: { display_name?: string };
   };
@@ -451,7 +489,7 @@ export async function getPlaylistMetadata(
     id: json.id,
     name: json.name ?? "Playlist",
     imageUrl: json.images?.[0]?.url ?? null,
-    trackCount: json.tracks?.total ?? 0,
+    trackCount: readPlaylistTrackCount(json),
     ownerName: json.owner?.display_name ?? null,
   };
 }

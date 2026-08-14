@@ -20,10 +20,63 @@ interface TrackData {
   isrc: string;
 }
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const CLIENT_ID = process.env.CLIENT_ID ?? process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET =
+  process.env.CLIENT_SECRET ?? process.env.SPOTIFY_CLIENT_SECRET;
 
-const MAX_LIMIT_FETCH = 10;
+/** Spotify Web API search limit (Dev Mode max since Feb 2026). */
+const SEARCH_LIMIT_MAX = 10;
+const MAX_LIMIT_FETCH = SEARCH_LIMIT_MAX;
+
+function logSpotifyError(
+  context: string,
+  status: number,
+  data: unknown,
+): void {
+  const message =
+    typeof data === "object" &&
+    data !== null &&
+    "error" in data &&
+    typeof (data as { error?: { message?: string } }).error?.message ===
+      "string"
+      ? (data as { error: { message: string } }).error.message
+      : undefined;
+  console.warn(
+    `[spotify] ${context} failed (${status})${message ? `: ${message}` : ""}`,
+  );
+}
+
+function clampSearchLimit(limit: number): number {
+  return Math.min(Math.max(limit, 1), SEARCH_LIMIT_MAX);
+}
+
+type SpotifyPlaylistTrackEntry = {
+  track?: {
+    id?: string;
+    name?: string;
+    artists?: Array<{ name: string }>;
+    external_ids?: { isrc?: string };
+    album?: { images?: Array<{ url: string }> };
+  } | null;
+  item?: SpotifyPlaylistTrackEntry["track"];
+};
+
+function extractPlaylistTrackEntries(
+  data: unknown,
+): SpotifyPlaylistTrackEntry[] {
+  const payload = data as {
+    items?: { items?: SpotifyPlaylistTrackEntry[] };
+    tracks?: { items?: SpotifyPlaylistTrackEntry[] };
+  };
+  return payload.items?.items ?? payload.tracks?.items ?? [];
+}
+
+function readPlaylistTrackCount(data: {
+  items?: { total?: number };
+  tracks?: { total?: number };
+}): number {
+  return data.items?.total ?? data.tracks?.total ?? 0;
+}
 
 let tokenFetchPromise: Promise<string | null> | null = null;
 
@@ -298,7 +351,8 @@ export async function getPublicPlaylist(
     `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`,
     {
       params: {
-        fields: "id,name,images,tracks.total,owner.display_name",
+        fields:
+          "id,name,images,items.total,tracks.total,owner.display_name",
       },
       headers: { Authorization: `Bearer ${token}` },
       validateStatus: (status) => status < 500,
@@ -306,8 +360,10 @@ export async function getPublicPlaylist(
   );
 
   if (response.status !== 200 || !response.data?.id) {
-    console.warn(
-      `[spotify] Playlist ${playlistId} unavailable (${response.status})`,
+    logSpotifyError(
+      `Playlist ${playlistId} unavailable`,
+      response.status,
+      response.data,
     );
     return null;
   }
@@ -317,7 +373,7 @@ export async function getPublicPlaylist(
     id: data.id,
     name: data.name ?? "Playlist",
     imageUrl: data.images?.[0]?.url ?? null,
-    trackCount: data.tracks?.total ?? 0,
+    trackCount: readPlaylistTrackCount(data),
     ownerName: data.owner?.display_name ?? null,
   };
 }
@@ -337,18 +393,27 @@ export async function getPublicPlaylistTracks(
   }
 
   const fields =
-    "items(track(id,name,artists(name),external_ids,album(images)))";
-  const response = await axios.get(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
-    {
-      params: {
-        limit: Math.min(limit, 50),
-        fields,
-      },
-      headers: { Authorization: `Bearer ${token}` },
-      validateStatus: (status) => status < 500,
+    "items(item(id,name,artists(name),external_ids,album(images)),track(id,name,artists(name),external_ids,album(images)))";
+  const requestConfig = {
+    params: {
+      limit: Math.min(limit, 50),
+      fields,
     },
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: (status: number) => status < 500,
+  };
+
+  let response = await axios.get(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items`,
+    requestConfig,
   );
+
+  if (response.status === 404) {
+    response = await axios.get(
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
+      requestConfig,
+    );
+  }
 
   if (response.status === 403) {
     console.warn(
@@ -360,15 +425,17 @@ export async function getPublicPlaylistTracks(
   }
 
   if (response.status !== 200) {
-    console.warn(
-      `[spotify] Playlist tracks ${playlistId} unavailable (${response.status})`,
+    logSpotifyError(
+      `Playlist tracks ${playlistId} unavailable`,
+      response.status,
+      response.data,
     );
     return [];
   }
 
   const tracks: PublicPlaylistTrack[] = [];
-  for (const item of response.data?.items ?? []) {
-    const track = item?.track;
+  for (const item of extractPlaylistTrackEntries(response.data)) {
+    const track = item?.item ?? item?.track;
     if (!track?.id || !track?.name) continue;
     tracks.push({
       spotifyTrackId: track.id,
@@ -397,7 +464,7 @@ export type PublicPlaylistSearchResult = {
  */
 export async function searchPlaylists(
   term: string,
-  limit = 12,
+  limit = SEARCH_LIMIT_MAX,
 ): Promise<PublicPlaylistSearchResult[]> {
   const token = await getSpotifyToken();
   if (!token) return [];
@@ -409,14 +476,14 @@ export async function searchPlaylists(
     params: {
       q,
       type: "playlist",
-      limit: Math.min(Math.max(limit, 1), 20),
+      limit: clampSearchLimit(limit),
     },
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: (status) => status < 500,
   });
 
   if (response.status !== 200) {
-    console.warn(`[spotify] Playlist search failed (${response.status})`);
+    logSpotifyError("Playlist search", response.status, response.data);
     return [];
   }
 
@@ -430,7 +497,7 @@ export async function searchPlaylists(
       id: item.id,
       name: item.name,
       imageUrl: item.images?.[0]?.url ?? null,
-      trackCount: item.tracks?.total ?? 0,
+      trackCount: readPlaylistTrackCount(item),
       ownerName: item.owner?.display_name || ownerId || "Unknown",
       ownerId,
     });
@@ -453,7 +520,7 @@ export type PublicAlbumSearchResult = {
  */
 export async function searchAlbums(
   term: string,
-  limit = 12,
+  limit = SEARCH_LIMIT_MAX,
 ): Promise<PublicAlbumSearchResult[]> {
   const token = await getSpotifyToken();
   if (!token) return [];
@@ -465,14 +532,14 @@ export async function searchAlbums(
     params: {
       q,
       type: "album",
-      limit: Math.min(Math.max(limit, 1), 20),
+      limit: clampSearchLimit(limit),
     },
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: (status) => status < 500,
   });
 
   if (response.status !== 200) {
-    console.warn(`[spotify] Album search failed (${response.status})`);
+    logSpotifyError("Album search", response.status, response.data);
     return [];
   }
 
@@ -540,9 +607,7 @@ export async function getPublicAlbum(
   );
 
   if (response.status !== 200 || !response.data?.id) {
-    console.warn(
-      `[spotify] Album ${albumId} unavailable (${response.status})`,
-    );
+    logSpotifyError(`Album ${albumId} unavailable`, response.status, response.data);
     return null;
   }
 
@@ -584,8 +649,10 @@ export async function getPublicAlbumTracks(
   );
 
   if (albumTracksRes.status !== 200) {
-    console.warn(
-      `[spotify] Album tracks ${albumId} unavailable (${albumTracksRes.status})`,
+    logSpotifyError(
+      `Album tracks ${albumId} unavailable`,
+      albumTracksRes.status,
+      albumTracksRes.data,
     );
     return [];
   }
@@ -597,29 +664,41 @@ export async function getPublicAlbumTracks(
 
   if (trackIds.length === 0) return [];
 
-  const fullTracksRes = await axios.get("https://api.spotify.com/v1/tracks", {
-    params: {
-      ids: trackIds.slice(0, 50).join(","),
-    },
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: (status) => status < 500,
-  });
-
-  if (fullTracksRes.status !== 200) {
-    console.warn(
-      `[spotify] Full album tracks ${albumId} unavailable (${fullTracksRes.status})`,
-    );
-    return [];
-  }
+  const fullTrackResponses = await Promise.all(
+    trackIds.slice(0, 50).map(async (trackId) => {
+      const trackRes = await axios.get(
+        `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          validateStatus: (status) => status < 500,
+        },
+      );
+      if (trackRes.status !== 200) {
+        logSpotifyError(
+          `Track ${trackId} unavailable`,
+          trackRes.status,
+          trackRes.data,
+        );
+        return null;
+      }
+      return trackRes.data as {
+        id?: string;
+        name?: string;
+        artists?: Array<{ name: string }>;
+        external_ids?: { isrc?: string };
+        album?: { images?: Array<{ url: string }> };
+      };
+    }),
+  );
 
   const tracks: PublicPlaylistTrack[] = [];
-  for (const track of fullTracksRes.data?.tracks ?? []) {
+  for (const track of fullTrackResponses) {
     if (!track?.id || !track?.name) continue;
     tracks.push({
       spotifyTrackId: track.id,
       name: track.name,
       artists: (track.artists ?? [])
-        .map((a: { name: string }) => a.name)
+        .map((a) => a.name)
         .join(", "),
       isrc: track.external_ids?.isrc ?? null,
       imageUrl: track.album?.images?.[0]?.url ?? null,
