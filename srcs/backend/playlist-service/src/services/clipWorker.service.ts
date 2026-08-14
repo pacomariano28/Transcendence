@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../lib/prisma.js";
+import { mediaFileExists } from "../lib/mediaFiles.js";
 
 export type EnsureTrackInput = {
   isrc: string;
@@ -211,6 +212,21 @@ export async function ensureTracks(
         artist: track.artist ?? song.artist,
         spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
       });
+    } else if (song.status === "ready" && song.fileName) {
+      const fileStillExists = await mediaFileExists(song.fileName);
+      if (!fileStillExists) {
+        await prisma.song.update({
+          where: { isrc },
+          data: { status: "pending", fileName: null, failReason: null },
+        });
+        enqueueClip({
+          isrc,
+          title: track.title ?? song.title,
+          artist: track.artist ?? song.artist,
+          spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
+        });
+        song = { ...song, status: "pending", fileName: null };
+      }
     } else if (song.status === "failed" && track.title) {
       // Allow one retry when new metadata arrives.
       await prisma.song.update({

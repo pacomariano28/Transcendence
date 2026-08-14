@@ -34,3 +34,16 @@ model Song {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
+
+/// Per-playlist rotation for lobby selections (separate from global Song.used pool).
+model PlaylistTrackUsage {
+  id          String   @id @default(uuid())
+  playlistKey String
+  isrc        String
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([playlistKey, isrc])
+  @@index([playlistKey, used])
+}

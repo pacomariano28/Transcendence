@@ -231,3 +231,98 @@ export async function fetchSongsStatus(
     clearTimeout(timeout);
   }
 }
+
+export async function orderPlaylistTracks(
+  playlistKey: string,
+  tracks: Array<{
+    isrc: string;
+    title?: string | null;
+    artist?: string | null;
+    spotifyTrackId?: string | null;
+  }>,
+): Promise<
+  | {
+      ok: true;
+      tracks: Array<{
+        isrc: string;
+        title?: string | null;
+        artist?: string | null;
+        spotifyTrackId?: string | null;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${PLAYLIST_SERVICE_URL}/playlist-usage/order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlistKey, tracks }),
+      signal: controller.signal,
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      tracks?: Array<{
+        isrc: string;
+        title?: string | null;
+        artist?: string | null;
+        spotifyTrackId?: string | null;
+      }>;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.tracks) {
+      return { ok: false, error: payload.error || "PLAYLIST_USAGE_ORDER_FAILED" };
+    }
+
+    return { ok: true, tracks: payload.tracks };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "PLAYLIST_USAGE_ORDER_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function markPlaylistTracksUsed(
+  playlistKey: string,
+  isrcs: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `${PLAYLIST_SERVICE_URL}/playlist-usage/mark-used`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistKey, isrcs }),
+        signal: controller.signal,
+      },
+    );
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+
+    if (!response.ok || !payload.ok) {
+      return {
+        ok: false,
+        error: payload.error || "PLAYLIST_USAGE_MARK_FAILED",
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "PLAYLIST_USAGE_MARK_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}

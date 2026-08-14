@@ -14,12 +14,16 @@ import {
   ensureSongs,
   fetchSeedSongs,
   fetchSongsStatus,
+  orderPlaylistTracks,
 } from "../../clients/playlist.client.js";
 import {
   CLIP_PREP_POLL_MS,
   CLIP_PREP_TIMEOUT_MS,
+  FALLBACK_PREP_SONGS,
   LOCAL_SEED_PLAYLIST,
+  MIN_PLAYABLE_SONGS,
   SYSTEM_PLAYLIST_OWNER_ID,
+  TARGET_PREP_SONGS,
   getGenrePlaylist,
   isLocalSeedPlaylist,
   isSystemGenrePlaylist,
@@ -62,55 +66,252 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
   return arr;
 }
 
+type TrackCandidate = {
+  isrc: string;
+  title?: string;
+  artist?: string;
+  spotifyTrackId?: string;
+};
+
+type PlayablePreparedSong = {
+  isrc: string;
+  fileName: string;
+  title?: string;
+  artist?: string;
+};
+
+function computeInitialPrepBatchSize(totalTracks: number): number {
+  if (totalTracks >= TARGET_PREP_SONGS) return TARGET_PREP_SONGS;
+  if (totalTracks >= FALLBACK_PREP_SONGS) return FALLBACK_PREP_SONGS;
+  return totalTracks;
+}
+
+function isSongMediaPlayable(song: {
+  status: string;
+  fileName: string | null;
+  mediaPlayable?: boolean;
+}): boolean {
+  return (
+    song.status === "ready" &&
+    Boolean(song.fileName) &&
+    song.mediaPlayable !== false
+  );
+}
+
 function pickPreparedSongs(
-  readySongs: Array<{
-    isrc: string;
-    fileName: string | null;
-    title?: string | null;
-    artist?: string | null;
-  }>,
+  readySongs: PlayablePreparedSong[],
   roundsTotal: number,
-): Array<{ isrc: string; fileName: string; title?: string; artist?: string }> {
-  const playable = readySongs.filter(
-    (song): song is typeof song & { fileName: string } => Boolean(song.fileName),
+): PlayablePreparedSong[] {
+  const shuffled = fisherYatesShuffle(readySongs);
+  const take = Math.min(shuffled.length, Math.max(roundsTotal, MIN_PLAYABLE_SONGS));
+  return shuffled.slice(0, take);
+}
+
+function collectPlayableSongs(
+  candidates: TrackCandidate[],
+  statusByIsrc: Map<
+    string,
+    {
+      status: string;
+      fileName: string | null;
+      mediaPlayable?: boolean;
+    }
+  >,
+): PlayablePreparedSong[] {
+  const playable: PlayablePreparedSong[] = [];
+
+  for (const candidate of candidates) {
+    const status = statusByIsrc.get(candidate.isrc);
+    if (!status || !isSongMediaPlayable(status) || !status.fileName) continue;
+
+    playable.push({
+      isrc: candidate.isrc,
+      fileName: status.fileName,
+      ...(candidate.title ? { title: candidate.title } : {}),
+      ...(candidate.artist ? { artist: candidate.artist } : {}),
+    });
+  }
+
+  return playable;
+}
+
+async function pollPreparedCandidates(
+  candidates: TrackCandidate[],
+  prepToken: number,
+  matchId: string,
+  emit: EmitMatchEvent,
+  match: MatchState,
+): Promise<PlayablePreparedSong[] | null> {
+  const isrcs = candidates.map((candidate) => candidate.isrc);
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < CLIP_PREP_TIMEOUT_MS) {
+    if (prepTokens.get(matchId) !== prepToken) return null;
+
+    const status = await fetchSongsStatus(isrcs);
+    if (!status.ok) {
+      match.playlistPrepStatus = "error";
+      match.playlistPrepError = status.error;
+      emitLobbyState(emit, match);
+      return null;
+    }
+
+    const statusByIsrc = new Map(status.results.map((result) => [result.isrc, result]));
+    const playable = collectPlayableSongs(candidates, statusByIsrc);
+    const stillPending = status.results.some((result) => result.status === "pending");
+
+    match.playlistPrepReady = playable.length;
+    match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
+    emitLobbyState(emit, match);
+
+    if (playable.length >= MIN_PLAYABLE_SONGS) {
+      return playable;
+    }
+
+    if (!stillPending) {
+      return playable;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, CLIP_PREP_POLL_MS));
+  }
+
+  const finalStatus = await fetchSongsStatus(isrcs);
+  if (!finalStatus.ok) return [];
+
+  const statusByIsrc = new Map(
+    finalStatus.results.map((result) => [result.isrc, result]),
   );
-  const shuffled = fisherYatesShuffle(playable);
-  const take = Math.min(
-    shuffled.length,
-    Math.max(roundsTotal, Math.min(5, shuffled.length)),
-  );
-  return shuffled.slice(0, take).map(({ isrc, fileName, title, artist }) => ({
-    isrc,
-    fileName,
-    ...(title ? { title } : {}),
-    ...(artist ? { artist } : {}),
-  }));
+  return collectPlayableSongs(candidates, statusByIsrc);
+}
+
+/**
+ * Downloads and validates playable songs from the selected playlist only.
+ * Never falls back to songs from a different playlist/source.
+ */
+async function prepareSelectedPlaylistSongs(
+  match: MatchState,
+  playlistKey: string,
+  tracks: TrackCandidate[],
+  prepToken: number,
+  matchId: string,
+  emit: EmitMatchEvent,
+): Promise<boolean> {
+  if (tracks.length < MIN_PLAYABLE_SONGS) {
+    match.playlistPrepStatus = "error";
+    match.playlistPrepError = "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS";
+    emitLobbyState(emit, match);
+    return false;
+  }
+
+  const orderedResult = await orderPlaylistTracks(playlistKey, tracks);
+  if (!orderedResult.ok) {
+    match.playlistPrepStatus = "error";
+    match.playlistPrepError = orderedResult.error;
+    emitLobbyState(emit, match);
+    return false;
+  }
+
+  const ordered = orderedResult.tracks;
+  let cursor = 0;
+  let playable: PlayablePreparedSong[] = [];
+  const initialBatchSize = computeInitialPrepBatchSize(ordered.length);
+
+  match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
+  match.playlistPrepReady = 0;
+  emitLobbyState(emit, match);
+
+  while (
+    playable.length < MIN_PLAYABLE_SONGS &&
+    cursor < ordered.length &&
+    prepTokens.get(matchId) === prepToken
+  ) {
+    const remaining = ordered.length - cursor;
+    const batchSize =
+      cursor === 0
+        ? Math.min(initialBatchSize, remaining)
+        : Math.min(3, remaining);
+    const batch = ordered.slice(cursor, cursor + batchSize);
+    cursor += batchSize;
+
+    const ensureResult = await ensureSongs(batch);
+    if (!ensureResult.ok) {
+      match.playlistPrepStatus = "error";
+      match.playlistPrepError = ensureResult.error;
+      emitLobbyState(emit, match);
+      return false;
+    }
+
+    const batchPlayable = await pollPreparedCandidates(
+      batch,
+      prepToken,
+      matchId,
+      emit,
+      match,
+    );
+    if (batchPlayable === null) return false;
+
+    const seen = new Set(playable.map((song) => song.isrc));
+    for (const song of batchPlayable) {
+      if (!seen.has(song.isrc)) {
+        playable.push(song);
+        seen.add(song.isrc);
+      }
+    }
+
+    match.playlistPrepReady = playable.length;
+    emitLobbyState(emit, match);
+
+    if (playable.length >= MIN_PLAYABLE_SONGS) {
+      break;
+    }
+  }
+
+  if (prepTokens.get(matchId) !== prepToken) return false;
+
+  if (playable.length < MIN_PLAYABLE_SONGS) {
+    match.playlistPrepStatus = "error";
+    match.playlistPrepError =
+      cursor >= ordered.length
+        ? "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS"
+        : "PLAYLIST_PREP_TIMEOUT";
+    emitLobbyState(emit, match);
+    return false;
+  }
+
+  match.preparedSongs = pickPreparedSongs(playable, match.roundsTotal);
+  match.playlistPrepReady = match.preparedSongs.length;
+  match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
+  match.playlistPrepStatus = "ready";
+  match.playlistPrepError = null;
+  emitLobbyState(emit, match);
+  return true;
 }
 
 async function applyLocalSeedLibrary(
   match: MatchState,
   emit: EmitMatchEvent,
+  prepToken: number,
+  matchId: string,
 ): Promise<boolean> {
-  const seedResult = await fetchSeedSongs(Math.max(match.roundsTotal, 5));
+  const seedResult = await fetchSeedSongs(TARGET_PREP_SONGS);
   if (!seedResult.ok || seedResult.songs.length === 0) {
     return false;
   }
 
-  match.selectedPlaylist = {
-    id: LOCAL_SEED_PLAYLIST.id,
-    name: LOCAL_SEED_PLAYLIST.name,
-    ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
-    ownerDisplayName: LOCAL_SEED_PLAYLIST.ownerDisplayName,
-    imageUrl: match.selectedPlaylist?.imageUrl ?? null,
-    kind: "playlist",
-  };
-  match.preparedSongs = pickPreparedSongs(seedResult.songs, match.roundsTotal);
-  match.playlistPrepReady = match.preparedSongs.length;
-  match.playlistPrepNeeded = match.roundsTotal;
-  match.playlistPrepStatus = "ready";
-  match.playlistPrepError = null;
-  emitLobbyState(emit, match);
-  return true;
+  const candidates: TrackCandidate[] = seedResult.songs.map((song) => ({
+    isrc: song.isrc,
+    title: song.title ?? undefined,
+    artist: song.artist ?? undefined,
+  }));
+
+  return prepareSelectedPlaylistSongs(
+    match,
+    LOCAL_SEED_PLAYLIST.id,
+    candidates,
+    prepToken,
+    matchId,
+    emit,
+  );
 }
 
 function clearPlayerReady(match: MatchState): void {
@@ -123,7 +324,7 @@ function clearPlaylistSelection(match: MatchState): void {
   match.selectedPlaylist = null;
   match.playlistPrepStatus = "idle";
   match.playlistPrepReady = 0;
-  match.playlistPrepNeeded = match.roundsTotal;
+  match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
   match.playlistPrepError = null;
   match.preparedSongs = [];
   match.playlist = [];
@@ -165,7 +366,7 @@ export function applyPreviousPlaylistForRematch(
   };
   match.playlistPrepStatus = "loading";
   match.playlistPrepReady = 0;
-  match.playlistPrepNeeded = match.roundsTotal;
+  match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
   match.playlistPrepError = null;
   match.preparedSongs = [];
   match.playlist = [];
@@ -329,7 +530,7 @@ export async function selectPlaylist(
 
   match.playlistPrepStatus = "loading";
   match.playlistPrepReady = 0;
-  match.playlistPrepNeeded = match.roundsTotal;
+  match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
   match.playlistPrepError = null;
 
   const prepToken = Date.now();
@@ -362,11 +563,13 @@ async function materializeSelectedPlaylist(
   if (isLocalLibrary) {
     if (prepTokens.get(matchId) !== prepToken) return;
 
-    const applied = await applyLocalSeedLibrary(match, emit);
-    if (!applied) {
-      match.playlistPrepStatus = "error";
-      match.playlistPrepError = "NOT_ENOUGH_SONGS_AVAILABLE";
-      emitLobbyState(emit, match);
+    const applied = await applyLocalSeedLibrary(match, emit, prepToken, matchId);
+    if (!applied && prepTokens.get(matchId) === prepToken) {
+      if (match.playlistPrepStatus !== "error") {
+        match.playlistPrepStatus = "error";
+        match.playlistPrepError = "NOT_ENOUGH_SONGS_AVAILABLE";
+        emitLobbyState(emit, match);
+      }
     }
     return;
   }
@@ -469,6 +672,7 @@ async function materializeSelectedPlaylist(
     const tracksResult = await fetchUserPlaylistTracks(
       tokenUserId,
       selected.id,
+      50,
     );
     if (tracksResult.ok && tracksResult.tracks.length > 0) {
       tracks = tracksResult.tracks;
@@ -485,9 +689,6 @@ async function materializeSelectedPlaylist(
   if (!tracks.length) {
     if (prepTokens.get(matchId) !== prepToken) return;
 
-    const fallbackApplied = await applyLocalSeedLibrary(match, emit);
-    if (fallbackApplied) return;
-
     match.playlistPrepStatus = "error";
     match.playlistPrepError =
       lastError === "SPOTIFY_NOT_LINKED" ||
@@ -500,9 +701,14 @@ async function materializeSelectedPlaylist(
     return;
   }
 
-  const withIsrc = tracks.filter(
-    (track): track is typeof track & { isrc: string } => Boolean(track.isrc),
-  );
+  const withIsrc: TrackCandidate[] = tracks
+    .filter((track): track is typeof track & { isrc: string } => Boolean(track.isrc))
+    .map((track) => ({
+      isrc: track.isrc,
+      title: track.name,
+      artist: track.artists,
+      spotifyTrackId: track.spotifyTrackId,
+    }));
 
   if (withIsrc.length === 0) {
     if (prepTokens.get(matchId) !== prepToken) return;
@@ -512,95 +718,14 @@ async function materializeSelectedPlaylist(
     return;
   }
 
-  const ensureResult = await ensureSongs(
-    withIsrc.map((track) => ({
-      isrc: track.isrc,
-      title: track.name,
-      artist: track.artists,
-      spotifyTrackId: track.spotifyTrackId,
-    })),
+  await prepareSelectedPlaylistSongs(
+    match,
+    selected.id,
+    withIsrc,
+    prepToken,
+    matchId,
+    emit,
   );
-
-  if (!ensureResult.ok) {
-    if (prepTokens.get(matchId) !== prepToken) return;
-    match.playlistPrepStatus = "error";
-    match.playlistPrepError = ensureResult.error;
-    emitLobbyState(emit, match);
-    return;
-  }
-
-  const candidateIsrcs = withIsrc.map((t) => t.isrc);
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < CLIP_PREP_TIMEOUT_MS) {
-    if (prepTokens.get(matchId) !== prepToken) return;
-
-    const status = await fetchSongsStatus(candidateIsrcs);
-    if (!status.ok) {
-      match.playlistPrepStatus = "error";
-      match.playlistPrepError = status.error;
-      emitLobbyState(emit, match);
-      return;
-    }
-
-    const readySongs = status.results.filter(
-      (r) => r.status === "ready" && r.fileName,
-    );
-    match.playlistPrepReady = readySongs.length;
-    match.playlistPrepNeeded = Math.max(
-      candidateIsrcs.length,
-      match.roundsTotal,
-    );
-    emitLobbyState(emit, match);
-
-    if (readySongs.length >= match.roundsTotal) {
-      match.preparedSongs = pickPreparedSongs(readySongs, match.roundsTotal);
-      match.playlistPrepStatus = "ready";
-      match.playlistPrepError = null;
-      emitLobbyState(emit, match);
-      return;
-    }
-
-    const stillPending = status.results.some((r) => r.status === "pending");
-    if (!stillPending) {
-      if (readySongs.length > 0) {
-        match.preparedSongs = pickPreparedSongs(readySongs, match.roundsTotal);
-        match.playlistPrepStatus = "ready";
-        match.playlistPrepError = null;
-        match.playlistPrepReady = readySongs.length;
-        emitLobbyState(emit, match);
-        return;
-      }
-
-      match.playlistPrepStatus = "error";
-      match.playlistPrepError = "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS";
-      emitLobbyState(emit, match);
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, CLIP_PREP_POLL_MS));
-  }
-
-  if (prepTokens.get(matchId) !== prepToken) return;
-
-  const finalStatus = await fetchSongsStatus(candidateIsrcs);
-  if (finalStatus.ok) {
-    const readySongs = finalStatus.results.filter(
-      (r) => r.status === "ready" && r.fileName,
-    );
-    if (readySongs.length > 0) {
-      match.preparedSongs = pickPreparedSongs(readySongs, match.roundsTotal);
-      match.playlistPrepStatus = "ready";
-      match.playlistPrepReady = readySongs.length;
-      match.playlistPrepError = null;
-      emitLobbyState(emit, match);
-      return;
-    }
-  }
-
-  match.playlistPrepStatus = "error";
-  match.playlistPrepError = "PLAYLIST_PREP_TIMEOUT";
-  emitLobbyState(emit, match);
 }
 
 function emitLobbyState(emit: EmitMatchEvent, match: MatchState): void {

@@ -6,6 +6,7 @@
  */
 import { loadPlaylist } from "../playlist.service.js";
 import { startRound, toRoundSyncPayload } from "../round.js";
+import { MIN_PLAYABLE_SONGS } from "../../utils/constants.js";
 import {
   getMatchBySocketOrThrow,
   type MatchRegistry,
@@ -45,7 +46,7 @@ export async function markReady(
     connectedPlayers.every((entry) => entry.ready);
 
   if (countdownStarted) {
-    const requiredRounds = match.roundsTotal;
+    const requiredRounds = Math.max(match.roundsTotal, MIN_PLAYABLE_SONGS);
 
     if (match.preparedSongs.length < requiredRounds) {
       connectedPlayers.forEach((entry) => {

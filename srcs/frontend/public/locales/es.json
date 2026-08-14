@@ -354,7 +354,7 @@
     "PLAYLIST_NOT_READY": "Elige y prepara una playlist antes de marcar Ready.",
     "PLAYLIST_NOT_AVAILABLE": "Esa playlist ya no está disponible en la sala.",
     "PLAYLIST_NO_ISRC_TRACKS": "Ninguna canción de la playlist tiene ISRC.",
-    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "No se pudieron preparar suficientes clips de esta playlist.",
+    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "Esta playlist necesita al menos 5 canciones reproducibles antes de poder iniciar la partida.",
     "PLAYLIST_PREP_TIMEOUT": "Tiempo agotado preparando los clips de la playlist.",
     "PLAYLIST_PREP_FAILED": "No se pudo preparar la playlist seleccionada.",
     "NOT_HOST": "Solo el host puede elegir la playlist.",

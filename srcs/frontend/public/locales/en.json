@@ -356,7 +356,7 @@
     "PLAYLIST_NOT_READY": "Select and prepare a playlist before marking ready.",
     "PLAYLIST_NOT_AVAILABLE": "That playlist is no longer available in the lobby.",
     "PLAYLIST_NO_ISRC_TRACKS": "None of the playlist tracks have an ISRC.",
-    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "Not enough playable clips could be prepared from this playlist.",
+    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "This playlist needs at least 5 playable songs before the match can start.",
     "PLAYLIST_PREP_TIMEOUT": "Timed out while preparing playlist clips.",
     "PLAYLIST_PREP_FAILED": "Failed to prepare the selected playlist.",
     "NOT_HOST": "Only the host can select the playlist.",

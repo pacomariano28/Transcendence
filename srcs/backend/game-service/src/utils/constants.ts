@@ -6,6 +6,9 @@ export const CONTENT_SERVICE_URL =
 export const AUTH_SERVICE_URL =
   process.env.AUTH_SERVICE_URL || "http://auth-service:4002";
 export const ROUND_NUMBER = 5;
+export const MIN_PLAYABLE_SONGS = 5;
+export const TARGET_PREP_SONGS = 10;
+export const FALLBACK_PREP_SONGS = 7;
 export const MAX_PLAYER = 5;
 export const ROUND_COUNTDOWN_SECONDS = 5;
 export const GUESS_WINDOW_SECONDS = 20;

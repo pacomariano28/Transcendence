@@ -1,6 +1,7 @@
 import {
   fetchPlaylist,
   fetchRandomSongs,
+  markPlaylistTracksUsed,
 } from "../clients/playlist.client.js";
 import { fetchTrackByIsrc } from "../clients/content.client.js";
 
@@ -83,6 +84,7 @@ async function enrichSong(song: BaseSong): Promise<PlaylistItem> {
 async function buildValidatedPlaylist(
   targetCount: number,
   initialSongs: BaseSong[],
+  allowRandomFallback = true,
 ): Promise<
   { ok: true; songs: PlaylistItem[] } | { ok: false; error: string }
 > {
@@ -93,6 +95,10 @@ async function buildValidatedPlaylist(
 
   while (validSongs.length < targetCount && attempts < MAX_REPLACEMENT_ATTEMPTS) {
     if (pending.length === 0) {
+      if (!allowRandomFallback) {
+        return { ok: false, error: "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS" };
+      }
+
       const needed = targetCount - validSongs.length;
       const result = await fetchRandomSongs(needed, [...triedIsrcs]);
 
@@ -163,6 +169,7 @@ export async function loadPlaylist(match: MatchState): Promise<void> {
     const validated = await buildValidatedPlaylist(
       targetCount,
       shuffledPrepared,
+      false,
     );
 
     if (!validated.ok) {
@@ -172,6 +179,15 @@ export async function loadPlaylist(match: MatchState): Promise<void> {
 
     match.playlist = validated.songs;
     match.roundsTotal = Math.min(match.roundsTotal, match.playlist.length);
+
+    const markResult = await markPlaylistTracksUsed(
+      match.selectedPlaylist.id,
+      match.playlist.map((song) => song.isrc),
+    );
+    if (!markResult.ok) {
+      match.playlist = [];
+      match.playlistError = markResult.error;
+    }
     return;
   }
 

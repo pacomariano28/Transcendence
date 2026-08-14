@@ -23,6 +23,7 @@ export type EnsureSongResult = {
   status: "ready" | "pending" | "failed";
   fileName: string | null;
   failReason: string | null;
+  mediaPlayable?: boolean;
 };
 
 export type EnsureSongsResponse =

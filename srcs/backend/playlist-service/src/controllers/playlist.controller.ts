@@ -7,9 +7,15 @@ import {
   selectSeedSongs,
 } from "../services/playlistGenerator.js";
 import {
+  markPlaylistTracksUsed,
+  orderTracksByPlaylistUsage,
+  releasePlaylistTracks,
+} from "../services/playlistTrackUsage.service.js";
+import {
   ensureTracks,
   type EnsureTrackInput,
 } from "../services/clipWorker.service.js";
+import { mediaFileExists } from "../lib/mediaFiles.js";
 
 export async function getAvailableSongCount(req: Request, res: Response) {
   try {
@@ -142,17 +148,109 @@ export async function getSongsStatus(req: Request, res: Response) {
 
     const songs = await getSongsByIsrcs(isrcs);
 
-    return res.status(200).json({
-      ok: true,
-      results: songs.map((song) => ({
+    const results = await Promise.all(
+      songs.map(async (song) => ({
         isrc: song.isrc,
         status: song.status,
         fileName: song.fileName,
         failReason: song.failReason,
+        mediaPlayable:
+          song.status === "ready" &&
+          Boolean(song.fileName) &&
+          (await mediaFileExists(song.fileName)),
       })),
+    );
+
+    return res.status(200).json({
+      ok: true,
+      results,
     });
   } catch (err) {
     console.error("[playlist-service] Error in getSongsStatus:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
+export async function orderPlaylistTracks(req: Request, res: Response) {
+  try {
+    const playlistKey =
+      typeof req.body?.playlistKey === "string"
+        ? req.body.playlistKey.trim()
+        : "";
+    const tracks = Array.isArray(req.body?.tracks) ? req.body.tracks : null;
+
+    if (!playlistKey || !tracks || tracks.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_REQUEST" });
+    }
+
+    const normalized = tracks
+      .map((track: { isrc?: string; title?: string; artist?: string; spotifyTrackId?: string }) => ({
+        isrc: track.isrc?.trim() ?? "",
+        title: track.title ?? null,
+        artist: track.artist ?? null,
+        spotifyTrackId: track.spotifyTrackId ?? null,
+      }))
+      .filter((track) => track.isrc.length > 0);
+
+    if (normalized.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_TRACKS" });
+    }
+
+    const ordered = await orderTracksByPlaylistUsage(playlistKey, normalized);
+
+    return res.status(200).json({ ok: true, tracks: ordered });
+  } catch (err) {
+    console.error("[playlist-service] Error in orderPlaylistTracks:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
+export async function markPlaylistUsage(req: Request, res: Response) {
+  try {
+    const playlistKey =
+      typeof req.body?.playlistKey === "string"
+        ? req.body.playlistKey.trim()
+        : "";
+    const isrcs = Array.isArray(req.body?.isrcs)
+      ? req.body.isrcs
+          .map((isrc: unknown) => (typeof isrc === "string" ? isrc.trim() : ""))
+          .filter(Boolean)
+      : [];
+
+    if (!playlistKey || isrcs.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_REQUEST" });
+    }
+
+    await markPlaylistTracksUsed(playlistKey, isrcs);
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[playlist-service] Error in markPlaylistUsage:", err);
+    return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
+  }
+}
+
+export async function releasePlaylistUsage(req: Request, res: Response) {
+  try {
+    const playlistKey =
+      typeof req.body?.playlistKey === "string"
+        ? req.body.playlistKey.trim()
+        : "";
+    const isrcs = Array.isArray(req.body?.isrcs)
+      ? req.body.isrcs
+          .map((isrc: unknown) => (typeof isrc === "string" ? isrc.trim() : ""))
+          .filter(Boolean)
+      : [];
+
+    if (!playlistKey || isrcs.length === 0) {
+      return res.status(400).json({ ok: false, error: "INVALID_REQUEST" });
+    }
+
+    await releasePlaylistTracks(playlistKey, isrcs);
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[playlist-service] Error in releasePlaylistUsage:", err);
     return res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR" });
   }
 }

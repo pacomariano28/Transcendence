@@ -14,6 +14,8 @@ export const TransactionIsolationLevelSchema = z.enum(['ReadUncommitted','ReadCo
 
 export const SongScalarFieldEnumSchema = z.enum(['id','isrc','fileName','spotifyTrackId','title','artist','status','failReason','source','used','createdAt','updatedAt']);
 
+export const PlaylistTrackUsageScalarFieldEnumSchema = z.enum(['id','playlistKey','isrc','used','createdAt','updatedAt']);
+
 export const SortOrderSchema = z.enum(['asc','desc']);
 
 export const QueryModeSchema = z.enum(['default','insensitive']);
@@ -50,6 +52,24 @@ export const SongSchema = z.object({
 export type Song = z.infer<typeof SongSchema>
 
 /////////////////////////////////////////
+// PLAYLIST TRACK USAGE SCHEMA
+/////////////////////////////////////////
+
+/**
+ * Per-playlist rotation for lobby selections (separate from global Song.used pool).
+ */
+export const PlaylistTrackUsageSchema = z.object({
+  id: z.uuid(),
+  playlistKey: z.string(),
+  isrc: z.string(),
+  used: z.boolean(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+
+export type PlaylistTrackUsage = z.infer<typeof PlaylistTrackUsageSchema>
+
+/////////////////////////////////////////
 // SELECT & INCLUDE
 /////////////////////////////////////////
 
@@ -66,6 +86,18 @@ export const SongSelectSchema: z.ZodType<Prisma.SongSelect> = z.object({
   status: z.boolean().optional(),
   failReason: z.boolean().optional(),
   source: z.boolean().optional(),
+  used: z.boolean().optional(),
+  createdAt: z.boolean().optional(),
+  updatedAt: z.boolean().optional(),
+}).strict()
+
+// PLAYLIST TRACK USAGE
+//------------------------------------------------------
+
+export const PlaylistTrackUsageSelectSchema: z.ZodType<Prisma.PlaylistTrackUsageSelect> = z.object({
+  id: z.boolean().optional(),
+  playlistKey: z.boolean().optional(),
+  isrc: z.boolean().optional(),
   used: z.boolean().optional(),
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
@@ -191,6 +223,76 @@ export const SongScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.SongScal
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
 });
 
+export const PlaylistTrackUsageWhereInputSchema: z.ZodType<Prisma.PlaylistTrackUsageWhereInput> = z.strictObject({
+  AND: z.union([ z.lazy(() => PlaylistTrackUsageWhereInputSchema), z.lazy(() => PlaylistTrackUsageWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PlaylistTrackUsageWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PlaylistTrackUsageWhereInputSchema), z.lazy(() => PlaylistTrackUsageWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  playlistKey: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  used: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+});
+
+export const PlaylistTrackUsageOrderByWithRelationInputSchema: z.ZodType<Prisma.PlaylistTrackUsageOrderByWithRelationInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  playlistKey: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
+  used: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const PlaylistTrackUsageWhereUniqueInputSchema: z.ZodType<Prisma.PlaylistTrackUsageWhereUniqueInput> = z.union([
+  z.object({
+    id: z.uuid(),
+    playlistKey_isrc: z.lazy(() => PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInputSchema),
+  }),
+  z.object({
+    id: z.uuid(),
+  }),
+  z.object({
+    playlistKey_isrc: z.lazy(() => PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInputSchema),
+  }),
+])
+.and(z.strictObject({
+  id: z.uuid().optional(),
+  playlistKey_isrc: z.lazy(() => PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInputSchema).optional(),
+  AND: z.union([ z.lazy(() => PlaylistTrackUsageWhereInputSchema), z.lazy(() => PlaylistTrackUsageWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PlaylistTrackUsageWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PlaylistTrackUsageWhereInputSchema), z.lazy(() => PlaylistTrackUsageWhereInputSchema).array() ]).optional(),
+  playlistKey: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  used: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+}));
+
+export const PlaylistTrackUsageOrderByWithAggregationInputSchema: z.ZodType<Prisma.PlaylistTrackUsageOrderByWithAggregationInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  playlistKey: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
+  used: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  _count: z.lazy(() => PlaylistTrackUsageCountOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => PlaylistTrackUsageMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => PlaylistTrackUsageMinOrderByAggregateInputSchema).optional(),
+});
+
+export const PlaylistTrackUsageScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.PlaylistTrackUsageScalarWhereWithAggregatesInput> = z.strictObject({
+  AND: z.union([ z.lazy(() => PlaylistTrackUsageScalarWhereWithAggregatesInputSchema), z.lazy(() => PlaylistTrackUsageScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PlaylistTrackUsageScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PlaylistTrackUsageScalarWhereWithAggregatesInputSchema), z.lazy(() => PlaylistTrackUsageScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
+  playlistKey: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
+  isrc: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
+  used: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema), z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
+});
+
 export const SongCreateInputSchema: z.ZodType<Prisma.SongCreateInput> = z.strictObject({
   id: z.uuid().optional(),
   isrc: z.string(),
@@ -291,6 +393,69 @@ export const SongUncheckedUpdateManyInputSchema: z.ZodType<Prisma.SongUncheckedU
   status: z.union([ z.lazy(() => SongStatusSchema), z.lazy(() => EnumSongStatusFieldUpdateOperationsInputSchema) ]).optional(),
   failReason: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   source: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const PlaylistTrackUsageCreateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateInput> = z.strictObject({
+  id: z.uuid().optional(),
+  playlistKey: z.string(),
+  isrc: z.string(),
+  used: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const PlaylistTrackUsageUncheckedCreateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageUncheckedCreateInput> = z.strictObject({
+  id: z.uuid().optional(),
+  playlistKey: z.string(),
+  isrc: z.string(),
+  used: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const PlaylistTrackUsageUpdateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageUpdateInput> = z.strictObject({
+  id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  playlistKey: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const PlaylistTrackUsageUncheckedUpdateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageUncheckedUpdateInput> = z.strictObject({
+  id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  playlistKey: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const PlaylistTrackUsageCreateManyInputSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateManyInput> = z.strictObject({
+  id: z.uuid().optional(),
+  playlistKey: z.string(),
+  isrc: z.string(),
+  used: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const PlaylistTrackUsageUpdateManyMutationInputSchema: z.ZodType<Prisma.PlaylistTrackUsageUpdateManyMutationInput> = z.strictObject({
+  id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  playlistKey: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const PlaylistTrackUsageUncheckedUpdateManyInputSchema: z.ZodType<Prisma.PlaylistTrackUsageUncheckedUpdateManyInput> = z.strictObject({
+  id: z.union([ z.uuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  playlistKey: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  isrc: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
@@ -465,6 +630,38 @@ export const DateTimeWithAggregatesFilterSchema: z.ZodType<Prisma.DateTimeWithAg
   _count: z.lazy(() => NestedIntFilterSchema).optional(),
   _min: z.lazy(() => NestedDateTimeFilterSchema).optional(),
   _max: z.lazy(() => NestedDateTimeFilterSchema).optional(),
+});
+
+export const PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInputSchema: z.ZodType<Prisma.PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInput> = z.strictObject({
+  playlistKey: z.string(),
+  isrc: z.string(),
+});
+
+export const PlaylistTrackUsageCountOrderByAggregateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageCountOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  playlistKey: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
+  used: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const PlaylistTrackUsageMaxOrderByAggregateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageMaxOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  playlistKey: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
+  used: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const PlaylistTrackUsageMinOrderByAggregateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageMinOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  playlistKey: z.lazy(() => SortOrderSchema).optional(),
+  isrc: z.lazy(() => SortOrderSchema).optional(),
+  used: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
 });
 
 export const StringFieldUpdateOperationsInputSchema: z.ZodType<Prisma.StringFieldUpdateOperationsInput> = z.strictObject({
@@ -687,6 +884,63 @@ export const SongFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.SongFindUniqueOrT
   where: SongWhereUniqueInputSchema, 
 }).strict();
 
+export const PlaylistTrackUsageFindFirstArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindFirstArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  orderBy: z.union([ PlaylistTrackUsageOrderByWithRelationInputSchema.array(), PlaylistTrackUsageOrderByWithRelationInputSchema ]).optional(),
+  cursor: PlaylistTrackUsageWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ PlaylistTrackUsageScalarFieldEnumSchema, PlaylistTrackUsageScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const PlaylistTrackUsageFindFirstOrThrowArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindFirstOrThrowArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  orderBy: z.union([ PlaylistTrackUsageOrderByWithRelationInputSchema.array(), PlaylistTrackUsageOrderByWithRelationInputSchema ]).optional(),
+  cursor: PlaylistTrackUsageWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ PlaylistTrackUsageScalarFieldEnumSchema, PlaylistTrackUsageScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const PlaylistTrackUsageFindManyArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindManyArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  orderBy: z.union([ PlaylistTrackUsageOrderByWithRelationInputSchema.array(), PlaylistTrackUsageOrderByWithRelationInputSchema ]).optional(),
+  cursor: PlaylistTrackUsageWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ PlaylistTrackUsageScalarFieldEnumSchema, PlaylistTrackUsageScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const PlaylistTrackUsageAggregateArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageAggregateArgs> = z.object({
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  orderBy: z.union([ PlaylistTrackUsageOrderByWithRelationInputSchema.array(), PlaylistTrackUsageOrderByWithRelationInputSchema ]).optional(),
+  cursor: PlaylistTrackUsageWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict();
+
+export const PlaylistTrackUsageGroupByArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageGroupByArgs> = z.object({
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  orderBy: z.union([ PlaylistTrackUsageOrderByWithAggregationInputSchema.array(), PlaylistTrackUsageOrderByWithAggregationInputSchema ]).optional(),
+  by: PlaylistTrackUsageScalarFieldEnumSchema.array(), 
+  having: PlaylistTrackUsageScalarWhereWithAggregatesInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict();
+
+export const PlaylistTrackUsageFindUniqueArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindUniqueArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereUniqueInputSchema, 
+}).strict();
+
+export const PlaylistTrackUsageFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindUniqueOrThrowArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereUniqueInputSchema, 
+}).strict();
+
 export const SongCreateArgsSchema: z.ZodType<Prisma.SongCreateArgs> = z.object({
   select: SongSelectSchema.optional(),
   data: z.union([ SongCreateInputSchema, SongUncheckedCreateInputSchema ]),
@@ -734,5 +988,55 @@ export const SongUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.SongUpdateManyA
 
 export const SongDeleteManyArgsSchema: z.ZodType<Prisma.SongDeleteManyArgs> = z.object({
   where: SongWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const PlaylistTrackUsageCreateArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  data: z.union([ PlaylistTrackUsageCreateInputSchema, PlaylistTrackUsageUncheckedCreateInputSchema ]),
+}).strict();
+
+export const PlaylistTrackUsageUpsertArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageUpsertArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereUniqueInputSchema, 
+  create: z.union([ PlaylistTrackUsageCreateInputSchema, PlaylistTrackUsageUncheckedCreateInputSchema ]),
+  update: z.union([ PlaylistTrackUsageUpdateInputSchema, PlaylistTrackUsageUncheckedUpdateInputSchema ]),
+}).strict();
+
+export const PlaylistTrackUsageCreateManyArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateManyArgs> = z.object({
+  data: z.union([ PlaylistTrackUsageCreateManyInputSchema, PlaylistTrackUsageCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict();
+
+export const PlaylistTrackUsageCreateManyAndReturnArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateManyAndReturnArgs> = z.object({
+  data: z.union([ PlaylistTrackUsageCreateManyInputSchema, PlaylistTrackUsageCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict();
+
+export const PlaylistTrackUsageDeleteArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageDeleteArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  where: PlaylistTrackUsageWhereUniqueInputSchema, 
+}).strict();
+
+export const PlaylistTrackUsageUpdateArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageUpdateArgs> = z.object({
+  select: PlaylistTrackUsageSelectSchema.optional(),
+  data: z.union([ PlaylistTrackUsageUpdateInputSchema, PlaylistTrackUsageUncheckedUpdateInputSchema ]),
+  where: PlaylistTrackUsageWhereUniqueInputSchema, 
+}).strict();
+
+export const PlaylistTrackUsageUpdateManyArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageUpdateManyArgs> = z.object({
+  data: z.union([ PlaylistTrackUsageUpdateManyMutationInputSchema, PlaylistTrackUsageUncheckedUpdateManyInputSchema ]),
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const PlaylistTrackUsageUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageUpdateManyAndReturnArgs> = z.object({
+  data: z.union([ PlaylistTrackUsageUpdateManyMutationInputSchema, PlaylistTrackUsageUncheckedUpdateManyInputSchema ]),
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const PlaylistTrackUsageDeleteManyArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageDeleteManyArgs> = z.object({
+  where: PlaylistTrackUsageWhereInputSchema.optional(), 
   limit: z.number().optional(),
 }).strict();
