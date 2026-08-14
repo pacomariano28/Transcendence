@@ -116,9 +116,14 @@ export async function handleSpotifyCallback(
     }
   } catch (err) {
     console.warn(
-      "[spotify-auth] Could not encrypt Spotify tokens; playlist APIs will be unavailable until TOKEN_ENCRYPTION_KEY is set.",
+      "[spotify-auth] Could not encrypt Spotify tokens; playlist APIs will be unavailable until TOKEN_ENCRYPTION_KEY or JWT_SECRET is set.",
       err,
     );
+    throw new Error("SPOTIFY_TOKENS_NOT_STORED");
+  }
+
+  if (!accessTokenEnc) {
+    throw new Error("SPOTIFY_TOKENS_NOT_STORED");
   }
 
   const existingProfile = await prisma.spotifyProfile.findUnique({

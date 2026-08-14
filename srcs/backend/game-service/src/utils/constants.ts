@@ -18,6 +18,8 @@ export const BASE_SCORE = 100;
 export const SPEED_MULTIPLIER = 10;
 export const WRONG_GUESS_PENALTY = 50;
 export const PLAYLIST_TIMEOUT_MS = 8000;
+/** Playlist track materialization resolves many Spotify track IDs sequentially. */
+export const AUTH_PLAYLIST_TRACKS_TIMEOUT_MS = 60_000;
 export const CLIP_PREP_TIMEOUT_MS = 90_000;
 export const CLIP_PREP_POLL_MS = 2_000;
 export const SECOND_MS = 1000;

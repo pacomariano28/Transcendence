@@ -42,14 +42,23 @@ export async function getValidSpotifyAccessToken(
     Boolean(profile.accessTokenEnc) && expiresAt > Date.now() + TOKEN_SKEW_MS;
 
   if (stillValid && profile.accessTokenEnc) {
-    return decryptToken(profile.accessTokenEnc);
+    try {
+      return decryptToken(profile.accessTokenEnc);
+    } catch {
+      throw new Error("SPOTIFY_REAUTH_REQUIRED");
+    }
   }
 
   if (!profile.refreshTokenEnc) {
     throw new Error("SPOTIFY_REAUTH_REQUIRED");
   }
 
-  const refreshToken = decryptToken(profile.refreshTokenEnc);
+  let refreshToken: string;
+  try {
+    refreshToken = decryptToken(profile.refreshTokenEnc);
+  } catch {
+    throw new Error("SPOTIFY_REAUTH_REQUIRED");
+  }
   const tokenJson = await refreshAccessToken({
     clientId,
     clientSecret,

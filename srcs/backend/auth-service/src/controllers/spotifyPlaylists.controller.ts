@@ -6,6 +6,19 @@ import {
   listUserPlaylists,
 } from "../services/spotifyPlaylists.service.js";
 
+function readSpotifyErrorStatus(details: unknown): number | undefined {
+  if (
+    typeof details === "object" &&
+    details !== null &&
+    "error" in details &&
+    typeof (details as { error?: { status?: number } }).error?.status ===
+      "number"
+  ) {
+    return (details as { error: { status: number } }).error.status;
+  }
+  return undefined;
+}
+
 function mapSpotifyError(err: unknown, res: Response) {
   const msg = err instanceof Error ? err.message : "INTERNAL_ERROR";
   const details =
@@ -23,9 +36,24 @@ function mapSpotifyError(err: unknown, res: Response) {
     msg === "SPOTIFY_PLAYLISTS_FAILED" ||
     msg === "SPOTIFY_PLAYLIST_TRACKS_FAILED" ||
     msg === "SPOTIFY_PLAYLIST_FAILED" ||
+    msg === "SPOTIFY_PLAYLIST_FORBIDDEN" ||
+    msg === "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE" ||
     msg === "SPOTIFY_TOKEN_REFRESH_FAILED"
   ) {
-    return res.status(502).json({ ok: false, error: msg, details });
+    const spotifyStatus =
+      typeof err === "object" &&
+      err !== null &&
+      "spotifyStatus" in err &&
+      typeof (err as { spotifyStatus?: number }).spotifyStatus === "number"
+        ? (err as { spotifyStatus: number }).spotifyStatus
+        : readSpotifyErrorStatus(details);
+
+    return res.status(502).json({
+      ok: false,
+      error: msg,
+      details,
+      ...(spotifyStatus !== undefined ? { spotifyStatus } : {}),
+    });
   }
   return res.status(500).json({ ok: false, error: msg, details });
 }

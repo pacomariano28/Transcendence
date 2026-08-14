@@ -352,6 +352,62 @@ type SpotifyFullTrack = {
   album?: { images?: Array<{ url: string }> };
 };
 
+async function fetchFullTracksByIds(
+  accessToken: string,
+  trackIds: string[],
+): Promise<SpotifyFullTrack[]> {
+  const results = await Promise.all(
+    trackIds.map((trackId) => fetchFullTrackById(accessToken, trackId)),
+  );
+
+  return results.filter(
+    (track): track is SpotifyFullTrack => Boolean(track?.id && track?.name),
+  );
+}
+
+function readSpotifyErrorStatus(details: unknown): number | undefined {
+  if (
+    typeof details === "object" &&
+    details !== null &&
+    "error" in details &&
+    typeof (details as { error?: { status?: number } }).error?.status ===
+      "number"
+  ) {
+    return (details as { error: { status: number } }).error.status;
+  }
+  return undefined;
+}
+
+async function fetchPlaylistItemsResponse(
+  accessToken: string,
+  playlistId: string,
+  cappedLimit: number,
+): Promise<Response> {
+  const query = `limit=${cappedLimit}&market=from_token`;
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const encodedId = encodeURIComponent(playlistId);
+
+  const endpoints = [
+    `https://api.spotify.com/v1/playlists/${encodedId}/items?${query}`,
+    `https://api.spotify.com/v1/playlists/${encodedId}/tracks?${query}`,
+  ];
+
+  let lastResponse: Response | null = null;
+
+  for (const url of endpoints) {
+    const response = await fetch(url, { headers });
+    lastResponse = response;
+
+    if (response.status === 404 || response.status === 403) {
+      continue;
+    }
+
+    return response;
+  }
+
+  return lastResponse ?? fetch(endpoints[0], { headers });
+}
+
 async function fetchFullTrackById(
   accessToken: string,
   trackId: string,
@@ -471,39 +527,60 @@ export async function getPlaylistTracks(
   limit = 30,
 ): Promise<SpotifyPlaylistTrack[]> {
   const cappedLimit = Math.min(limit, 50);
-  const query = `limit=${cappedLimit}&market=from_token`;
-  const headers = { Authorization: `Bearer ${accessToken}` };
 
-  let res = await fetch(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items?${query}`,
-    { headers },
+  const res = await fetchPlaylistItemsResponse(
+    accessToken,
+    playlistId,
+    cappedLimit,
   );
-
-  if (res.status === 404) {
-    res = await fetch(
-      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?${query}`,
-      { headers },
-    );
-  }
 
   const json = (await res.json()) as {
     error?: { message?: string; status?: number };
   };
 
   if (!res.ok) {
-    throw Object.assign(new Error("SPOTIFY_PLAYLIST_TRACKS_FAILED"), {
+    const spotifyStatus = readSpotifyErrorStatus(json) ?? res.status;
+    const errorCode =
+      spotifyStatus === 403
+        ? "SPOTIFY_PLAYLIST_FORBIDDEN"
+        : "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+
+    console.warn(
+      `[spotify] Playlist items ${playlistId} failed (${spotifyStatus})${
+        json.error?.message ? `: ${json.error.message}` : ""
+      }`,
+    );
+
+    throw Object.assign(new Error(errorCode), {
       details: json,
+      spotifyStatus,
     });
   }
 
   const trackIds = collectPlaylistTrackIds(json);
-  const tracks: SpotifyPlaylistTrack[] = [];
 
-  for (const trackId of trackIds.slice(0, cappedLimit)) {
-    const fullTrack = await fetchFullTrackById(accessToken, trackId);
-    if (!fullTrack) continue;
-    tracks.push(mapFullTrackToPlaylistTrack(fullTrack));
+  console.info(
+    `[spotify] Playlist ${playlistId}: ${trackIds.length} track id(s) from items endpoint`,
+  );
+
+  if (trackIds.length === 0) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE"), {
+      details: json,
+      spotifyStatus: res.status,
+    });
   }
+
+  const fullTracks = await fetchFullTracksByIds(
+    accessToken,
+    trackIds.slice(0, cappedLimit),
+  );
+
+  const tracks = fullTracks.map(mapFullTrackToPlaylistTrack);
+  const withIsrc = tracks.filter((track) => Boolean(track.isrc)).length;
+
+  console.info(
+    `[spotify] Playlist ${playlistId}: ${tracks.length} track(s) resolved, ${withIsrc} with ISRC`,
+  );
 
   return tracks;
 }

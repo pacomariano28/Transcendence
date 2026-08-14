@@ -687,14 +687,12 @@ async function materializeSelectedPlaylist(
   if (!tracks.length) {
     if (prepTokens.get(matchId) !== prepToken) return;
 
+    console.warn(
+      `[playlist-prep] Playlist ${selected.id} track fetch failed: ${lastError}`,
+    );
+
     match.playlistPrepStatus = "error";
-    match.playlistPrepError =
-      lastError === "SPOTIFY_NOT_LINKED" ||
-      lastError === "SPOTIFY_NOT_CONFIGURED" ||
-      lastError === "SPOTIFY_PLAYLIST_FORBIDDEN" ||
-      lastError === "ERROR_FETCHING_DATA_FROM_SPOTIFY"
-        ? "SPOTIFY_NOT_LINKED"
-        : lastError || "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+    match.playlistPrepError = mapPlaylistTrackFetchError(lastError);
     emitLobbyState(emit, match);
     return;
   }
@@ -724,6 +722,25 @@ async function materializeSelectedPlaylist(
     matchId,
     emit,
   );
+}
+
+function mapPlaylistTrackFetchError(lastError: string): string {
+  switch (lastError) {
+    case "SPOTIFY_NOT_LINKED":
+    case "SPOTIFY_NOT_CONFIGURED":
+    case "SPOTIFY_REAUTH_REQUIRED":
+    case "SPOTIFY_TOKENS_NOT_STORED":
+    case "ERROR_FETCHING_DATA_FROM_SPOTIFY":
+      return "SPOTIFY_NOT_LINKED";
+    case "SPOTIFY_PLAYLIST_FORBIDDEN":
+      return "SPOTIFY_PLAYLIST_FORBIDDEN";
+    case "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE":
+      return "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE";
+    case "SPOTIFY_PLAYLIST_FETCH_TIMEOUT":
+      return "SPOTIFY_PLAYLIST_FETCH_TIMEOUT";
+    default:
+      return lastError || "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+  }
 }
 
 function emitLobbyState(emit: EmitMatchEvent, match: MatchState): void {

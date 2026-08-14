@@ -1,5 +1,6 @@
 import {
   AUTH_SERVICE_URL,
+  AUTH_PLAYLIST_TRACKS_TIMEOUT_MS,
   PLAYLIST_TIMEOUT_MS,
 } from "../utils/constants.js";
 
@@ -64,10 +65,13 @@ export async function fetchUserPlaylistTracks(
   playlistId: string,
 ): Promise<
   | { ok: true; tracks: SpotifyPlaylistTrackDto[] }
-  | { ok: false; error: string }
+  | { ok: false; error: string; spotifyStatus?: number }
 > {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    AUTH_PLAYLIST_TRACKS_TIMEOUT_MS,
+  );
 
   try {
     const response = await fetch(
@@ -78,21 +82,39 @@ export async function fetchUserPlaylistTracks(
       ok?: boolean;
       tracks?: SpotifyPlaylistTrackDto[];
       error?: string;
+      spotifyStatus?: number;
     };
 
     if (!response.ok || !payload.ok || !Array.isArray(payload.tracks)) {
       return {
         ok: false,
         error: payload.error || "SPOTIFY_PLAYLIST_TRACKS_FAILED",
+        ...(payload.spotifyStatus !== undefined
+          ? { spotifyStatus: payload.spotifyStatus }
+          : {}),
+      };
+    }
+
+    if (payload.tracks.length === 0) {
+      return {
+        ok: false,
+        error: payload.error || "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE",
+        ...(payload.spotifyStatus !== undefined
+          ? { spotifyStatus: payload.spotifyStatus }
+          : {}),
       };
     }
 
     return { ok: true, tracks: payload.tracks };
   } catch (error) {
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message.includes("aborted"));
     return {
       ok: false,
-      error:
-        error instanceof Error
+      error: isTimeout
+        ? "SPOTIFY_PLAYLIST_FETCH_TIMEOUT"
+        : error instanceof Error
           ? error.message
           : "SPOTIFY_PLAYLIST_TRACKS_FAILED",
     };
