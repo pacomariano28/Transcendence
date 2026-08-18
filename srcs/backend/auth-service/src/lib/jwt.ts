@@ -56,7 +56,7 @@ export type AccessTokenPayload = {
 export function signAccessToken(payload: AccessTokenPayload): string {
   return jwt.sign(payload, JWT_SECRET, {
     algorithm: "HS256",
-    expiresIn: "1d",
+    expiresIn: "15m",
   });
 }
 
