@@ -10,6 +10,7 @@ import {
   consumeOAuthState,
   storeOAuthState,
 } from "../lib/oauthStateStore.js";
+import { logError } from "../lib/logger.js";
 
 /**
  *
@@ -169,6 +170,15 @@ export async function spotifyCallback(req: Request, res: Response) {
       return res.status(502).json({ error: msg, details });
     }
 
-    return res.status(500).json({ error: msg, details });
+    // Unexpected/uncategorized failure — log the real cause server-side but
+    // never reflect raw error internals to an unauthenticated caller of
+    // this callback endpoint.
+    logError({
+      event: "spotify_oauth_callback_unhandled",
+      errorName: err instanceof Error ? err.name : undefined,
+      errorMessage: msg,
+    });
+
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
   }
 }
