@@ -15,3 +15,4 @@ export const WRONG_GUESS_PENALTY = 50;
 export const PLAYLIST_TIMEOUT_MS = 5000;
 export const SECOND_MS = 1000;
 export const DISCONNECT_TTL_MS = 3000;
+export const FORCE_COUNTDOWN_MS = 5000;
