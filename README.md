@@ -50,8 +50,15 @@ Setup:
    - SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
    - SPOTIFY_REDIRECT_URI = https://127.0.0.1:8443/api/auth/spotify/callback
 3. If you need HTTPS locally for Spotify, generate certs for Nginx:
-   - bash infra/cert_auth/cert.sh
-4. Start the stack:
+   - bash infra/scripts/certs.sh
+4. Get local preview audio (matches work without this, but rounds will fail
+   to play any track):
+   - Export a Spotify playlist as CSV from https://www.chosic.com/spotify-playlist-exporter/
+   - bash infra/scripts/downloader.sh <playlist.csv>
+   - Downloads 20s previews into srcs/frontend/public/media/ (served
+     automatically by the frontend dev server — gitignored, not committed)
+     and regenerates srcs/backend/playlist-service/prisma/seed.ts to match.
+5. Start the stack:
    - make up
 
 Access:
