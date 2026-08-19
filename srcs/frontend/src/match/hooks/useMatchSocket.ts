@@ -129,6 +129,14 @@ export function useMatchSocket({
   // Refs capture lock/user identity for handlers that fire after state is cleared
   const myUserIdRef = useRef<string | null>(null);
   const lockOwnerIdRef = useRef<string | null>(null);
+  // Refs for callback props: keeps the main effect's deps to just
+  // [code, nav, user] so socket listeners don't tear down and rebind on
+  // every render where the parent passes a new function identity for
+  // these (they're not guaranteed stable unless memoized upstream).
+  const tryPlayAudioRef = useRef(tryPlayAudio);
+  const updateTrackTimerDisplayRef = useRef(updateTrackTimerDisplay);
+  const setActiveMatchRef = useRef(setActiveMatch);
+  const onRematchReceivedRef = useRef(onRematchReceived);
 
   useEffect(() => {
     myUserIdRef.current = myUserId;
@@ -137,6 +145,13 @@ export function useMatchSocket({
   useEffect(() => {
     lockOwnerIdRef.current = lockOwnerId;
   }, [lockOwnerId]);
+
+  useEffect(() => {
+    tryPlayAudioRef.current = tryPlayAudio;
+    updateTrackTimerDisplayRef.current = updateTrackTimerDisplay;
+    setActiveMatchRef.current = setActiveMatch;
+    onRematchReceivedRef.current = onRematchReceived;
+  });
 
   useEffect(() => {
     if (!user || !code) return;
@@ -166,7 +181,7 @@ export function useMatchSocket({
 
       if (payload.phase === "finished") {
         setRoundPhase("finished");
-        setActiveMatch(null);
+        setActiveMatchRef.current(null);
       }
     });
 
@@ -181,7 +196,7 @@ export function useMatchSocket({
       }
       if (payload.phase === "finished") {
         setRoundPhase("finished");
-        setActiveMatch(null);
+        setActiveMatchRef.current(null);
       }
     });
 
@@ -268,7 +283,7 @@ export function useMatchSocket({
           setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
           const delaySeconds = Math.abs(remainingMs) / 1000;
-          tryPlayAudio(delaySeconds);
+          tryPlayAudioRef.current(delaySeconds);
           return;
         }
 
@@ -297,7 +312,7 @@ export function useMatchSocket({
       if (audioRef.current) {
         if (payload.lockAt !== null) {
           audioRef.current.currentTime = payload.lockAt;
-          updateTrackTimerDisplay(payload.lockAt);
+          updateTrackTimerDisplayRef.current(payload.lockAt);
         }
         audioRef.current.pause();
       }
@@ -364,13 +379,13 @@ export function useMatchSocket({
 
       setShowVisualizer(true);
 
-      tryPlayAudio(payload.resumeTime);
+      tryPlayAudioRef.current(payload.resumeTime);
     });
 
     socket.on("match:rematch", (payload: RematchPayload) => {
       if (payload.previousMatchId !== code) return;
       setRematchPending(false);
-      onRematchReceived(payload);
+      onRematchReceivedRef.current(payload);
     });
 
     socket.on("match:end", (payload: MatchEndPayload) => {
@@ -380,7 +395,7 @@ export function useMatchSocket({
       setMatchState((prev) =>
         prev ? { ...prev, phase: "finished" } : prev,
       );
-      setActiveMatch(null);
+      setActiveMatchRef.current(null);
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -411,5 +426,9 @@ export function useMatchSocket({
       clearCountdownTimer();
       clearGuessPanelClearTimer();
     };
-  }, [code, nav, user, tryPlayAudio, updateTrackTimerDisplay, setActiveMatch, onRematchReceived]);
+    // tryPlayAudio, updateTrackTimerDisplay, setActiveMatch, and
+    // onRematchReceived are intentionally excluded — read via refs above so
+    // a new function identity from the parent each render doesn't tear down
+    // and rebind all socket listeners.
+  }, [code, nav, user]);
 }
