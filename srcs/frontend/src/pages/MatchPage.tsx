@@ -390,9 +390,11 @@ export default function MatchPage() {
             roundPhase={roundPhase}
           />
         </div>
-        <button className="btn-ghost flex-1" type="button" onClick={leaveMatch}>
-          {t("lobby.leaveRoom")}
-        </button>
+        <div className="flex w-full justify-end">
+          <button className="btn-ghost" type="button" onClick={leaveMatch}>
+            {t("lobby.leaveRoom")}
+          </button>
+        </div>
       </div>
     </div>
   );
