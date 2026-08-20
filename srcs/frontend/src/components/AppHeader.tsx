@@ -4,6 +4,7 @@ import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
+import { socket } from "../api/socket";
 import UserAvatarMenu from "./UserAvatarMenu";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -28,7 +29,7 @@ export default function AppHeader() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { user, loading, clear } = useAuth();
-  const { activeMatch } = useActiveMatch();
+  const { activeMatch, setActiveMatch } = useActiveMatch();
 
   async function onLogout() {
     try {
@@ -37,6 +38,15 @@ export default function AppHeader() {
       clear();
       nav("/login", { replace: true });
     }
+  }
+
+  function leaveMatch(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (socket.connected) {
+      socket.emit("match:leave");
+    }
+    setActiveMatch(null);
   }
 
   const avatarUrl = user?.spotifyProfile?.avatarUrl ?? null;
@@ -95,31 +105,42 @@ export default function AppHeader() {
       {showLiveBar && user && (
         <Link
           to={`/match/${activeMatch.code}`}
-          className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 px-4 flex items-center justify-center gap-50 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer animate-fade-in"
+          className="w-full bg-emerald-600 text-zinc-950 font-mono text-[10px] sm:text-xs font-black tracking-widest py-1.5 border-t border-emerald-400/20 shadow-[0_4px_20px_rgba(16,185,129,0.2)] transition-all duration-200 hover:bg-emerald-500 cursor-pointer animate-fade-in block"
         >
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2 -translate-y-[1px]">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-60"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600"></span>
-            </span>
-            <span className="leading-none">
-              {t("header.live_match_in_progress")}
-            </span>
-          </div>
+          <div className="container-page">
+            <div className="mx-auto max-w-4xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2 -translate-y-[1px]">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-60"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600"></span>
+                </span>
+                <span className="leading-none">
+                  {t("header.live_match_in_progress")}
+                </span>
+              </div>
 
-          <div className="flex items-center gap-4 sm:gap-6">
-            <span className="select-text opacity-90">
-              {t("header.room")} {activeMatch.code}
-            </span>
-            {activeMatch.roundLabel && (
-              <span
-                className="inline-block bg-zinc-950 text-emerald-400 px-1.5 rounded-md text-[9px] sm:text-xs font-bold tracking-wide shadow-sm font-mono text-center
+              <div className="flex items-center gap-4 sm:gap-6">
+                <span className="select-text opacity-90">
+                  {t("header.room")} {activeMatch.code}
+                </span>
+                {activeMatch.roundLabel && (
+                  <span
+                    className="inline-block bg-zinc-950 text-emerald-400 px-1.5 rounded-md text-[9px] sm:text-xs font-bold tracking-wide shadow-sm font-mono text-center
       pt-[2px] pb-[3px]
       sm:pt-[3px] sm:pb-[3px]"
-              >
-                {activeMatch.roundLabel}
-              </span>
-            )}
+                  >
+                    {activeMatch.roundLabel}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={leaveMatch}
+                  className="font-mono text-[10px] sm:text-xs font-black tracking-widest text-zinc-950/70 underline decoration-zinc-950/40 underline-offset-2 transition-colors duration-150 hover:text-zinc-950 hover:decoration-zinc-950"
+                >
+                  {t("lobby.leaveRoom")}
+                </button>
+              </div>
+            </div>
           </div>
         </Link>
       )}
