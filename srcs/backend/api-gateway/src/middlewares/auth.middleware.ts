@@ -8,6 +8,23 @@ type JwtPayload = {
 };
 
 /**
+ * @brief Resolve the JWT secret from environment variables, failing fast if unset.
+ *
+ * @description
+ * Mirrors auth-service's own JWT_SECRET resolution (src/lib/jwt.ts). Resolved once
+ * at module load instead of per-request, so a missing secret crashes the gateway at
+ * startup rather than silently falling back to a hardcoded default — a fallback
+ * would let a misconfigured deployment verify (and forge-accept) tokens against a
+ * well-known literal string instead of failing loudly.
+ * @throws Will throw if JWT_SECRET is not defined in the environment variables.
+ */
+const JWT_SECRET: string = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET is not set");
+  return secret;
+})();
+
+/**
  *
  * @brief Authenticates the request using an access token (Bearer header or cookie) and injects user identity headers for downstream services.
  * @param req Raw HTTP request. Accepts either `Authorization: Bearer <token>` or the `access_token` cookie.
@@ -51,8 +68,7 @@ export const requireAuth = (
   }
 
   try {
-    const secret = process.env.JWT_SECRET || "jwt_secret";
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
     // Internal identity headers forwarded to downstream services.
     req.headers["x-user-id"] = decoded.sub;
