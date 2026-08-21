@@ -72,6 +72,13 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
       roundIndex: round.roundIndex,
       resumeTime,
     });
+    if (round.skipUserIds.length > 0) {
+      socket.emit("round:skip_update", {
+        matchId: match.matchId,
+        roundIndex: round.roundIndex,
+        skipUserIds: [...round.skipUserIds],
+      });
+    }
     return;
   }
 
@@ -92,12 +99,16 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
     const correct = round.phase === "resolution-win" && Boolean(lockOwnerId);
 
     if (!lockOwnerId) {
+      const reason =
+        round.phase === "resolution-win" && round.skipUserIds.length > 0
+          ? "skip"
+          : "no_guess";
       socket.emit("round:guess_result", {
         matchId: match.matchId,
         roundIndex: round.roundIndex,
         lockOwnerId: null,
         correct: false,
-        reason: "no_guess",
+        reason,
         isrc: preview?.isrc ?? null,
         selectedTrack: preview
           ? {

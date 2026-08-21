@@ -43,6 +43,8 @@ import type {
   RoundGuessResultPayload,
   RoundLockPayload,
   RoundResumePayload,
+  RoundSkipCompletePayload,
+  RoundSkipUpdatePayload,
   RoundSyncPayload,
 } from "../types";
 import { isMatchNotFoundError, normalizeCode } from "../utils";
@@ -88,6 +90,9 @@ type UseMatchSocketOptions = {
   resetSearch: () => void;
   setRematchPending: Dispatch<SetStateAction<boolean>>;
   onRematchReceived: (payload: RematchPayload) => void;
+  fadeOutAudio: (durationMs?: number) => Promise<void>;
+  setSkipUserIds: Dispatch<SetStateAction<string[]>>;
+  setSkipRequested: Dispatch<SetStateAction<boolean>>;
 };
 
 export function useMatchSocket({
@@ -123,6 +128,9 @@ export function useMatchSocket({
   resetSearch,
   setRematchPending,
   onRematchReceived,
+  fadeOutAudio,
+  setSkipUserIds,
+  setSkipRequested,
 }: UseMatchSocketOptions) {
   const countdownTimerRef = useRef<number | null>(null);
   const guessPanelClearTimerRef = useRef<number | null>(null);
@@ -137,6 +145,7 @@ export function useMatchSocket({
   const updateTrackTimerDisplayRef = useRef(updateTrackTimerDisplay);
   const setActiveMatchRef = useRef(setActiveMatch);
   const onRematchReceivedRef = useRef(onRematchReceived);
+  const fadeOutAudioRef = useRef(fadeOutAudio);
 
   useEffect(() => {
     myUserIdRef.current = myUserId;
@@ -151,6 +160,7 @@ export function useMatchSocket({
     updateTrackTimerDisplayRef.current = updateTrackTimerDisplay;
     setActiveMatchRef.current = setActiveMatch;
     onRematchReceivedRef.current = onRematchReceived;
+    fadeOutAudioRef.current = fadeOutAudio;
   });
 
   useEffect(() => {
@@ -227,6 +237,8 @@ export function useMatchSocket({
       setGuessEndsAt(null);
       setLockOwnerId(null);
       setLockRequested(false);
+      setSkipUserIds([]);
+      setSkipRequested(false);
       readyRoundRef.current = null;
       setAudioReady(false);
       setError(payload.playlistError ?? null);
@@ -318,13 +330,28 @@ export function useMatchSocket({
       }
     });
 
+    socket.on("round:skip_update", (payload: RoundSkipUpdatePayload) => {
+      if (payload.matchId !== code) return;
+      setSkipUserIds(payload.skipUserIds);
+    });
+
+    socket.on("round:skip_complete", (payload: RoundSkipCompletePayload) => {
+      if (payload.matchId !== code) return;
+      setShowVisualizer(false);
+      void fadeOutAudioRef.current();
+    });
+
     socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
       if (payload.matchId !== code) return;
 
       clearGuessPanelClearTimer();
       setGuessResultTrack(payload.selectedTrack ?? null);
 
-      if (payload.reason === "no_guess") {
+      if (payload.reason === "skip") {
+        setShowVisualizer(false);
+        setGuessStatus("skipped");
+        setRoundPhase("resolution-win");
+      } else if (payload.reason === "no_guess") {
         setShowVisualizer(false);
         setGuessStatus("revealed");
         setRoundPhase("resolution-win");
@@ -353,6 +380,7 @@ export function useMatchSocket({
       if (
         !payload.correct &&
         payload.reason !== "no_guess" &&
+        payload.reason !== "skip" &&
         payload.lockOwnerId &&
         String(payload.lockOwnerId) === String(myUserIdRef.current)
       ) {
@@ -408,6 +436,7 @@ export function useMatchSocket({
       }
       setError(err.message);
       setLockRequested(false);
+      setSkipRequested(false);
       setRematchPending(false);
     });
 
@@ -418,6 +447,8 @@ export function useMatchSocket({
       socket.off("round:sync");
       socket.off("round:countdown");
       socket.off("round:lock_confirmed");
+      socket.off("round:skip_update");
+      socket.off("round:skip_complete");
       socket.off("round:guess_result");
       socket.off("round:resume");
       socket.off("match:rematch");

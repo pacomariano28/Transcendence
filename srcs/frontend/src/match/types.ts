@@ -47,7 +47,7 @@ export type RoundGuessResultPayload = {
   roundIndex: number;
   lockOwnerId: string | null;
   correct: boolean;
-  reason: "wrong" | "timeout" | "no_guess" | null;
+  reason: "wrong" | "timeout" | "no_guess" | "skip" | null;
   isrc: string | null;
   selectedTrack: GuessSelectedTrack | null;
   scoreDelta: number;
@@ -60,12 +60,29 @@ export type RoundResumePayload = {
   resumeTime: number | null;
 };
 
+export type RoundSkipUpdatePayload = {
+  matchId: string;
+  roundIndex: number;
+  skipUserIds: string[];
+};
+
+export type RoundSkipCompletePayload = {
+  matchId: string;
+  roundIndex: number;
+};
+
 export type MatchEndPayload = {
   matchId: string;
   scores: ScoreEntry[];
 };
 
-export type GuessStatus = "countdown" | "expired" | "wrong" | "correct" | "revealed";
+export type GuessStatus =
+  | "countdown"
+  | "expired"
+  | "wrong"
+  | "correct"
+  | "revealed"
+  | "skipped";
 
 export type ScoreboardEntry = {
   userId: string;

@@ -29,6 +29,7 @@ import { useGuessTimer } from "../match/hooks/useGuessTimer";
 import { useSpotifyGuessSearch } from "../match/hooks/useSpotifyGuessSearch";
 import { useMatchAudio } from "../match/hooks/useMatchAudio";
 import { useLockControls } from "../match/hooks/useLockControls";
+import { useSkipControls } from "../match/hooks/useSkipControls";
 import { useMatchHydration } from "../match/hooks/useMatchHydration";
 import { useActiveMatchSync } from "../match/hooks/useActiveMatchSync";
 import { useMatchSocket } from "../match/hooks/useMatchSocket";
@@ -70,6 +71,8 @@ export default function MatchPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [finalScores, setFinalScores] = useState<ScoreEntry[] | null>(null);
   const [lockRequested, setLockRequested] = useState(false);
+  const [skipRequested, setSkipRequested] = useState(false);
+  const [skipUserIds, setSkipUserIds] = useState<string[]>([]);
   const [rematchPending, setRematchPending] = useState(false);
   const [rematchExiting, setRematchExiting] = useState(false);
   const rematchPayloadRef = useRef<RematchPayload | null>(null);
@@ -118,6 +121,7 @@ export default function MatchPage() {
     setSongRemainingSeconds,
     tryPlayAudio,
     resumeAudioFromUserGesture,
+    fadeOutAudio,
     updateTrackTimerDisplay,
   } = useMatchAudio({
     audioUrl,
@@ -212,12 +216,22 @@ export default function MatchPage() {
     resetSearch,
     setRematchPending,
     onRematchReceived: handleRematchReceived,
+    fadeOutAudio,
+    setSkipUserIds,
+    setSkipRequested,
   });
 
   const showCooldownUi = isCooldownActive && roundPhase === "playing";
 
   const canLock =
     roundPhase === "playing" && audioReady && !lockOwnerId && !isCooldownActive;
+
+  const hasSkipped = Boolean(
+    myUserId && skipUserIds.includes(myUserId),
+  );
+
+  const canSkip =
+    roundPhase === "playing" && audioReady && !lockOwnerId && !hasSkipped;
 
   const { requestLock } = useLockControls({
     audioRef,
@@ -228,6 +242,13 @@ export default function MatchPage() {
     showAudioRestoreNotice,
     resumeAudioFromUserGesture,
     roundPhase,
+  });
+
+  const { requestSkip } = useSkipControls({
+    canSkip,
+    skipRequested,
+    setSkipRequested,
+    matchCode: code,
   });
 
   const leaveFinishedMatch = useCallback(() => {
@@ -363,6 +384,10 @@ export default function MatchPage() {
             searchError={searchError}
             onSelectTrack={selectTrack}
             onSubmitGuess={submitGuess}
+            canSkip={canSkip}
+            hasSkipped={hasSkipped}
+            skipRequested={skipRequested}
+            requestSkip={requestSkip}
           />
 
           <MatchScoreboardSection
@@ -375,6 +400,7 @@ export default function MatchPage() {
             scoreboard={scoreboard}
             lockOwnerId={lockOwnerId}
             roundPhase={roundPhase}
+            skipUserIds={skipUserIds}
           />
         </div>
       </div>

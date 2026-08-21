@@ -131,6 +131,7 @@
       "guessTimeRemaining": "Guess time remaining",
       "seconds": "seconds",
       "timeout": "TIMEOUT!",
+      "songSkipped": "SONG SKIPPED",
       "wrongAnswer": "WRONG ANSWER!",
       "correctAnswer": "CORRECT ANSWER!",
       "noGuessReveal": "THE SONG WAS...",
@@ -142,7 +143,9 @@
     "buttons": {
       "locking": "Locking...",
       "cooldown": "Cooldown ({{seconds}}s)",
-      "lockDefault": "Lock (Space)"
+      "lockDefault": "Lock (Space)",
+      "skipDefault": "Skip",
+      "skipped": "Skipped"
     },
     "guessingPanel": {
       "searchPlaceholder": "Search track",
@@ -156,7 +159,8 @@
       "title": "Scoreboard",
       "waitingForPlayers": "Waiting for players.",
       "you": "(you)",
-      "offline": "(offline)"
+      "offline": "(offline)",
+      "skipLabel": "SKIP"
     }
   },
   "lobby": {

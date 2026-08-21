@@ -1,10 +1,14 @@
 /**
- * In-round gameplay: lock, guess submission, and preview-ended advance.
+ * In-round gameplay: lock, guess submission, preview-ended advance, and skip.
  *
  * Delegates resolution and scoring to `round.ts`. Timers for guess timeout
  * are owned by MatchService and passed in via MatchTimerContext.
  */
-import { GUESS_WINDOW_SECONDS, SECOND_MS } from "../../utils/constants.js";
+import {
+  GUESS_WINDOW_SECONDS,
+  SECOND_MS,
+  SKIP_FADE_MS,
+} from "../../utils/constants.js";
 import { tracksMatchForGuess } from "../../utils/trackNormalization.js";
 import { resolveGuess, revealUnansweredRound } from "../round.js";
 import { replaceTimer } from "../timers.js";
@@ -17,6 +21,7 @@ import {
   type MatchRegistry,
 } from "./match.registry.js";
 import type { MatchTimerContext } from "./match.timers.js";
+import { getConnectedPlayers } from "./match.utils.js";
 
 export function requestLock(
   registry: MatchRegistry,
@@ -161,6 +166,81 @@ export function handlePreviewEnded(
     onMatchFinished: (finishedMatch) =>
       releasePlayersFromMatch(connectionCtx, finishedMatch),
   });
+
+  return match;
+}
+
+export function requestSkip(
+  registry: MatchRegistry,
+  timers: MatchTimerContext,
+  connectionCtx: MatchConnectionContext,
+  socketId: string,
+  emit: EmitMatchEvent,
+): MatchState {
+  const match = getMatchBySocketOrThrow(registry, socketId);
+  if (match.phase !== "in-game" || !match.round) {
+    throw new Error("INVALID_STATE");
+  }
+
+  const round = match.round;
+  if (round.phase !== "playing") {
+    throw new Error("SKIP_NOT_ALLOWED");
+  }
+
+  if (round.lockOwnerId) {
+    throw new Error("ROUND_ALREADY_LOCKED");
+  }
+
+  const player = match.players.find((entry) => entry.socketId === socketId);
+  if (!player) {
+    throw new Error("PLAYER_NOT_IN_MATCH");
+  }
+
+  if (round.skipUserIds.includes(player.userId)) {
+    throw new Error("ALREADY_SKIPPED");
+  }
+
+  round.skipUserIds.push(player.userId);
+
+  emit(match.matchId, "round:skip_update", {
+    matchId: match.matchId,
+    roundIndex: round.roundIndex,
+    skipUserIds: [...round.skipUserIds],
+  });
+
+  const connectedPlayers = getConnectedPlayers(match);
+  const allSkipped =
+    connectedPlayers.length > 0 &&
+    connectedPlayers.every((entry) => round.skipUserIds.includes(entry.userId));
+
+  if (allSkipped) {
+    round.phase = "resolution-win";
+
+    emit(match.matchId, "round:skip_complete", {
+      matchId: match.matchId,
+      roundIndex: round.roundIndex,
+    });
+
+    replaceTimer(
+      timers.resumeTimers,
+      match.matchId,
+      SKIP_FADE_MS,
+      () => {
+        if (!match.round || match.round.roundIndex !== round.roundIndex) {
+          return;
+        }
+
+        revealUnansweredRound({
+          match,
+          emit,
+          resumeTimers: timers.resumeTimers,
+          onMatchFinished: (finishedMatch) =>
+            releasePlayersFromMatch(connectionCtx, finishedMatch),
+          reason: "skip",
+        });
+      },
+    );
+  }
 
   return match;
 }

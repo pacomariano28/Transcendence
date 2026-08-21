@@ -129,6 +129,7 @@
       "guessTimeRemaining": "Resterende goktijd",
       "seconds": "seconden",
       "timeout": "TIJD OM!",
+      "songSkipped": "NUMMER OVERGESLAGEN",
       "wrongAnswer": "FOUT ANTWOORD!",
       "correctAnswer": "GOED ANTWOORD!",
       "noGuessReveal": "HET NUMMER WAS...",
@@ -140,7 +141,9 @@
     "buttons": {
       "locking": "Bezig met vergrendelen...",
       "cooldown": "Afkoelperiode ({{seconds}}s)",
-      "lockDefault": "Vergrendel (Spatie)"
+      "lockDefault": "Vergrendel (Spatie)",
+      "skipDefault": "Overslaan",
+      "skipped": "Overgeslagen"
     },
     "guessingPanel": {
       "searchPlaceholder": "Zoek nummer",
@@ -154,7 +157,8 @@
       "title": "Scorebord",
       "waitingForPlayers": "Wachten op spelers.",
       "you": "(jij)",
-      "offline": "(offline)"
+      "offline": "(offline)",
+      "skipLabel": "SKIP"
     }
   },
   "lobby": {

@@ -38,3 +38,5 @@ export {
   isLocalSeedPlaylist,
 } from "./localPlaylist.js";
 export const FORCE_COUNTDOWN_MS = 5000;
+/** Client-side audio fade when all players skip; server waits this long before reveal. */
+export const SKIP_FADE_MS = 500;

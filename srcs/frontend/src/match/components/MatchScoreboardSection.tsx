@@ -14,6 +14,7 @@ type MatchScoreboardSectionProps = {
   scoreboard: ScoreboardEntry[];
   lockOwnerId: string | null;
   roundPhase: string;
+  skipUserIds: string[];
 };
 
 export default function MatchScoreboardSection({
@@ -26,6 +27,7 @@ export default function MatchScoreboardSection({
   scoreboard,
   lockOwnerId,
   roundPhase,
+  skipUserIds,
 }: MatchScoreboardSectionProps) {
   const { t } = useTranslation();
 
@@ -135,6 +137,7 @@ export default function MatchScoreboardSection({
                   roundPhase === "resolution-fail" && isCurrentLockOwner;
                 const isLockedRow =
                   roundPhase === "guessing" && isCurrentLockOwner;
+                const hasSkippedRow = skipUserIds.includes(entry.userId);
 
                 return (
                   <div
@@ -147,26 +150,58 @@ export default function MatchScoreboardSection({
                             ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
                             : isLockedRow
                               ? "border-[#f7d046]/40 bg-[#f7d046]/10 shadow-[0_0_15px_rgba(247,208,70,0.15)]"
-                              : "border-white/10 bg-black/20"
+                              : hasSkippedRow
+                                ? "border-white/5 bg-black/10"
+                                : "border-white/10 bg-black/20"
                       }`}
                   >
-                    <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-zinc-100">
-                      <span className="truncate">{entry.displayName}</span>
-                      {entry.userId === myUserId ? (
-                        <span className="shrink-0 text-zinc-500 font-normal">
-                          {t("match.scoreboard.you")}
-                        </span>
-                      ) : null}
-                      {!entry.connected ? (
-                        <span className="shrink-0 text-zinc-500 font-normal text-xs">
-                          {t("match.scoreboard.offline")}
-                        </span>
+                    <div className="relative h-5 min-w-0 flex-1 overflow-hidden">
+                      <div
+                        className={`absolute inset-0 flex min-w-0 items-center gap-2 text-sm font-medium transition-colors duration-500
+                          ${
+                            hasSkippedRow
+                              ? "animate-skip-name-return text-zinc-500"
+                              : "text-zinc-100"
+                          }`}
+                      >
+                        <span className="truncate">{entry.displayName}</span>
+                        {entry.userId === myUserId ? (
+                          <span
+                            className={`shrink-0 font-normal ${
+                              hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
+                            }`}
+                          >
+                            {t("match.scoreboard.you")}
+                          </span>
+                        ) : null}
+                        {!entry.connected ? (
+                          <span
+                            className={`shrink-0 text-xs font-normal ${
+                              hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
+                            }`}
+                          >
+                            {t("match.scoreboard.offline")}
+                          </span>
+                        ) : null}
+                      </div>
+                      {hasSkippedRow ? (
+                        <div className="animate-skip-label-exit pointer-events-none absolute inset-0 flex items-center">
+                          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f7d046]">
+                            {t("match.scoreboard.skipLabel")}
+                          </span>
+                        </div>
                       ) : null}
                     </div>
 
                     <div
                       className={`shrink-0 text-lg font-semibold transition-all duration-300
-                        ${isWinRow ? "text-emerald-400 scale-125 font-bold" : "text-white"}`}
+                        ${
+                          isWinRow
+                            ? "text-emerald-400 scale-125 font-bold"
+                            : hasSkippedRow
+                              ? "text-zinc-500"
+                              : "text-white"
+                        }`}
                     >
                       {entry.score}
                     </div>
