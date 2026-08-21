@@ -5,6 +5,9 @@
  * stay on the finished scoreboard until they request a rematch themselves.
  */
 import { createMatchState } from "../state.js";
+import {
+  applyPreviousPlaylistForRematch,
+} from "./match.playlists.js";
 import { generateMatchCode, joinMatch } from "./match.lifecycle.js";
 import {
   getMatchBySocketOrThrow,
@@ -81,6 +84,7 @@ export function requestRematch(
     displayName: input.displayName,
   });
   newMatch.roundsTotal = oldMatch.roundsTotal;
+  applyPreviousPlaylistForRematch(newMatch, oldMatch.selectedPlaylist);
 
   registry.matches.set(newMatchId, newMatch);
   registry.userToMatch.set(input.userId, newMatchId);

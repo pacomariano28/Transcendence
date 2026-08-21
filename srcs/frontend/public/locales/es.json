@@ -167,7 +167,53 @@
     "connectedPlayers": "Jugadores conectados",
     "waitingPlayers": "Esperando a que se conecten jugadores.",
     "youSuffix": " (tú)",
-    "guestFallback": "Invitado"
+    "hostSuffix": " (host)",
+    "guestFallback": "Invitado",
+    "playlistTitle": "Playlist de la partida",
+    "playlistHostHint": "Tú eliges",
+    "playlistGuestHint": "Elige el host",
+    "playlistOwnedBy": "de {{name}}",
+    "playlistGenreSource": "{{playlist}}",
+    "playlistSelectPrompt": "Elige una playlist antes de Ready.",
+    "playlistNoneSelected": "Ninguna playlist seleccionada",
+    "playlistChange": "Cambiar playlist",
+    "playlistChoose": "Elegir playlist",
+    "playlistPickerTitle": "Elegir playlist",
+    "playlistClose": "Cerrar",
+    "playlistSearchPlaceholder": "Buscar álbumes o playlists…",
+    "playlistSearchEmpty": "Ninguna playlist coincide con la búsqueda.",
+    "playlistSearchLoading": "Buscando en Spotify…",
+    "playlistSearchFailed": "No se pudieron buscar playlists en Spotify.",
+    "playlistSectionGenres": "Géneros",
+    "playlistSectionBuiltin": "Integrada",
+    "localPlaylistName": "Mix clásico",
+    "localPlaylistSubtitle": "Sin Spotify",
+    "playlistSectionPlayers": "De jugadores",
+    "playlistSectionSearch": "Resultados de Spotify",
+    "playlistSectionAlbums": "Álbumes",
+    "playlistSectionPlaylists": "Playlists",
+    "playlistFilterAll": "Todo",
+    "playlistFilterAlbums": "Álbumes",
+    "playlistFilterPlaylists": "Playlists",
+    "playlistAlbumBy": "{{artists}}",
+    "playlistPreparingShort": "Preparando {{name}}",
+    "playlistPreparingInline": "Preparando…",
+    "playlistPreparing": "Preparando clips {{ready}}/{{needed}}…",
+    "playlistReady": "Lista: {{name}}",
+    "playlistShareFailed": "No se pudieron cargar tus playlists de Spotify.",
+    "reauthSpotify": "Volver a vincular Spotify",
+    "genres": {
+      "pop": "Pop",
+      "rock": "Rock",
+      "hiphop": "Hip-Hop",
+      "electronic": "Electrónica",
+      "rnb": "R&B",
+      "latin": "Latino",
+      "indie": "Indie",
+      "metal": "Metal",
+      "country": "Country",
+      "jazz": "Jazz"
+    }
   },
   "terms": {
     "title": "Términos de Servicio",
@@ -241,6 +287,57 @@
   "common": {
     "loading": "Cargando..."
   },
+  "setup": {
+    "eyebrow": "Comprobación del entorno",
+    "title": "Guía de configuración",
+    "titleNewMachine": "Nuevo equipo detectado",
+    "intro": "Hemos revisado este entorno y marcado lo que aún requiere tu atención.",
+    "introNewMachine": "Parece un host distinto al anterior. Las URLs locales y certificados se ajustaron automáticamente donde fue posible.",
+    "close": "Cerrar",
+    "continue": "Entendido, continuar",
+    "autoAppliedTitle": "Aplicado automáticamente",
+    "playWithoutSpotify": "Puedes jugar ya con la playlist integrada Mix clásico — no hace falta cuenta de Spotify.",
+    "checksTitle": "Estado",
+    "checkServices": "Servicios backend",
+    "checkSongLibrary": "Biblioteca local de canciones",
+    "checkSpotifySearch": "Búsqueda Spotify (opcional)",
+    "statusOk": "OK",
+    "statusFail": "Problema",
+    "statusOptional": "Opcional",
+    "songCount": "{{count}} canciones listas",
+    "songCountLow": "{{count}} / {{minimum}} canciones listas",
+    "manualTitle": "Pasos manuales",
+    "autoApplied": {
+      "env_local_ip": "IPs locales en archivos .env",
+      "tls_certificates": "Certificados TLS para HTTPS"
+    },
+    "steps": {
+      "spotify_content_credentials": {
+        "title": "Configura credenciales de búsqueda Spotify",
+        "body": "Edita srcs/backend/content-service/.env y pon CLIENT_ID y CLIENT_SECRET de tu app en Spotify Developer. Activa la búsqueda de canciones en partida y el catálogo en el lobby."
+      },
+      "spotify_oauth_credentials": {
+        "title": "Configura login Spotify (opcional)",
+        "body": "Edita srcs/backend/auth-service/.env con SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET y TOKEN_ENCRYPTION_KEY. Solo necesario para vincular tu cuenta y compartir playlists personales."
+      },
+      "spotify_redirect_uri": {
+        "title": "Registra el redirect URI de Spotify",
+        "body": "En Spotify Developer Dashboard añade exactamente: {{redirectUri}}. Debe coincidir con SPOTIFY_REDIRECT_URI en auth-service/.env."
+      },
+      "media_library": {
+        "title": "Añade archivos de preview locales",
+        "body": "La playlist integrada necesita MP3 en srcs/frontend/public/media/. Ejecuta: bash infra/scripts/downloader_home.sh <playlist.csv> y luego make playlist (o make up)."
+      },
+      "trust_certificate": {
+        "title": "Confía en el certificado HTTPS local",
+        "body": "Abre {{accessUrl}} y acepta la advertencia del certificado autofirmado para que funcionen las APIs y WebSockets."
+      },
+      "run_make_up": {
+        "title": "Arranca el stack Docker",
+        "body": "Desde la raíz del proyecto ejecuta make up. Comprueba que Docker esté activo y los puertos 8443/5173 libres."
+      }
+    }
+  },
   "errors": {
     "WRONG_CREDENTIALS": "Credenciales incorrectas",
     "404_NOT_FOUND": "¡404 PÁGINA NO ENCONTRADA!",
@@ -254,6 +351,20 @@
     "INVALID_STATE": "Esta acción no está permitida en el estado actual del juego.",
     "NOT_ENOUGH_SONGS_MESSAGE": "No hay suficientes canciones disponibles para iniciar el juego.",
     "NOT_ENOUGH_SONGS_AVAILABLE": "No hay suficientes canciones disponibles para iniciar el juego.",
+    "PLAYLIST_NOT_READY": "Elige y prepara una playlist antes de marcar Ready.",
+    "PLAYLIST_NOT_AVAILABLE": "Esa playlist ya no está disponible en la sala.",
+    "PLAYLIST_NO_ISRC_TRACKS": "Ninguna canción de la playlist tiene ISRC.",
+    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "Esta playlist necesita al menos 5 canciones reproducibles antes de poder iniciar la partida.",
+    "PLAYLIST_PREP_TIMEOUT": "Tiempo agotado preparando los clips de la playlist.",
+    "PLAYLIST_PREP_FAILED": "No se pudo preparar la playlist seleccionada.",
+    "NOT_HOST": "Solo el host puede elegir la playlist.",
+    "SPOTIFY_NOT_LINKED": "Spotify no está vinculado. Vincula tu cuenta o usa Mix clásico.",
+    "SPOTIFY_NOT_CONFIGURED": "La API de Spotify no está configurada en este equipo. Configura CLIENT_ID/CLIENT_SECRET en content-service/.env y SPOTIFY_CLIENT_* en auth-service/.env.",
+    "SPOTIFY_PLAYLIST_FORBIDDEN": "Spotify ha denegado el acceso a las canciones de esta playlist. En apps Development Mode normalmente solo puedes leer playlists propias o colaborativas.",
+    "SPOTIFY_PLAYLIST_TRACKS_FAILED": "No se pudieron cargar las canciones de Spotify para esta playlist.",
+    "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE": "Spotify no devolvió canciones para esta playlist. Puede estar vacía, ser privada o no ser accesible con los permisos de tu app.",
+    "SPOTIFY_PLAYLIST_FETCH_TIMEOUT": "Tiempo de espera agotado al cargar las canciones de la playlist. Inténtalo de nuevo o elige una playlist más pequeña.",
+    "SPOTIFY_REAUTH_REQUIRED": "La sesión de Spotify expiró. Vuelve a iniciar sesión con Spotify.",
     "INVALID_USER": "Usuario no válido",
     "MISSING_PARAMETER": "Parámetro de consulta 'term' ausente o no válido",
     "ERROR_FETCHING_DATA_FROM_SPOTIFY": "Error al obtener datos de la API de Spotify"

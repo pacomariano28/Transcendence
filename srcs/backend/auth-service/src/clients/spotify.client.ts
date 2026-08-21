@@ -12,6 +12,7 @@ export type SpotifyMe = {
   id: string;
   email?: string;
   display_name?: string;
+  images?: Array<{ url: string }>;
 };
 
 export type SpotifyArtist = {
@@ -271,4 +272,356 @@ export async function getTopTracks(
     popularity: track.popularity,
     imageUrl: track.album.images?.[0]?.url ?? null,
   }));
+}
+
+export type SpotifyPlaylistSummary = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  trackCount: number;
+  ownerName: string | null;
+};
+
+export type SpotifyPlaylistTrack = {
+  spotifyTrackId: string;
+  name: string;
+  artists: string;
+  isrc: string | null;
+  imageUrl: string | null;
+};
+
+type SpotifyPlaylistItemEntry = {
+  track?: {
+    id?: string;
+    name?: string;
+    artists?: Array<{ name: string }>;
+    external_ids?: { isrc?: string };
+    album?: { images?: Array<{ url: string }> };
+  } | null;
+  item?: SpotifyPlaylistItemEntry["track"];
+};
+
+function readPlaylistTrackCount(data: {
+  items?: { total?: number };
+  tracks?: { total?: number };
+}): number {
+  return data.items?.total ?? data.tracks?.total ?? 0;
+}
+
+function extractPlaylistTrackEntries(
+  data: unknown,
+): SpotifyPlaylistItemEntry[] {
+  const payload = data as {
+    items?:
+      | SpotifyPlaylistItemEntry[]
+      | { items?: SpotifyPlaylistItemEntry[] };
+    tracks?: { items?: SpotifyPlaylistItemEntry[] };
+  };
+
+  if (Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if (
+    payload.items &&
+    typeof payload.items === "object" &&
+    Array.isArray(payload.items.items)
+  ) {
+    return payload.items.items;
+  }
+
+  return payload.tracks?.items ?? [];
+}
+
+function collectPlaylistTrackIds(data: unknown): string[] {
+  const ids: string[] = [];
+
+  for (const entry of extractPlaylistTrackEntries(data)) {
+    const track = entry?.item ?? entry?.track;
+    if (track?.id) ids.push(track.id);
+  }
+
+  return ids;
+}
+
+type SpotifyFullTrack = {
+  id: string;
+  name: string;
+  artists?: Array<{ name: string }>;
+  external_ids?: { isrc?: string };
+  album?: { images?: Array<{ url: string }> };
+};
+
+async function fetchFullTracksByIds(
+  accessToken: string,
+  trackIds: string[],
+): Promise<SpotifyFullTrack[]> {
+  const results = await Promise.all(
+    trackIds.map((trackId) => fetchFullTrackById(accessToken, trackId)),
+  );
+
+  return results.filter(
+    (track): track is SpotifyFullTrack => Boolean(track?.id && track?.name),
+  );
+}
+
+function readSpotifyErrorStatus(details: unknown): number | undefined {
+  if (
+    typeof details === "object" &&
+    details !== null &&
+    "error" in details &&
+    typeof (details as { error?: { status?: number } }).error?.status ===
+      "number"
+  ) {
+    return (details as { error: { status: number } }).error.status;
+  }
+  return undefined;
+}
+
+async function fetchPlaylistItemsResponse(
+  accessToken: string,
+  playlistId: string,
+  cappedLimit: number,
+): Promise<Response> {
+  const query = `limit=${cappedLimit}&market=from_token`;
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const encodedId = encodeURIComponent(playlistId);
+
+  const endpoints = [
+    `https://api.spotify.com/v1/playlists/${encodedId}/items?${query}`,
+    `https://api.spotify.com/v1/playlists/${encodedId}/tracks?${query}`,
+  ];
+
+  let lastResponse: Response | null = null;
+
+  for (const url of endpoints) {
+    const response = await fetch(url, { headers });
+    lastResponse = response;
+
+    if (response.status === 404 || response.status === 403) {
+      continue;
+    }
+
+    return response;
+  }
+
+  return lastResponse ?? fetch(endpoints[0], { headers });
+}
+
+async function fetchFullTrackById(
+  accessToken: string,
+  trackId: string,
+): Promise<SpotifyFullTrack | null> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}?market=from_token`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as SpotifyFullTrack & {
+    error?: { message?: string };
+  };
+
+  if (!res.ok || !json.id || !json.name) {
+    return null;
+  }
+
+  return json;
+}
+
+function mapFullTrackToPlaylistTrack(
+  track: SpotifyFullTrack,
+): SpotifyPlaylistTrack {
+  return {
+    spotifyTrackId: track.id,
+    name: track.name,
+    artists: (track.artists ?? []).map((a) => a.name).join(", "),
+    isrc: track.external_ids?.isrc ?? null,
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+  };
+}
+
+/**
+ * Refreshes a Spotify access token using a refresh token.
+ */
+export async function refreshAccessToken(params: {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}): Promise<SpotifyTokenResponse> {
+  const basic = Buffer.from(
+    `${params.clientId}:${params.clientSecret}`,
+  ).toString("base64");
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "refresh_token");
+  body.set("refresh_token", params.refreshToken);
+
+  const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  const tokenJson = (await tokenRes.json()) as SpotifyTokenResponse;
+
+  if (!tokenRes.ok) {
+    throw Object.assign(new Error("SPOTIFY_TOKEN_REFRESH_FAILED"), {
+      details: tokenJson,
+    });
+  }
+
+  return tokenJson;
+}
+
+/**
+ * Lists the current user's playlists (first page, up to 50).
+ */
+export async function getUserPlaylists(
+  accessToken: string,
+  limit = 30,
+): Promise<SpotifyPlaylistSummary[]> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/playlists?limit=${Math.min(limit, 50)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as {
+    items?: Array<{
+      id: string;
+      name: string;
+      images?: Array<{ url: string }>;
+      items?: { total?: number };
+      tracks?: { total?: number };
+      owner?: { display_name?: string };
+    }>;
+  };
+
+  if (!res.ok) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLISTS_FAILED"), {
+      details: json,
+    });
+  }
+
+  return (json.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    imageUrl: item.images?.[0]?.url ?? null,
+    trackCount: readPlaylistTrackCount(item),
+    ownerName: item.owner?.display_name ?? null,
+  }));
+}
+
+/**
+ * Fetches the first `limit` tracks of a playlist, including ISRC when available.
+ */
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string,
+  limit = 30,
+): Promise<SpotifyPlaylistTrack[]> {
+  const cappedLimit = Math.min(limit, 50);
+
+  const res = await fetchPlaylistItemsResponse(
+    accessToken,
+    playlistId,
+    cappedLimit,
+  );
+
+  const json = (await res.json()) as {
+    error?: { message?: string; status?: number };
+  };
+
+  if (!res.ok) {
+    const spotifyStatus = readSpotifyErrorStatus(json) ?? res.status;
+    const errorCode =
+      spotifyStatus === 403
+        ? "SPOTIFY_PLAYLIST_FORBIDDEN"
+        : "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+
+    console.warn(
+      `[spotify] Playlist items ${playlistId} failed (${spotifyStatus})${
+        json.error?.message ? `: ${json.error.message}` : ""
+      }`,
+    );
+
+    throw Object.assign(new Error(errorCode), {
+      details: json,
+      spotifyStatus,
+    });
+  }
+
+  const trackIds = collectPlaylistTrackIds(json);
+
+  console.info(
+    `[spotify] Playlist ${playlistId}: ${trackIds.length} track id(s) from items endpoint`,
+  );
+
+  if (trackIds.length === 0) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE"), {
+      details: json,
+      spotifyStatus: res.status,
+    });
+  }
+
+  const fullTracks = await fetchFullTracksByIds(
+    accessToken,
+    trackIds.slice(0, cappedLimit),
+  );
+
+  const tracks = fullTracks.map(mapFullTrackToPlaylistTrack);
+  const withIsrc = tracks.filter((track) => Boolean(track.isrc)).length;
+
+  console.info(
+    `[spotify] Playlist ${playlistId}: ${tracks.length} track(s) resolved, ${withIsrc} with ISRC`,
+  );
+
+  return tracks;
+}
+
+/**
+ * Fetches playlist metadata (name, cover, track count) with a user access token.
+ * Works for public community playlists (user-created, not Spotify editorial).
+ */
+export async function getPlaylistMetadata(
+  accessToken: string,
+  playlistId: string,
+): Promise<SpotifyPlaylistSummary> {
+  const fields =
+    "id,name,images,items.total,tracks.total,owner.display_name";
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=${encodeURIComponent(fields)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  const json = (await res.json()) as {
+    id?: string;
+    name?: string;
+    images?: Array<{ url: string }>;
+    items?: { total?: number };
+    tracks?: { total?: number };
+    owner?: { display_name?: string };
+  };
+
+  if (!res.ok || !json.id) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_FAILED"), {
+      details: json,
+    });
+  }
+
+  return {
+    id: json.id,
+    name: json.name ?? "Playlist",
+    imageUrl: json.images?.[0]?.url ?? null,
+    trackCount: readPlaylistTrackCount(json),
+    ownerName: json.owner?.display_name ?? null,
+  };
 }

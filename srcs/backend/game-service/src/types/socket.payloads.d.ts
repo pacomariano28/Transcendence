@@ -11,6 +11,7 @@ export type MatchStatePayload = {
   matchId: string;
   roundsTotal: number;
   phase: MatchState["phase"];
+  hostUserId: string;
   players: Array<{
     userId: string;
     displayName: string;
@@ -18,6 +19,30 @@ export type MatchStatePayload = {
     connected: boolean;
     disconnectedAt: string | null;
   }>;
+  availablePlaylists: LobbyPlaylistOption[];
+  selectedPlaylist: SelectedLobbyPlaylist | null;
+  playlistPrepStatus: PlaylistPrepStatus;
+  playlistPrepReady: number;
+  playlistPrepNeeded: number;
+  playlistPrepError: string | null;
+};
+
+export type SharePlaylistsPayload = {
+  playlists: Array<{
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+    trackCount?: number;
+  }>;
+};
+
+export type SelectPlaylistPayload = {
+  playlistId: string;
+  ownerUserId: string;
+  name?: string;
+  imageUrl?: string | null;
+  ownerDisplayName?: string;
+  kind?: "playlist" | "album";
 };
 
 export type AudioTogglePayload = {

@@ -34,6 +34,7 @@ export type SpotifyProfile = {
   topTrackMonth: SpotifyTrack[];
   topTrackAllTime: SpotifyTrack[];
   syncedAt: string | null;
+  hasSpotifyTokens?: boolean;
 };
 
 export type AuthedUser = {

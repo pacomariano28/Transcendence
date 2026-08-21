@@ -3,7 +3,8 @@ import process from "node:process";
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.song.deleteMany();
+  // Keep clip-worker library growth across restarts; only reset seeded rows.
+  await prisma.song.deleteMany({ where: { source: "seed" } });
 
   await prisma.song.createMany({
     data: [

@@ -15,6 +15,10 @@ app.use(express.json());
 
 app.use(stateRouter);
 
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "game-service" });
+});
+
 const io = new Server(server, {
   cors: {
     origin: true,

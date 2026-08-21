@@ -169,7 +169,53 @@
     "connectedPlayers": "Connected players",
     "waitingPlayers": "Waiting for players to connect.",
     "youSuffix": " (you)",
-    "guestFallback": "Guest"
+    "hostSuffix": " (host)",
+    "guestFallback": "Guest",
+    "playlistTitle": "Match playlist",
+    "playlistHostHint": "You choose",
+    "playlistGuestHint": "Host chooses",
+    "playlistOwnedBy": "from {{name}}",
+    "playlistGenreSource": "{{playlist}}",
+    "playlistSelectPrompt": "Select a playlist before ready.",
+    "playlistNoneSelected": "No playlist selected",
+    "playlistChange": "Change playlist",
+    "playlistChoose": "Choose playlist",
+    "playlistPickerTitle": "Choose playlist",
+    "playlistClose": "Close",
+    "playlistSearchPlaceholder": "Search albums or playlists…",
+    "playlistSearchEmpty": "No playlists match your search.",
+    "playlistSearchLoading": "Searching Spotify…",
+    "playlistSearchFailed": "Could not search Spotify playlists.",
+    "playlistSectionGenres": "Genres",
+    "playlistSectionBuiltin": "Built-in",
+    "localPlaylistName": "Classic Mix",
+    "localPlaylistSubtitle": "No Spotify required",
+    "playlistSectionPlayers": "From players",
+    "playlistSectionSearch": "Spotify results",
+    "playlistSectionAlbums": "Albums",
+    "playlistSectionPlaylists": "Playlists",
+    "playlistFilterAll": "All",
+    "playlistFilterAlbums": "Albums",
+    "playlistFilterPlaylists": "Playlists",
+    "playlistAlbumBy": "{{artists}}",
+    "playlistPreparingShort": "Preparing {{name}}",
+    "playlistPreparingInline": "Preparing…",
+    "playlistPreparing": "Preparing clips {{ready}}/{{needed}}…",
+    "playlistReady": "Ready: {{name}}",
+    "playlistShareFailed": "Could not load your Spotify playlists.",
+    "reauthSpotify": "Re-link Spotify",
+    "genres": {
+      "pop": "Pop",
+      "rock": "Rock",
+      "hiphop": "Hip-Hop",
+      "electronic": "Electronic",
+      "rnb": "R&B",
+      "latin": "Latin",
+      "indie": "Indie",
+      "metal": "Metal",
+      "country": "Country",
+      "jazz": "Jazz"
+    }
   },
   "terms": {
     "title": "Terms of Service",
@@ -243,6 +289,57 @@
   "common": {
     "loading": "Loading..."
   },
+  "setup": {
+    "eyebrow": "Environment check",
+    "title": "Setup guide",
+    "titleNewMachine": "New machine detected",
+    "intro": "We checked this environment and highlighted anything that still needs your attention.",
+    "introNewMachine": "This looks like a different host than before. Local URLs and certificates were adjusted automatically where possible.",
+    "close": "Close",
+    "continue": "Got it, continue",
+    "autoAppliedTitle": "Applied automatically",
+    "playWithoutSpotify": "You can play right now with the built-in Classic Mix playlist — no Spotify account required.",
+    "checksTitle": "Status",
+    "checkServices": "Backend services",
+    "checkSongLibrary": "Local song library",
+    "checkSpotifySearch": "Spotify search (optional)",
+    "statusOk": "OK",
+    "statusFail": "Issue",
+    "statusOptional": "Optional",
+    "songCount": "{{count}} songs ready",
+    "songCountLow": "{{count}} / {{minimum}} songs ready",
+    "manualTitle": "Manual steps",
+    "autoApplied": {
+      "env_local_ip": "Local IP addresses in .env files",
+      "tls_certificates": "TLS certificates for HTTPS"
+    },
+    "steps": {
+      "spotify_content_credentials": {
+        "title": "Configure Spotify search credentials",
+        "body": "Edit srcs/backend/content-service/.env and set CLIENT_ID and CLIENT_SECRET from your Spotify Developer app. This enables track search during matches and catalog search in the lobby."
+      },
+      "spotify_oauth_credentials": {
+        "title": "Configure Spotify login (optional)",
+        "body": "Edit srcs/backend/auth-service/.env with SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and TOKEN_ENCRYPTION_KEY. Required only to link your Spotify account and share personal playlists."
+      },
+      "spotify_redirect_uri": {
+        "title": "Register the Spotify redirect URI",
+        "body": "In the Spotify Developer Dashboard, add this exact redirect URI: {{redirectUri}}. It must match SPOTIFY_REDIRECT_URI in auth-service/.env."
+      },
+      "media_library": {
+        "title": "Add local preview files",
+        "body": "The built-in playlist needs MP3 previews in srcs/frontend/public/media/. Run: bash infra/scripts/downloader_home.sh <playlist.csv> then make playlist (or make up)."
+      },
+      "trust_certificate": {
+        "title": "Trust the local HTTPS certificate",
+        "body": "Open {{accessUrl}} and accept the self-signed certificate warning in your browser so API calls and WebSockets work."
+      },
+      "run_make_up": {
+        "title": "Start the Docker stack",
+        "body": "From the project root run make up. Ensure Docker is running and ports 8443/5173 are free."
+      }
+    }
+  },
   "errors": {
     "WRONG_CREDENTIALS": "Wrong credentials",
     "404_NOT_FOUND": "404 NOT FOUND!",
@@ -256,6 +353,20 @@
     "INVALID_STATE": "This action is not allowed in the current game state.",
     "NOT_ENOUGH_SONGS_MESSAGE": "Not enough songs available to start the game.",
     "NOT_ENOUGH_SONGS_AVAILABLE": "Not enough songs available to start the game.",
+    "PLAYLIST_NOT_READY": "Select and prepare a playlist before marking ready.",
+    "PLAYLIST_NOT_AVAILABLE": "That playlist is no longer available in the lobby.",
+    "PLAYLIST_NO_ISRC_TRACKS": "None of the playlist tracks have an ISRC.",
+    "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS": "This playlist needs at least 5 playable songs before the match can start.",
+    "PLAYLIST_PREP_TIMEOUT": "Timed out while preparing playlist clips.",
+    "PLAYLIST_PREP_FAILED": "Failed to prepare the selected playlist.",
+    "NOT_HOST": "Only the host can select the playlist.",
+    "SPOTIFY_NOT_LINKED": "Spotify is not linked. Log in with Spotify again.",
+    "SPOTIFY_NOT_CONFIGURED": "Spotify API is not configured on this machine. Set CLIENT_ID/CLIENT_SECRET in content-service/.env and SPOTIFY_CLIENT_* in auth-service/.env.",
+    "SPOTIFY_PLAYLIST_FORBIDDEN": "Spotify denied access to this playlist's tracks. With Development Mode apps you can usually only read playlists you own or collaborate on.",
+    "SPOTIFY_PLAYLIST_TRACKS_FAILED": "Could not load tracks from Spotify for this playlist.",
+    "SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE": "Spotify returned no tracks for this playlist. It may be empty, private, or not accessible with your Spotify app permissions.",
+    "SPOTIFY_PLAYLIST_FETCH_TIMEOUT": "Timed out while loading playlist tracks from Spotify. Try again or choose a smaller playlist.",
+    "SPOTIFY_REAUTH_REQUIRED": "Spotify session expired. Log in with Spotify again.",
     "USER_NOT_AUTH": "User not authenticated",
     "INVALID_USER": "Invalid user",
     "MISSING_PARAMETER": "Missing or invalid 'term' query parameter",

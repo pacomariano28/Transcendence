@@ -15,6 +15,8 @@ import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import gameRoutes, { socketProxy } from "./routes/game.routes.js";
 import playlistRoutes from "./routes/playlist.routes.js";
+import setupRoutes from "./routes/setup.routes.js";
+import { getAggregatedSetupStatus } from "./controllers/setup.controller.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -60,6 +62,15 @@ app.use("/api/auth", authRoutes);
 app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/playlist", playlistRoutes);
+app.use("/api/setup", setupRoutes);
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "api-gateway" });
+});
+
+app.get("/ready", (req, res) => {
+  void getAggregatedSetupStatus(req, res);
+});
 
 function extractToken(headers: Record<string, string | string[] | undefined>) {
   const authHeader = headers.authorization;

@@ -11,6 +11,7 @@ import {
   type SpotifyArtist,
 } from "../clients/spotify.client.js";
 import { consumeOAuthState } from "../lib/oauthStateStore.js";
+import { encryptToken } from "../lib/tokenEncryption.js";
 
 export type SpotifyCallbackInput = {
   code: string;
@@ -102,6 +103,34 @@ export async function handleSpotifyCallback(
     getTopTracks(tokenJson.access_token, "long_term"),
   ]);
 
+  const tokenExpiresAt = new Date(
+    Date.now() + Math.max(0, tokenJson.expires_in - 60) * 1000,
+  );
+  let accessTokenEnc: string | null = null;
+  let refreshTokenEnc: string | null = null;
+
+  try {
+    accessTokenEnc = encryptToken(tokenJson.access_token);
+    if (tokenJson.refresh_token) {
+      refreshTokenEnc = encryptToken(tokenJson.refresh_token);
+    }
+  } catch (err) {
+    console.warn(
+      "[spotify-auth] Could not encrypt Spotify tokens; playlist APIs will be unavailable until TOKEN_ENCRYPTION_KEY or JWT_SECRET is set.",
+      err,
+    );
+    throw new Error("SPOTIFY_TOKENS_NOT_STORED");
+  }
+
+  if (!accessTokenEnc) {
+    throw new Error("SPOTIFY_TOKENS_NOT_STORED");
+  }
+
+  const existingProfile = await prisma.spotifyProfile.findUnique({
+    where: { userId: user.id },
+    select: { refreshTokenEnc: true },
+  });
+
   await prisma.spotifyProfile.upsert({
     where: {
       userId: user.id,
@@ -116,6 +145,10 @@ export async function handleSpotifyCallback(
       topGenres,
       topTrackMonth,
       topTrackAllTime,
+      accessTokenEnc,
+      refreshTokenEnc,
+      tokenExpiresAt: accessTokenEnc ? tokenExpiresAt : null,
+      tokenScope: tokenJson.scope ?? null,
       syncedAt: new Date(),
     },
     update: {
@@ -127,6 +160,11 @@ export async function handleSpotifyCallback(
       topGenres,
       topTrackMonth,
       topTrackAllTime,
+      accessTokenEnc,
+      refreshTokenEnc:
+        refreshTokenEnc ?? existingProfile?.refreshTokenEnc ?? null,
+      tokenExpiresAt: accessTokenEnc ? tokenExpiresAt : null,
+      tokenScope: tokenJson.scope ?? null,
       syncedAt: new Date(),
     },
   });

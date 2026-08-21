@@ -2,9 +2,11 @@ import {
   PLAYLIST_SERVICE_URL,
   PLAYLIST_TIMEOUT_MS,
 } from "../utils/constants.js";
-import {
+import type {
   AvailableSongCountResponse,
   AvailableSongCountResult,
+  EnsureSongResult,
+  EnsureSongsResponse,
   PlaylistResponse,
   PlaylistFetchResult,
 } from "../types/playlist.js";
@@ -14,12 +16,9 @@ export async function fetchAvailableSongCount(): Promise<AvailableSongCountResul
   const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(
-      `${PLAYLIST_SERVICE_URL}/available-count`,
-      {
-        signal: controller.signal,
-      },
-    );
+    const response = await fetch(`${PLAYLIST_SERVICE_URL}/available-count`, {
+      signal: controller.signal,
+    });
     const payload = (await response.json()) as AvailableSongCountResponse;
 
     if (!response.ok || !payload.ok || payload.count === undefined) {
@@ -96,6 +95,232 @@ export async function fetchPlaylist(): Promise<PlaylistFetchResult> {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "PLAYLIST_FETCH_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function ensureSongs(
+  tracks: Array<{
+    isrc: string;
+    title?: string | null;
+    artist?: string | null;
+    spotifyTrackId?: string | null;
+  }>,
+): Promise<EnsureSongsResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${PLAYLIST_SERVICE_URL}/ensure-songs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tracks }),
+      signal: controller.signal,
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      results?: EnsureSongResult[];
+      summary?: { ready: number; pending: number; failed: number };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.results || !payload.summary) {
+      return {
+        ok: false,
+        error: payload.error || "ENSURE_SONGS_FAILED",
+      };
+    }
+
+    return {
+      ok: true,
+      results: payload.results,
+      summary: payload.summary,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "ENSURE_SONGS_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function fetchSeedSongs(
+  count: number,
+): Promise<
+  | {
+      ok: true;
+      songs: Array<{
+        isrc: string;
+        fileName: string;
+        title: string | null;
+        artist: string | null;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const params = new URLSearchParams({ count: String(count) });
+    const response = await fetch(
+      `${PLAYLIST_SERVICE_URL}/seed-songs?${params.toString()}`,
+      { signal: controller.signal },
+    );
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      songs?: Array<{
+        isrc: string;
+        fileName: string;
+        title: string | null;
+        artist: string | null;
+      }>;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.songs) {
+      return { ok: false, error: payload.error || "SEED_SONGS_FETCH_FAILED" };
+    }
+
+    return { ok: true, songs: payload.songs };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "SEED_SONGS_FETCH_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function fetchSongsStatus(
+  isrcs: string[],
+): Promise<
+  { ok: true; results: EnsureSongResult[] } | { ok: false; error: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const params = new URLSearchParams({ isrcs: isrcs.join(",") });
+    const response = await fetch(
+      `${PLAYLIST_SERVICE_URL}/songs-status?${params.toString()}`,
+      { signal: controller.signal },
+    );
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      results?: EnsureSongResult[];
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.results) {
+      return { ok: false, error: payload.error || "SONGS_STATUS_FAILED" };
+    }
+
+    return { ok: true, results: payload.results };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "SONGS_STATUS_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function orderPlaylistTracks(
+  playlistKey: string,
+  tracks: Array<{
+    isrc: string;
+    title?: string | null;
+    artist?: string | null;
+    spotifyTrackId?: string | null;
+  }>,
+): Promise<
+  | {
+      ok: true;
+      tracks: Array<{
+        isrc: string;
+        title?: string | null;
+        artist?: string | null;
+        spotifyTrackId?: string | null;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${PLAYLIST_SERVICE_URL}/playlist-usage/order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlistKey, tracks }),
+      signal: controller.signal,
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      tracks?: Array<{
+        isrc: string;
+        title?: string | null;
+        artist?: string | null;
+        spotifyTrackId?: string | null;
+      }>;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.ok || !payload.tracks) {
+      return { ok: false, error: payload.error || "PLAYLIST_USAGE_ORDER_FAILED" };
+    }
+
+    return { ok: true, tracks: payload.tracks };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "PLAYLIST_USAGE_ORDER_FAILED",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function markPlaylistTracksUsed(
+  playlistKey: string,
+  isrcs: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAYLIST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `${PLAYLIST_SERVICE_URL}/playlist-usage/mark-used`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistKey, isrcs }),
+        signal: controller.signal,
+      },
+    );
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+
+    if (!response.ok || !payload.ok) {
+      return {
+        ok: false,
+        error: payload.error || "PLAYLIST_USAGE_MARK_FAILED",
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "PLAYLIST_USAGE_MARK_FAILED",
     };
   } finally {
     clearTimeout(timeout);

@@ -4,9 +4,9 @@
  * When every connected player is ready, validates song availability, loads the
  * playlist, and transitions the match from lobby to in-game.
  */
-import { fetchAvailableSongCount } from "../../clients/playlist.client.js";
 import { loadPlaylist } from "../playlist.service.js";
 import { startRound, toRoundSyncPayload } from "../round.js";
+import { MIN_PLAYABLE_SONGS } from "../../utils/constants.js";
 import {
   getMatchBySocketOrThrow,
   type MatchRegistry,
@@ -20,7 +20,6 @@ export async function markReady(
 ): Promise<ReadyResult> {
   const match = getMatchBySocketOrThrow(registry, socketId);
 
-  // No-op outside lobby (e.g. reconnect during in-game) — avoids breaking clients.
   if (match.phase !== "lobby") {
     return {
       match,
@@ -34,6 +33,10 @@ export async function markReady(
     throw new Error("PLAYER_NOT_IN_MATCH");
   }
 
+  if (!match.selectedPlaylist || match.playlistPrepStatus !== "ready") {
+    throw new Error("PLAYLIST_NOT_READY");
+  }
+
   player.ready = !player.ready;
 
   const connectedPlayers = getConnectedPlayers(match);
@@ -43,15 +46,14 @@ export async function markReady(
     connectedPlayers.every((entry) => entry.ready);
 
   if (countdownStarted) {
-    const requiredRounds = match.roundsTotal;
-    const availability = await fetchAvailableSongCount();
+    const requiredRounds = Math.max(match.roundsTotal, MIN_PLAYABLE_SONGS);
 
-    if (!availability.ok || availability.count < requiredRounds) {
+    if (match.preparedSongs.length < requiredRounds) {
       connectedPlayers.forEach((entry) => {
         entry.ready = false;
       });
       emit(match.matchId, "match:error", {
-        message: "NOT_ENOUGH_SONGS_AVAILABLE",
+        message: "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS",
       });
       return {
         match,

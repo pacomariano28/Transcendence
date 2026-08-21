@@ -1,7 +1,14 @@
 import express from "express";
 import { initRedis } from "./lib/redis.js";
-import { getTracks } from "./controllers/search.controller.js";
+import { getAlbums, getCatalog, getPlaylists, getTracks } from "./controllers/search.controller.js";
 import { getTrackByIsrc } from "./controllers/track.controller.js";
+import {
+  getAlbum,
+  getAlbumTracks,
+  getPlaylist,
+  getPlaylistTracks,
+} from "./controllers/playlist.controller.js";
+import { getSetupStatus } from "./controllers/setup.controller.js";
 import { logInfo } from "./lib/logger.js";
 
 const app = express();
@@ -11,9 +18,15 @@ await initRedis();
 
 app.use(express.json());
 
-// Define the internal route
 app.get("/search", getTracks);
+app.get("/search/playlists", getPlaylists);
+app.get("/search/albums", getAlbums);
+app.get("/search/catalog", getCatalog);
 app.get("/track-by-isrc", getTrackByIsrc);
+app.get("/albums/:albumId", getAlbum);
+app.get("/albums/:albumId/tracks", getAlbumTracks);
+app.get("/playlists/:playlistId", getPlaylist);
+app.get("/playlists/:playlistId/tracks", getPlaylistTracks);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
@@ -21,6 +34,8 @@ app.get("/health", (_req, res) => {
     service: "content-service",
   });
 });
+
+app.get("/setup/status", getSetupStatus);
 
 app.listen(port, () => {
   logInfo(`Listening on port ${port}`);

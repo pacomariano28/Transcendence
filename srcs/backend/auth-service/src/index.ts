@@ -2,6 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
+import { getSetupStatus } from "./controllers/setup.controller.js";
 import { logInfo } from "./lib/logger.js";
 
 const app = express();
@@ -11,6 +12,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(healthRouter);
+
+app.get("/setup/status", getSetupStatus);
 
 app.use(authRouter);
 

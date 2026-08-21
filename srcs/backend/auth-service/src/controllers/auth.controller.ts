@@ -210,6 +210,7 @@ export async function me(req: Request, res: Response) {
           topTrackMonth: true,
           topTrackAllTime: true,
           syncedAt: true,
+          refreshTokenEnc: true,
         },
       },
     },
@@ -219,5 +220,22 @@ export async function me(req: Request, res: Response) {
     return res.status(404).json({ ok: false, error: "USER_NOT_FOUND" });
   }
 
-  return res.json({ ok: true, user });
+  const { spotifyProfile, ...rest } = user;
+  const hasSpotifyTokens = Boolean(spotifyProfile?.refreshTokenEnc);
+  const safeProfile = spotifyProfile
+    ? {
+        spotifyUserId: spotifyProfile.spotifyUserId,
+        displayName: spotifyProfile.displayName,
+        email: spotifyProfile.email,
+        avatarUrl: spotifyProfile.avatarUrl,
+        topArtists: spotifyProfile.topArtists,
+        topGenres: spotifyProfile.topGenres,
+        topTrackMonth: spotifyProfile.topTrackMonth,
+        topTrackAllTime: spotifyProfile.topTrackAllTime,
+        syncedAt: spotifyProfile.syncedAt,
+        hasSpotifyTokens,
+      }
+    : null;
+
+  return res.json({ ok: true, user: { ...rest, spotifyProfile: safeProfile } });
 }

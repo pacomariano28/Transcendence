@@ -1,6 +1,7 @@
 import {
   fetchPlaylist,
   fetchRandomSongs,
+  markPlaylistTracksUsed,
 } from "../clients/playlist.client.js";
 import { fetchTrackByIsrc } from "../clients/content.client.js";
 
@@ -8,7 +9,10 @@ const METADATA_FETCH_CONCURRENCY = 5;
 const METADATA_FETCH_RETRIES = 2;
 const MAX_REPLACEMENT_ATTEMPTS = 50;
 
-type BaseSong = Pick<PlaylistItem, "isrc" | "fileName">;
+type BaseSong = Pick<PlaylistItem, "isrc" | "fileName"> & {
+  title?: string;
+  artist?: string;
+};
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -19,9 +23,7 @@ export function isValidPlaylistItem(song: PlaylistItem): boolean {
     isNonEmptyString(song.isrc) &&
     isNonEmptyString(song.fileName) &&
     isNonEmptyString(song.track) &&
-    isNonEmptyString(song.artist) &&
-    isNonEmptyString(song.imageUrl) &&
-    isNonEmptyString(song.spotifyUrl)
+    isNonEmptyString(song.artist)
   );
 }
 
@@ -66,10 +68,14 @@ async function fetchTrackMetadataWithRetry(isrc: string) {
 
 async function enrichSong(song: BaseSong): Promise<PlaylistItem> {
   const metadata = await fetchTrackMetadataWithRetry(song.isrc);
+  const fallbackTrack =
+    song.title?.trim() || `Track ${song.isrc.slice(-6)}`;
+  const fallbackArtist = song.artist?.trim() || "Unknown Artist";
+
   return {
     ...song,
-    track: metadata?.track ?? "",
-    artist: metadata?.artist ?? "",
+    track: metadata?.track ?? fallbackTrack,
+    artist: metadata?.artist ?? fallbackArtist,
     imageUrl: metadata?.imageUrl ?? null,
     spotifyUrl: metadata?.spotifyUrl ?? null,
   };
@@ -78,6 +84,7 @@ async function enrichSong(song: BaseSong): Promise<PlaylistItem> {
 async function buildValidatedPlaylist(
   targetCount: number,
   initialSongs: BaseSong[],
+  allowRandomFallback = true,
 ): Promise<
   { ok: true; songs: PlaylistItem[] } | { ok: false; error: string }
 > {
@@ -88,6 +95,10 @@ async function buildValidatedPlaylist(
 
   while (validSongs.length < targetCount && attempts < MAX_REPLACEMENT_ATTEMPTS) {
     if (pending.length === 0) {
+      if (!allowRandomFallback) {
+        return { ok: false, error: "PLAYLIST_NOT_ENOUGH_PLAYABLE_SONGS" };
+      }
+
       const needed = targetCount - validSongs.length;
       const result = await fetchRandomSongs(needed, [...triedIsrcs]);
 
@@ -139,6 +150,46 @@ async function buildValidatedPlaylist(
 
 export async function loadPlaylist(match: MatchState): Promise<void> {
   if (match.playlist.length > 0 || match.playlistError) return;
+
+  // Spotify-backed selection: use clips already prepared for this match.
+  if (match.selectedPlaylist && match.preparedSongs.length > 0) {
+    const targetCount = Math.min(
+      match.roundsTotal,
+      match.preparedSongs.length,
+    );
+    // Shuffle again at start so rematches don't reuse the first prepared entry.
+    const shuffledPrepared = [...match.preparedSongs];
+    for (let i = shuffledPrepared.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPrepared[i], shuffledPrepared[j]] = [
+        shuffledPrepared[j],
+        shuffledPrepared[i],
+      ];
+    }
+    const validated = await buildValidatedPlaylist(
+      targetCount,
+      shuffledPrepared,
+      false,
+    );
+
+    if (!validated.ok) {
+      match.playlistError = validated.error;
+      return;
+    }
+
+    match.playlist = validated.songs;
+    match.roundsTotal = Math.min(match.roundsTotal, match.playlist.length);
+
+    const markResult = await markPlaylistTracksUsed(
+      match.selectedPlaylist.id,
+      match.playlist.map((song) => song.isrc),
+    );
+    if (!markResult.ok) {
+      match.playlist = [];
+      match.playlistError = markResult.error;
+    }
+    return;
+  }
 
   const result = await fetchPlaylist();
 

@@ -19,6 +19,33 @@ declare global {
     spotifyUrl?: string | null;
   };
 
+  export type CatalogSourceKind = "playlist" | "album";
+
+  export type LobbyPlaylistOption = {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    trackCount: number;
+    ownerUserId: string;
+    ownerDisplayName: string;
+    kind?: CatalogSourceKind;
+  };
+
+  export type SelectedLobbyPlaylist = {
+    id: string;
+    name: string;
+    ownerUserId: string;
+    ownerDisplayName: string;
+    imageUrl?: string | null;
+    kind?: CatalogSourceKind;
+  };
+
+  export type PlaylistPrepStatus =
+    | "idle"
+    | "loading"
+    | "ready"
+    | "error";
+
   export type RoundState = {
     roundIndex: number;
     phase: RoundPhase;
@@ -48,12 +75,26 @@ declare global {
   export type MatchState = {
     matchId: string;
     phase: MatchPhase;
+    hostUserId: string;
     players: MatchPlayer[];
     roundsTotal: number;
     roundIndex: number;
     scores: ScoreEntry[];
     playlist: PlaylistItem[];
     playlistError: string | null;
+    availablePlaylists: LobbyPlaylistOption[];
+    selectedPlaylist: SelectedLobbyPlaylist | null;
+    playlistPrepStatus: PlaylistPrepStatus;
+    playlistPrepReady: number;
+    playlistPrepNeeded: number;
+    playlistPrepError: string | null;
+    /** Base songs resolved for the selected playlist (before metadata enrich). */
+    preparedSongs: Array<{
+      isrc: string;
+      fileName: string;
+      title?: string;
+      artist?: string;
+    }>;
     round: RoundState | null;
     /** Set when a rematch lobby was created from this finished match. */
     rematchTargetId: string | null;
