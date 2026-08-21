@@ -153,7 +153,8 @@
       "selectedPrefix": "Selected: {{track}} - {{artist}}",
       "searching": "Searching...",
       "noResults": "No results.",
-      "waitingForOwner": "Waiting for the lock owner to submit a guess."
+      "waitingForOwner": "Waiting for the lock owner to submit a guess.",
+      "guessing": "Guessing..."
     },
     "scoreboard": {
       "title": "Scoreboard",

@@ -1,5 +1,6 @@
 import { Socket } from "socket.io";
 import { MatchStatePayload } from "../types/socket.payloads.js";
+import type { RoundGuessTypingBroadcast } from "../types/socket.payloads.js";
 
 export function readHeader(
   headers: Record<string, string | string[] | undefined>,
@@ -42,6 +43,25 @@ export function emitMatchError(socket: Socket, error: unknown): void {
   const message = error instanceof Error ? error.message : "UNKNOWN_ERROR";
 
   socket.emit("match:error", { message });
+}
+
+export function toGuessTypingPayload(
+  match: MatchState,
+  text = match.round?.guessTypingText ?? "",
+): RoundGuessTypingBroadcast {
+  return {
+    matchId: match.matchId,
+    roundIndex: match.round?.roundIndex ?? 0,
+    text,
+  };
+}
+
+export function emitGuessTyping(
+  socket: Socket,
+  match: MatchState,
+  text = match.round?.guessTypingText ?? "",
+): void {
+  socket.emit("round:guess_typing", toGuessTypingPayload(match, text));
 }
 
 export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
@@ -90,6 +110,9 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
       lockAt: round.lockAt,
       guessEndsAt: round.guessEndsAt,
     });
+    if (round.guessTypingText) {
+      emitGuessTyping(socket, match);
+    }
     return;
   }
 

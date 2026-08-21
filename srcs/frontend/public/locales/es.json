@@ -151,7 +151,8 @@
       "selectedPrefix": "Seleccionado: {{track}} — {{artist}}",
       "searching": "Buscando...",
       "noResults": "Sin resultados.",
-      "waitingForOwner": "Esperando a que el propietario del bloqueo envíe una respuesta."
+      "waitingForOwner": "Esperando a que el propietario del bloqueo envíe una respuesta.",
+      "guessing": "Adivinando..."
     },
     "scoreboard": {
       "title": "Marcador",

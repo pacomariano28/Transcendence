@@ -13,6 +13,7 @@ import {
   emitMatchError,
   emitMatchState,
   emitRoundCatchUp,
+  toGuessTypingPayload,
 } from "./socket.helpers.js";
 import {
   LOCAL_SEED_PLAYLIST,
@@ -150,6 +151,11 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
   socket.on("match:leave", () => {
     const userId = readHeader(socket.handshake.headers, "x-user-id");
+    const matchBefore = matchService.getMatchBySocket(socket.id);
+    const leavingUserId =
+      userId ??
+      matchBefore?.players.find((player) => player.socketId === socket.id)
+        ?.userId;
     const match = matchService.leaveMatch({
       socketId: socket.id,
       userId: userId ?? undefined,
@@ -159,6 +165,16 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       socket.leave(match.matchId);
 
       io.to(match.matchId).emit("match:state", toPayload(match));
+
+      if (
+        leavingUserId &&
+        matchService.clearGuessTypingIfLockOwner(match, leavingUserId)
+      ) {
+        io.to(match.matchId).emit(
+          "round:guess_typing",
+          toGuessTypingPayload(match, ""),
+        );
+      }
     }
     logInfo(`Socket left the match voluntarily: ${socket.id}`);
   });
@@ -199,12 +215,26 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   });
 
   socket.on("disconnect", () => {
+    const matchBefore = matchService.getMatchBySocket(socket.id);
+    const leavingUserId = matchBefore?.players.find(
+      (player) => player.socketId === socket.id,
+    )?.userId;
     const match = matchService.removeSocket(socket.id);
 
     if (match) {
       socket.leave(match.matchId);
 
       io.to(match.matchId).emit("match:state", toPayload(match));
+
+      if (
+        leavingUserId &&
+        matchService.clearGuessTypingIfLockOwner(match, leavingUserId)
+      ) {
+        io.to(match.matchId).emit(
+          "round:guess_typing",
+          toGuessTypingPayload(match, ""),
+        );
+      }
     }
 
     logInfo(`Socket disconnected: ${socket.id}`);

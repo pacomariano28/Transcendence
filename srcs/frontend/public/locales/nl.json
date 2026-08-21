@@ -151,7 +151,8 @@
       "selectedPrefix": "Geselecteerd: {{track}} — {{artist}}",
       "searching": "Zoeken...",
       "noResults": "Geen resultaten.",
-      "waitingForOwner": "Wachten tot de eigenaar van de vergrendeling een antwoord indient."
+      "waitingForOwner": "Wachten tot de eigenaar van de vergrendeling een antwoord indient.",
+      "guessing": "Aan het raden..."
     },
     "scoreboard": {
       "title": "Scorebord",

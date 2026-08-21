@@ -76,6 +76,7 @@ export function revealUnansweredRound({
   }
 
   round.phase = "resolution-win";
+  round.guessTypingText = "";
 
   const preview = round.preview;
   const selectedTrack = preview
@@ -177,6 +178,7 @@ export function resolveGuess({
   }
 
   round.phase = correct ? "resolution-win" : "resolution-fail";
+  round.guessTypingText = "";
 
   const preview = round.preview;
   const resultTrack = correct
@@ -227,6 +229,7 @@ export function resolveGuess({
       match.round.lockOwnerId = null;
       match.round.lockAt = null;
       match.round.guessEndsAt = null;
+      match.round.guessTypingText = "";
 
       if (resumeTime !== null) {
         match.round.countdownEndsAt = Date.now() - resumeTime * 1000;
