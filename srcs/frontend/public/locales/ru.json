@@ -130,6 +130,7 @@
       "guessTimeRemaining": "Осталось времени на ответ",
       "seconds": "секунд",
       "timeout": "ВРЕМЯ ВЫШЛО!",
+      "songSkipped": "ПЕСНЯ ПРОПУЩЕНА",
       "wrongAnswer": "НЕПРАВИЛЬНЫЙ ОТВЕТ!",
       "correctAnswer": "ПРАВИЛЬНЫЙ ОТВЕТ!",
       "noGuessReveal": "ЭТО БЫЛ ТРЕК...",
@@ -141,7 +142,9 @@
     "buttons": {
       "locking": "Блокировка...",
       "cooldown": "Пауза ({{seconds}}с)",
-      "lockDefault": "Заблокировать (Пробел)"
+      "lockDefault": "Заблокировать (Пробел)",
+      "skipDefault": "Пропустить",
+      "skipped": "Пропущено"
     },
     "guessingPanel": {
       "searchPlaceholder": "Поиск трека",
@@ -155,7 +158,8 @@
       "title": "Таблица результатов",
       "waitingForPlayers": "Ожидание игроков.",
       "you": "(вы)",
-      "offline": "(не в сети)"
+      "offline": "(не в сети)",
+      "skipLabel": "ПРОПУСК"
     }
   },
   "lobby": {

@@ -108,6 +108,33 @@
   }
 }
 
+@keyframes skipLabelExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(1.25rem);
+  }
+}
+
+@keyframes skipNameReturn {
+  0%,
+  40% {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes guessDropdownEnter {
   0% {
     opacity: 0;
@@ -222,6 +249,14 @@
 
 .animate-guess-status-enter {
   animation: guessStatusEnter 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-skip-label-exit {
+  animation: skipLabelExit 0.85s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-skip-name-return {
+  animation: skipNameReturn 0.85s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .animate-song-reveal-cover {

@@ -129,6 +129,7 @@
       "guessTimeRemaining": "Tiempo restante para adivinar",
       "seconds": "segundos",
       "timeout": "¡TIEMPO AGOTADO!",
+      "songSkipped": "CANCIÓN SALTADA",
       "wrongAnswer": "¡RESPUESTA INCORRECTA!",
       "correctAnswer": "¡RESPUESTA CORRECTA!",
       "noGuessReveal": "LA CANCIÓN ERA...",
@@ -140,7 +141,9 @@
     "buttons": {
       "locking": "Bloqueando...",
       "cooldown": "Espera ({{seconds}}s)",
-      "lockDefault": "Bloquear (Espacio)"
+      "lockDefault": "Bloquear (Espacio)",
+      "skipDefault": "Saltar",
+      "skipped": "Saltado"
     },
     "guessingPanel": {
       "searchPlaceholder": "Buscar canción",
@@ -154,7 +157,8 @@
       "title": "Marcador",
       "waitingForPlayers": "Esperando jugadores.",
       "you": "(tú)",
-      "offline": "(desconectado)"
+      "offline": "(desconectado)",
+      "skipLabel": "SALTAR"
     }
   },
   "lobby": {

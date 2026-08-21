@@ -60,6 +60,7 @@ type RevealUnansweredRoundInput = {
   emit: EmitMatchEvent;
   resumeTimers: MatchTimerMap;
   onMatchFinished?: (match: MatchState) => void;
+  reason?: "no_guess" | "skip";
 };
 
 export function revealUnansweredRound({
@@ -67,6 +68,7 @@ export function revealUnansweredRound({
   emit,
   resumeTimers,
   onMatchFinished,
+  reason = "no_guess",
 }: RevealUnansweredRoundInput): void {
   const round = match.round;
   if (!round) {
@@ -91,7 +93,7 @@ export function revealUnansweredRound({
     roundIndex: round.roundIndex,
     lockOwnerId: null,
     correct: false,
-    reason: "no_guess",
+    reason,
     isrc: preview?.isrc ?? null,
     selectedTrack,
     scoreDelta: 0,

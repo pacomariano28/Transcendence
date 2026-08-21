@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { socket } from "../../api/socket";
-import { SECOND_MS } from "../constants";
+import { SECOND_MS, SKIP_FADE_MS } from "../constants";
 import type { RoundSyncPayload } from "../types";
 
 type UseMatchAudioOptions = {
@@ -121,6 +121,33 @@ export function useMatchAudio({
     }
   }, [applySyncedPlaybackPosition]);
 
+  const fadeOutAudio = useCallback(
+    (durationMs = SKIP_FADE_MS): Promise<void> => {
+      const audio = audioRef.current;
+      if (!audio) return Promise.resolve();
+
+      return new Promise((resolve) => {
+        const startVolume = audio.volume;
+        const steps = 20;
+        const stepMs = durationMs / steps;
+        let step = 0;
+
+        const interval = window.setInterval(() => {
+          step += 1;
+          audio.volume = Math.max(0, startVolume * (1 - step / steps));
+
+          if (step >= steps) {
+            window.clearInterval(interval);
+            audio.pause();
+            audio.volume = startVolume;
+            resolve();
+          }
+        }, stepMs);
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!audioUrl) {
       if (audioRef.current) {
@@ -221,6 +248,7 @@ export function useMatchAudio({
     setSongRemainingSeconds,
     tryPlayAudio,
     resumeAudioFromUserGesture,
+    fadeOutAudio,
     updateTrackTimerDisplay,
   };
 }

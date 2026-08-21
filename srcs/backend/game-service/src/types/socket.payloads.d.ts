@@ -76,6 +76,21 @@ export type RoundPreviewEndedPayload = {
   roundIndex: number;
 };
 
+export type RoundSkipPayload = {
+  matchId: string;
+};
+
+export type RoundSkipUpdatePayload = {
+  matchId: string;
+  roundIndex: number;
+  skipUserIds: string[];
+};
+
+export type RoundSkipCompletePayload = {
+  matchId: string;
+  roundIndex: number;
+};
+
 export type RematchPayload = {
   previousMatchId: string;
   matchId: string;

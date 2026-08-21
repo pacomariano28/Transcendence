@@ -70,6 +70,7 @@ export function createRoundState(match: MatchState): RoundState {
     phase: "sync",
     preview,
     readyUserIds: [],
+    skipUserIds: [],
     lockOwnerId: null,
     lockAt: null,
     guessEndsAt: null,

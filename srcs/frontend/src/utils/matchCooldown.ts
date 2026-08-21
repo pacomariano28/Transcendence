@@ -12,7 +12,7 @@ type CooldownGuessResultPayload = {
   matchId: string;
   roundIndex: number;
   correct: boolean;
-  reason?: "wrong" | "timeout" | "no_guess" | null;
+  reason?: "wrong" | "timeout" | "no_guess" | "skip" | null;
   lockOwnerId: string | null;
 };
 
@@ -155,7 +155,7 @@ export function registerMatchCooldownSocketHandlers(
   getUserId: () => string | null,
 ) {
   const onGuessResult = (payload: CooldownGuessResultPayload) => {
-    if (payload.correct || payload.reason === "no_guess") return;
+    if (payload.correct || payload.reason === "no_guess" || payload.reason === "skip") return;
     const userId = getUserId();
     if (userId === null || !payload.lockOwnerId || String(payload.lockOwnerId) !== String(userId)) {
       return;

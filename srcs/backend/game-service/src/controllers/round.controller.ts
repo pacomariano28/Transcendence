@@ -4,6 +4,7 @@ import type {
   RoundLockPayload,
   RoundGuessPayload,
   RoundPreviewEndedPayload,
+  RoundSkipPayload,
 } from "../types/socket.payloads.js";
 import {
   emitMatchError,
@@ -82,6 +83,18 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
         payload.roundIndex,
         emitToMatch,
       );
+      emitMatchState(socket, match);
+    } catch (error) {
+      emitMatchError(socket, error);
+    }
+  });
+
+  socket.on("round:skip_request", (_payload: RoundSkipPayload) => {
+    try {
+      const emitToMatch = (matchId: string, event: string, data: unknown) => {
+        io.to(matchId).emit(event, data);
+      };
+      const match = matchService.requestSkip(socket.id, emitToMatch);
       emitMatchState(socket, match);
     } catch (error) {
       emitMatchError(socket, error);

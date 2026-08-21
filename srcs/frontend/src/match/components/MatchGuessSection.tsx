@@ -17,6 +17,10 @@ type MatchGuessSectionProps = {
   searchError: string | null;
   onSelectTrack: (track: SpotifySearchTrack) => void;
   onSubmitGuess: () => void;
+  canSkip: boolean;
+  hasSkipped: boolean;
+  skipRequested: boolean;
+  requestSkip: () => void;
 };
 
 type SearchDropdownState = "searching" | "error" | "results" | "empty";
@@ -46,8 +50,14 @@ export default function MatchGuessSection({
   searchError,
   onSelectTrack,
   onSubmitGuess,
+  canSkip,
+  hasSkipped,
+  skipRequested,
+  requestSkip,
 }: MatchGuessSectionProps) {
   const { t } = useTranslation();
+
+  const showSkipButton = roundPhase !== "guessing" && !isMatchFinished;
 
   const showSearchDropdown =
     canGuess && !selectedTrack && searchTerm.trim().length >= 2;
@@ -68,34 +78,54 @@ export default function MatchGuessSection({
           : ""
       }`}
     >
-      <div className="flex flex-col gap-1">
-        <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-          {t("match.hud.lockLabel")}
-        </div>
+      <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="truncate text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+            {t("match.hud.lockLabel")}
+          </div>
 
-        <div className="relative h-7 mt-1">
-          <div
-            className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
+          <div className="relative h-7 mt-1">
+            <div
+              className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
                 ${lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"} 
                 text-lg text-zinc-300`}
-          >
-            <Trans
-              i18nKey="match.hud.lockedBy"
-              values={{
-                name: lockOwnerName || t("match.user.player"),
-              }}
-              components={{
-                bold: <span className="font-bold text-white" />,
-              }}
-            />
-          </div>
-          <div
-            className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
+            >
+              <Trans
+                i18nKey="match.hud.lockedBy"
+                values={{
+                  name: lockOwnerName || t("match.user.player"),
+                }}
+                components={{
+                  bold: <span className="font-bold text-white" />,
+                }}
+              />
+            </div>
+            <div
+              className={`absolute inset-0 transition-all duration-500 ease-in-out origin-left
                 ${!lockOwnerId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"} 
                 text-sm text-zinc-400`}
-          >
-            {t("match.hud.firstLockWins")}
+            >
+              {t("match.hud.firstLockWins")}
+            </div>
           </div>
+        </div>
+
+        <div
+          className={`shrink-0 overflow-hidden transition-all duration-500 ease-in-out
+            ${
+              showSkipButton
+                ? "max-w-[12rem] opacity-100"
+                : "pointer-events-none max-w-0 opacity-0"
+            }`}
+        >
+          <button
+            className="whitespace-nowrap bg-transparent p-0 text-sm font-bold uppercase tracking-[0.2em] text-[#f7d046] transition-opacity duration-300 hover:opacity-80 disabled:pointer-events-none disabled:opacity-40 disabled:hover:opacity-40"
+            type="button"
+            disabled={!canSkip || hasSkipped || skipRequested}
+            onClick={requestSkip}
+          >
+            {t("match.scoreboard.skipLabel")}
+          </button>
         </div>
       </div>
 

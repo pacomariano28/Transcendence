@@ -51,6 +51,7 @@ declare global {
     phase: RoundPhase;
     preview: PlaylistItem | null;
     readyUserIds: string[];
+    skipUserIds: string[];
     lockOwnerId: string | null;
     lockAt: number | null;
     guessEndsAt: number | null;

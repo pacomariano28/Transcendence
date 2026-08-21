@@ -24,6 +24,7 @@ import {
 import {
   handlePreviewEnded as handlePreviewEndedAction,
   requestLock as requestLockAction,
+  requestSkip as requestSkipAction,
   submitGuess as submitGuessAction,
 } from "./match/match.gameplay.js";
 import {
@@ -183,6 +184,16 @@ export class MatchService {
       this.connectionContext,
       socketId,
       roundIndex,
+      emit,
+    );
+  }
+
+  requestSkip(socketId: string, emit: EmitMatchEvent): MatchState {
+    return requestSkipAction(
+      this.registry,
+      this.timers,
+      this.connectionContext,
+      socketId,
       emit,
     );
   }

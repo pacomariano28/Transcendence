@@ -316,6 +316,16 @@ export default function MatchAudioStage({
             />
           )}
 
+          {guessStatus === "skipped" && (
+            <GuessResolutionBlock
+              label={t("match.hud.songSkipped")}
+              labelClassName="text-[#f7d046]"
+              track={guessResultTrack}
+              showCover
+              ringClassName="ring-[#f7d046]/30"
+            />
+          )}
+
           {guessStatus === "correct" && (
             <GuessResolutionBlock
               label={t("match.hud.correctAnswer")}
