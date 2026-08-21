@@ -11,6 +11,7 @@
  *   round:sync — new round, resets client state, sets audio URL
  *   round:countdown — timestamp-based countdown before playback
  *   round:lock_confirmed — pause audio, open guess window
+ *   round:guess_typing — live guesser input text for spectators (text only)
  *   round:guess_result — resolution overlay, score update, cooldown penalty flag
  *   round:resume — resume playback from server-provided offset
  *   match:end — final scores
@@ -41,6 +42,7 @@ import type {
   MatchEndPayload,
   RoundCountdownPayload,
   RoundGuessResultPayload,
+  RoundGuessTypingPayload,
   RoundLockPayload,
   RoundResumePayload,
   RoundSkipCompletePayload,
@@ -87,6 +89,7 @@ type UseMatchSocketOptions = {
   setCooldownEndsAt: Dispatch<SetStateAction<number | null>>;
   setGuessStatus: Dispatch<SetStateAction<GuessStatus>>;
   setGuessResultTrack: Dispatch<SetStateAction<GuessSelectedTrack | null>>;
+  setGuessTypingText: Dispatch<SetStateAction<string>>;
   resetSearch: () => void;
   setRematchPending: Dispatch<SetStateAction<boolean>>;
   onRematchReceived: (payload: RematchPayload) => void;
@@ -125,6 +128,7 @@ export function useMatchSocket({
   setCooldownEndsAt,
   setGuessStatus,
   setGuessResultTrack,
+  setGuessTypingText,
   resetSearch,
   setRematchPending,
   onRematchReceived,
@@ -137,6 +141,8 @@ export function useMatchSocket({
   // Refs capture lock/user identity for handlers that fire after state is cleared
   const myUserIdRef = useRef<string | null>(null);
   const lockOwnerIdRef = useRef<string | null>(null);
+  const isGuessingRef = useRef(false);
+  const roundIndexRef = useRef<number | null>(null);
   // Refs for callback props: keeps the main effect's deps to just
   // [code, nav, user] so socket listeners don't tear down and rebind on
   // every render where the parent passes a new function identity for
@@ -217,6 +223,11 @@ export function useMatchSocket({
       }
     }
 
+    function clearGuessTyping() {
+      isGuessingRef.current = false;
+      setGuessTypingText("");
+    }
+
     function scheduleGuessPanelClear() {
       clearGuessPanelClearTimer();
       guessPanelClearTimerRef.current = window.setTimeout(() => {
@@ -231,6 +242,8 @@ export function useMatchSocket({
       setShowVisualizer(false);
       setRoundInfo(payload);
       setRoundPhase("sync");
+      roundIndexRef.current = payload.roundIndex;
+      clearGuessTyping();
       setCountdownSeconds(null);
       setGuessSeconds(null);
       setSongRemainingSeconds(null);
@@ -315,6 +328,9 @@ export function useMatchSocket({
       if (payload.matchId !== code) return;
       clearGuessPanelClearTimer();
       setRoundPhase("guessing");
+      isGuessingRef.current = true;
+      roundIndexRef.current = payload.roundIndex;
+      setGuessTypingText("");
       setGuessStatus("countdown");
       setGuessResultTrack(null);
       setLockOwnerId(payload.lockOwnerId);
@@ -337,14 +353,30 @@ export function useMatchSocket({
 
     socket.on("round:skip_complete", (payload: RoundSkipCompletePayload) => {
       if (payload.matchId !== code) return;
+      clearGuessTyping();
       setShowVisualizer(false);
       void fadeOutAudioRef.current();
+    });
+
+    socket.on("round:guess_typing", (payload: RoundGuessTypingPayload) => {
+      if (payload.matchId !== code) return;
+      if (!isGuessingRef.current) return;
+      if (
+        payload.roundIndex !== undefined &&
+        roundIndexRef.current !== null &&
+        payload.roundIndex !== roundIndexRef.current
+      ) {
+        return;
+      }
+      if (typeof payload.text !== "string") return;
+      setGuessTypingText(payload.text);
     });
 
     socket.on("round:guess_result", (payload: RoundGuessResultPayload) => {
       if (payload.matchId !== code) return;
 
       clearGuessPanelClearTimer();
+      clearGuessTyping();
       setGuessResultTrack(payload.selectedTrack ?? null);
 
       if (payload.reason === "skip") {
@@ -404,6 +436,7 @@ export function useMatchSocket({
       setGuessSeconds(null);
       setGuessEndsAt(null);
       setLockRequested(false);
+      clearGuessTyping();
 
       setShowVisualizer(true);
 
@@ -418,6 +451,7 @@ export function useMatchSocket({
 
     socket.on("match:end", (payload: MatchEndPayload) => {
       if (payload.matchId !== code) return;
+      clearGuessTyping();
       setFinalScores(payload.scores);
       setRoundPhase("finished");
       setMatchState((prev) =>
@@ -449,6 +483,7 @@ export function useMatchSocket({
       socket.off("round:lock_confirmed");
       socket.off("round:skip_update");
       socket.off("round:skip_complete");
+      socket.off("round:guess_typing");
       socket.off("round:guess_result");
       socket.off("round:resume");
       socket.off("match:rematch");

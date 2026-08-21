@@ -5,6 +5,7 @@
  * are owned by MatchService and passed in via MatchTimerContext.
  */
 import {
+  GUESS_TYPING_MAX_LENGTH,
   GUESS_WINDOW_SECONDS,
   SECOND_MS,
   SKIP_FADE_MS,
@@ -17,6 +18,7 @@ import {
   type MatchConnectionContext,
 } from "./match.connection.js";
 import {
+  getMatchBySocket,
   getMatchBySocketOrThrow,
   type MatchRegistry,
 } from "./match.registry.js";
@@ -54,6 +56,7 @@ export function requestLock(
   match.round.lockOwnerId = player.userId;
   match.round.lockAt = time;
   match.round.guessEndsAt = now + GUESS_WINDOW_SECONDS * SECOND_MS;
+  match.round.guessTypingText = "";
 
   emit(match.matchId, "round:lock_confirmed", {
     matchId: match.matchId,
@@ -137,6 +140,67 @@ export function submitGuess(
   return match;
 }
 
+export function sanitizeGuessTypingText(text: unknown): string {
+  if (typeof text !== "string") {
+    return "";
+  }
+
+  return text.replace(/[\u0000-\u001F\u007F]/g, "").slice(0, GUESS_TYPING_MAX_LENGTH);
+}
+
+export function clearGuessTyping(match: MatchState): void {
+  if (match.round) {
+    match.round.guessTypingText = "";
+  }
+}
+
+export function clearGuessTypingIfLockOwner(
+  match: MatchState,
+  userId: string,
+): boolean {
+  const round = match.round;
+  if (
+    match.phase !== "in-game" ||
+    !round ||
+    round.phase !== "guessing" ||
+    round.lockOwnerId !== userId
+  ) {
+    return false;
+  }
+
+  clearGuessTyping(match);
+  return true;
+}
+
+/**
+ * Live guess typing for spectators. Returns null when the sender is not the
+ * current lock owner or the round is not in the guessing phase. Payload is
+ * text-only — search results and track metadata are never stored or returned.
+ */
+export function updateGuessTyping(
+  registry: MatchRegistry,
+  socketId: string,
+  text: unknown,
+): { match: MatchState; text: string } | null {
+  const match = getMatchBySocket(registry, socketId);
+  if (!match || match.phase !== "in-game" || !match.round) {
+    return null;
+  }
+
+  if (match.round.phase !== "guessing") {
+    return null;
+  }
+
+  const player = match.players.find((entry) => entry.socketId === socketId);
+  if (!player || match.round.lockOwnerId !== player.userId) {
+    return null;
+  }
+
+  const sanitized = sanitizeGuessTypingText(text);
+  match.round.guessTypingText = sanitized;
+  return { match, text: sanitized };
+}
+
 export function handlePreviewEnded(
   registry: MatchRegistry,
   timers: MatchTimerContext,
@@ -215,6 +279,7 @@ export function requestSkip(
 
   if (allSkipped) {
     round.phase = "resolution-win";
+    round.guessTypingText = "";
 
     emit(match.matchId, "round:skip_complete", {
       matchId: match.matchId,

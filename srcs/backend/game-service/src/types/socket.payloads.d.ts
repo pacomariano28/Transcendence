@@ -63,6 +63,17 @@ export type RoundGuessPayload = {
   artist: string;
 };
 
+export type RoundGuessTypingPayload = {
+  matchId?: string;
+  text: string;
+};
+
+export type RoundGuessTypingBroadcast = {
+  matchId: string;
+  roundIndex: number;
+  text: string;
+};
+
 export type GuessSelectedTrack = {
   isrc: string;
   track: string;

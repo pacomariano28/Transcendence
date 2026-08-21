@@ -1,7 +1,8 @@
-/** Lock status label and Spotify search form for the lock owner. */
+/** Lock status label, guesser search form, and live typing preview for spectators. */
 import { Trans, useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
 import { translateError } from "../../i18n/translateError";
+import GuessTypingDisplay from "./GuessTypingDisplay";
 
 type MatchGuessSectionProps = {
   isMatchFinished: boolean;
@@ -17,6 +18,7 @@ type MatchGuessSectionProps = {
   searchError: string | null;
   onSelectTrack: (track: SpotifySearchTrack) => void;
   onSubmitGuess: () => void;
+  guessTypingText: string;
   canSkip: boolean;
   hasSkipped: boolean;
   skipRequested: boolean;
@@ -50,6 +52,7 @@ export default function MatchGuessSection({
   searchError,
   onSelectTrack,
   onSubmitGuess,
+  guessTypingText,
   canSkip,
   hasSkipped,
   skipRequested,
@@ -220,8 +223,18 @@ export default function MatchGuessSection({
               </div>
             </div>
           ) : (
-            <div className="mt-2 text-sm text-zinc-400">
-              {t("match.guessingPanel.waitingForOwner")}
+            <div className="mt-2">
+              <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
+                {t("match.guessingPanel.guessing")}
+              </div>
+              <div
+                className="input mt-3 flex min-h-[2.75rem] items-center justify-center text-center lowercase tracking-[0.1em] text-zinc-100"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <span className="sr-only">{guessTypingText}</span>
+                <GuessTypingDisplay text={guessTypingText} />
+              </div>
             </div>
           )}
         </div>

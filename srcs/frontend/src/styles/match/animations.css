@@ -1,3 +1,29 @@
+@keyframes guessTypingCharEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.88);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes guessTypingCharExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.86);
+    filter: blur(2px);
+  }
+}
+
 @keyframes matchPlayExit {
   0% {
     opacity: 1;
@@ -187,6 +213,14 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.animate-guess-typing-char-enter {
+  animation: guessTypingCharEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-guess-typing-char-exit {
+  animation: guessTypingCharExit 0.16s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .animate-match-play-exit {

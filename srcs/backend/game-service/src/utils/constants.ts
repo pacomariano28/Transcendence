@@ -12,6 +12,8 @@ export const FALLBACK_PREP_SONGS = 7;
 export const MAX_PLAYER = 5;
 export const ROUND_COUNTDOWN_SECONDS = 5;
 export const GUESS_WINDOW_SECONDS = 20;
+/** Max characters broadcast for live guess typing. Must stay text-only. */
+export const GUESS_TYPING_MAX_LENGTH = 80;
 export const COOLDOWN_SECONDS = 5;
 export const RESOLUTION_SECONDS = 3;
 export const BASE_SCORE = 100;

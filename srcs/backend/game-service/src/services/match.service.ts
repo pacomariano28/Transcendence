@@ -13,7 +13,7 @@
  *   match.lifecycle    — create / join
  *   match.lobby        — ready toggle and game start
  *   match.round-sync   — per-round sync and countdown
- *   match.gameplay     — lock, guess, preview-ended
+ *   match.gameplay     — lock, guess, typing sync, preview-ended
  *   match.connection   — disconnect, reconnect, idle cleanup
  */
 import {
@@ -26,6 +26,8 @@ import {
   requestLock as requestLockAction,
   requestSkip as requestSkipAction,
   submitGuess as submitGuessAction,
+  updateGuessTyping as updateGuessTypingAction,
+  clearGuessTypingIfLockOwner as clearGuessTypingIfLockOwnerAction,
 } from "./match/match.gameplay.js";
 import {
   createMatch as createMatchAction,
@@ -196,6 +198,17 @@ export class MatchService {
       socketId,
       emit,
     );
+  }
+
+  updateGuessTyping(
+    socketId: string,
+    text: unknown,
+  ): { match: MatchState; text: string } | null {
+    return updateGuessTypingAction(this.registry, socketId, text);
+  }
+
+  clearGuessTypingIfLockOwner(match: MatchState, userId: string): boolean {
+    return clearGuessTypingIfLockOwnerAction(match, userId);
   }
 
   getRoundSyncPayload(matchId: string) {

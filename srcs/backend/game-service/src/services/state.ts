@@ -75,5 +75,6 @@ export function createRoundState(match: MatchState): RoundState {
     lockAt: null,
     guessEndsAt: null,
     countdownEndsAt: null,
+    guessTypingText: "",
   };
 }

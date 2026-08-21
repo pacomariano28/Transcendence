@@ -31,6 +31,7 @@ import { useAudioVisualizer } from "../match/hooks/useAudioVisualizer";
 import { useMatchCooldown } from "../match/hooks/useMatchCooldown";
 import { useGuessTimer } from "../match/hooks/useGuessTimer";
 import { useSpotifyGuessSearch } from "../match/hooks/useSpotifyGuessSearch";
+import { useGuessTypingBroadcast } from "../match/hooks/useGuessTypingBroadcast";
 import { useMatchAudio } from "../match/hooks/useMatchAudio";
 import { useLockControls } from "../match/hooks/useLockControls";
 import { useSkipControls } from "../match/hooks/useSkipControls";
@@ -85,6 +86,7 @@ export default function MatchPage() {
   const [guessStatus, setGuessStatus] = useState<GuessStatus>("countdown");
   const [guessResultTrack, setGuessResultTrack] =
     useState<GuessSelectedTrack | null>(null);
+  const [guessTypingText, setGuessTypingText] = useState("");
 
   const { setCooldownEndsAt, isCooldownActive, cooldownSeconds } =
     useMatchCooldown(code, normalizeCode(codeParam ?? ""));
@@ -106,6 +108,20 @@ export default function MatchPage() {
     handleSearchTermChange,
     submitGuess,
   } = useSpotifyGuessSearch({ canGuess, matchCode: code });
+
+  const { emitGuessTyping } = useGuessTypingBroadcast({
+    enabled: canGuess,
+    matchCode: code,
+    hasSelectedTrack: Boolean(selectedTrack),
+  });
+
+  const onSearchTermChange = useCallback(
+    (value: string) => {
+      handleSearchTermChange(value);
+      emitGuessTyping(value);
+    },
+    [handleSearchTermChange, emitGuessTyping],
+  );
 
   const handleAudioError = useCallback((message: string) => {
     setError(message);
@@ -217,6 +233,7 @@ export default function MatchPage() {
     setCooldownEndsAt,
     setGuessStatus,
     setGuessResultTrack,
+    setGuessTypingText,
     resetSearch,
     setRematchPending,
     onRematchReceived: handleRematchReceived,
@@ -390,13 +407,14 @@ export default function MatchPage() {
             lockOwnerName={lockOwnerName}
             canGuess={canGuess}
             searchTerm={searchTerm}
-            onSearchTermChange={handleSearchTermChange}
+            onSearchTermChange={onSearchTermChange}
             selectedTrack={selectedTrack}
             searchResults={searchResults}
             searching={searching}
             searchError={searchError}
             onSelectTrack={selectTrack}
             onSubmitGuess={submitGuess}
+            guessTypingText={guessTypingText}
             canSkip={canSkip}
             hasSkipped={hasSkipped}
             skipRequested={skipRequested}

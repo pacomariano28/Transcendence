@@ -34,6 +34,12 @@ export type RoundLockPayload = {
   guessEndsAt: number | null;
 };
 
+export type RoundGuessTypingPayload = {
+  matchId: string;
+  roundIndex: number;
+  text: string;
+};
+
 export type GuessSelectedTrack = {
   isrc: string;
   track: string;

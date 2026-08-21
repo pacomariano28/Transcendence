@@ -3,6 +3,7 @@ import { matchService } from "../services/match.service.js";
 import type {
   RoundLockPayload,
   RoundGuessPayload,
+  RoundGuessTypingPayload,
   RoundPreviewEndedPayload,
   RoundSkipPayload,
 } from "../types/socket.payloads.js";
@@ -10,6 +11,7 @@ import {
   emitMatchError,
   emitMatchState,
   emitRoundCatchUp,
+  toGuessTypingPayload,
 } from "./socket.helpers.js";
 import { ROUND_COUNTDOWN_SECONDS } from "../utils/constants.js";
 
@@ -71,6 +73,18 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     } catch (error) {
       emitMatchError(socket, error);
     }
+  });
+
+  socket.on("round:guess_typing", (payload?: RoundGuessTypingPayload) => {
+    const result = matchService.updateGuessTyping(socket.id, payload?.text);
+    if (!result) {
+      return;
+    }
+
+    socket.to(result.match.matchId).emit(
+      "round:guess_typing",
+      toGuessTypingPayload(result.match, result.text),
+    );
   });
 
   socket.on("round:preview_ended", (payload: RoundPreviewEndedPayload) => {

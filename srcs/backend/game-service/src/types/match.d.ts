@@ -56,6 +56,8 @@ declare global {
     lockAt: number | null;
     guessEndsAt: number | null;
     countdownEndsAt: number | null;
+    /** Live text the lock owner is typing. Never search results or track metadata. */
+    guessTypingText: string;
   };
 
   export type ScoreEntry = {
