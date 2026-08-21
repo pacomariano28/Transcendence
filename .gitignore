@@ -151,9 +151,6 @@ vite.config.ts.timestamp-*
 *.swp
 *.un~
 
-# Songs
-media
-
 # Authority
 authority
 

@@ -27,6 +27,32 @@ command -v yt-dlp >/dev/null 2>&1 || { echo "yt-dlp missing"; exit 1; }
 command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg missing"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 missing"; exit 1; }
 
+# YouTube now requires yt-dlp-ejs for signature/challenge solving
+if ! python3 -c "import importlib.util; exit(0 if importlib.util.find_spec('yt_dlp_ejs') else 1)" 2>/dev/null; then
+  echo "Installing yt-dlp YouTube support (yt-dlp-ejs)..."
+  pip3 install --user -U "yt-dlp[default]" >/dev/null 2>&1 || {
+    echo "Failed to install yt-dlp[default]. Run: pip3 install -U \"yt-dlp[default]\""
+    exit 1
+  }
+fi
+
+# Clear stale YouTube player cache (common cause of HTTP 403)
+yt-dlp --rm-cache-dir >/dev/null 2>&1 || true
+
+download_audio() {
+  local search_term="$1"
+  local output_file="$2"
+  local error_log="$3"
+
+  yt-dlp --quiet --no-warnings \
+    --extractor-args "youtube:player_client=android,web" \
+    -x --audio-format mp3 \
+    "ytsearch1:$search_term" \
+    -o "$output_file" 2> "$error_log"
+
+  [ -f "$output_file" ] && [ -s "$output_file" ]
+}
+
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 NC="\033[0m"
@@ -61,12 +87,12 @@ done < <(python3 -c '
 import csv, sys
 with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
     reader = csv.DictReader(f)
-    for row in reader:
+    for i, row in enumerate(reader, start=1):
         isrc_key = next((k for k in row if k.strip().lower() == "isrc"), None)
         if isrc_key and row[isrc_key].strip():
             print(row[isrc_key].strip())
         else:
-            print("UNKNOWN_ISRC")
+            print(f"UNKNOWN_ISRC_{i}")
 ' "$CSV_FILE")
 
 if [ ${#songs[@]} -eq 0 ]; then
@@ -82,12 +108,20 @@ SEED_DATA_TMP=$(mktemp)
 
 i=0
 SUCCESS_COUNT=0
+declare -A seen_isrcs
 
 # 6. Download loop with error handling
 for song in "${songs[@]}"
 do
   INDEX=$(printf "%03d" $((i+1)))
   ISRC="${isrcs[$i]}"
+
+  if [[ -n "${seen_isrcs[$ISRC]}" ]]; then
+    echo -e "${RED}⚠️  [$INDEX] duplicate ISRC: $ISRC (Skipping)${NC}"
+    i=$((i+1))
+    continue
+  fi
+  seen_isrcs[$ISRC]=1
 
   # Add the word "audio" to the search query to avoid music videos
   SEARCH_TERM="$song audio"
@@ -98,10 +132,8 @@ do
   PREVIEW_NAME="preview_$INDEX.mp3"
   PREVIEW_PATH="$TARGET_DIR/$PREVIEW_NAME"
 
-  # Use standard ytsearch1, but save error in case it fails
-  if yt-dlp --quiet --no-warnings -x --audio-format mp3 "ytsearch1:$SEARCH_TERM" -o "$FILE" 2> yt-error.log; then
-    
-    if ffmpeg -y -i "$FILE" -ss 00:00:00 -t 20 "$PREVIEW_PATH" >/dev/null 2>&1; then
+  if download_audio "$SEARCH_TERM" "$FILE" yt-error.log; then
+    if ffmpeg -y -i "$FILE" -ss 00:00:00 -t 20 "$PREVIEW_PATH" 2> ffmpeg-error.log; then
 
       rm -f "$FILE"
 
@@ -117,12 +149,14 @@ EOF
       SUCCESS_COUNT=$((SUCCESS_COUNT+1))
 
     else
-      echo -e "${RED}❌ ffmpeg error while trimming audio (Skipping)${NC}"
-      rm -f "$FILE"
+      ERROR_MSG=$(tail -n 1 ffmpeg-error.log 2>/dev/null)
+      echo -e "${RED}❌ ffmpeg error while trimming audio: $ERROR_MSG (Skipping)${NC}"
+      rm -f "$FILE" "$PREVIEW_PATH"
     fi
   else
-    ERROR_MSG=$(cat yt-error.log | head -n 1)
+    ERROR_MSG=$(grep -m1 -E 'ERROR|error' yt-error.log 2>/dev/null || head -n 1 yt-error.log)
     echo -e "${RED}❌ download error in yt-dlp: $ERROR_MSG (Skipping)${NC}"
+    rm -f "$FILE"
   fi
 
   i=$((i+1))
@@ -169,7 +203,7 @@ EOF
 
 # Cleanup
 rm -f "$SEED_DATA_TMP"
-rm -f yt-error.log
+rm -f yt-error.log ffmpeg-error.log
 rm -f songs_tmp.json songs.json 2>/dev/null
 
 echo -e "${GREEN}DONE → $SUCCESS_COUNT songs downloaded successfully and seed.ts updated.${NC}"
