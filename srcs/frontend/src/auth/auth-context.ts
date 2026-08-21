@@ -4,7 +4,7 @@ import { type AuthedUser } from "../api/auth";
 export type AuthState = {
   user: AuthedUser | null;
   loading: boolean;
-  // 🟢 Añadimos parámetros opcionales para controlar cómo recargar la sesión
+  // 🟢 Add optional parameters to control how to renew the session
   reload: (options?: {
     silent?: boolean;
     forceFetch?: boolean;

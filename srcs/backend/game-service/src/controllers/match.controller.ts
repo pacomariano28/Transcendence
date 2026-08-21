@@ -160,7 +160,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
       io.to(match.matchId).emit("match:state", toPayload(match));
     }
-    logInfo(`Socket dejó la partida voluntariamente: ${socket.id}`);
+    logInfo(`Socket left the match voluntarily: ${socket.id}`);
   });
 
   socket.on("match:rematch", () => {

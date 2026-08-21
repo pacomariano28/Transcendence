@@ -37,3 +37,4 @@ export {
   LOCAL_SEED_PLAYLIST_ID,
   isLocalSeedPlaylist,
 } from "./localPlaylist.js";
+export const FORCE_COUNTDOWN_MS = 5000;

@@ -94,8 +94,8 @@ services:
       NODE_ENV: development
       PORT: 4002
       SERVICE_NAME: auth-service
-      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
-      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+      # DATABASE_URL: postgresql://...  (we will add this when we connect the DB)
+      # JWT_SECRET: ...                (we will add this when we implement login)
     env_file:
       - ./backend/auth-service/.env
     container_name: songuess-auth-service
@@ -172,7 +172,7 @@ services:
   #   command: |
   #     sh -c "apk add --no-cache inotify-tools docker-cli && \
   #     inotifywait -r -m -e modify /nginx | while read -r path action file; do \
-  #       echo 'Recargando nginx...'; \
+  #       echo 'Reloading nginx...'; \
   #       docker exec songuess-nginx nginx -s reload; \
   #     done"
   #   depends_on:

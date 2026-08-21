@@ -1,54 +1,55 @@
-# Documento Técnico Consolidado: Multiplayer Music Trivia
+# Consolidated Technical Document: Multiplayer Music Trivia
 
-## 1. Roadmap de Desarrollo
+## 1. Development Roadmap
 
-### Fase 1: Infraestructura y Base de Datos
-* **Nginx:** Configurar como proxy inverso para HTTPS y gestión de recursos estáticos de React.
-* **Enrutamiento:** Redirigir `/api/*` y WebSockets al API Gateway.
-* **Arquitectura:** Despliegue en contenedores independientes:
+### Phase 1: Infrastructure and Database
+* **Nginx:** Configure as a reverse proxy for HTTPS and serving static React assets.
+* **Routing:** Redirect `/api/*` and WebSockets to the API Gateway.
+* **Architecture:** Deployment across isolated containers:
     * API Gateway
-      * Implementación de ruta /api/search con proxy a iTunes y sistema de caché temporal.
+        * Implementation of the `/api/search` route with proxying to iTunes and a temporary caching system.
     * Game Service
     * Auth & User Service
     * Content Service
-* **Persistencia:** PostgreSQL + Prisma ORM.
+* **Persistence:** PostgreSQL + Prisma ORM.
 
-### Fase 2: Autenticación y Perfilado (Auth Service)
-* **OAuth 2.0:** Implementación con Spotify API.
-* **Data Extraction:** Obtención de metadatos musicales para generar el `taste_profile` (JSON).
-* **Gateway:** Validación de tokens globales y aplicación de *rate limiting*.
+### Phase 2: Authentication and Profiling (Auth Service)
+* **OAuth 2.0:** Implementation with Spotify API.
+* **Data Extraction:** Retrieval of musical metadata to generate the `taste_profile` (JSON).
+* **Gateway:** Global token validation and rate limiting enforcement.
 
-### Fase 3: Motor de Generación (Content Service)
-* **Ingesta:** Recepción de perfiles agregados vía HTTP REST síncrono.
-* **IA:** Integración con OpenAI/Gemini para procesar géneros y artistas.
-* **Validación:** Consulta a iTunes Search API para confirmar URLs de audio (.mp3, 15s).
-* **Fallback:** Lógica de reemplazo automático si iTunes no devuelve resultados.
+### Phase 3: Generation Engine (Content Service)
+* **Ingestion:** Reception of aggregated profiles via synchronous HTTP REST.
+* **AI:** Integration with OpenAI/Gemini to process genres and artists.
+* **Validation:** Queries to iTunes Search API to confirm audio URLs (.mp3, 15s).
+* **Fallback:** Automatic replacement logic if iTunes returns no results.
 
-### Fase 4: Desarrollo de Cliente (Frontend)
+### Phase 4: Client Development (Frontend)
 * **Stack:** React + Vite (HMR) + Tailwind CSS.
-* **Audio:** Web Audio API (`AudioContext`) para mitigar *audio drift*.
-* **Búsqueda:** * Input con *debounce* de 300ms.
-    * Consultas REST al endpoint de búsqueda en el API Gateway.
-* **UX:** UI optimista (bloqueo instantáneo con barra espaciadora).
+* **Audio:** Web Audio API (`AudioContext`) to mitigate audio drift.
+* **Search:**
+    * Input with 300ms debounce.
+    * REST queries to the search endpoint on the API Gateway.
+* **UX:** Optimistic UI (instant lock via Spacebar).
 
-### Fase 5: Máquina de Estados (Game Service & WebSockets)
-* **Socket.io:** Fuente de verdad para temporizadores y salas en memoria.
-* **Sincronización:**
-    1. Distribución de URLs.
-    2. Recepción de `READY`.
+### Phase 5: State Machine (Game Service & WebSockets)
+* **Socket.io:** Source of truth for in-memory timers and rooms.
+* **Synchronization:**
+    1. Distribution of URLs.
+    2. Reception of `READY`.
     3. `START_COUNTDOWN` (5s).
-    4. Inicio de audio y temporizador de servidor (0.0s - 15.0s).
-* **Eventos:**
-    * `LOCK_REQUEST`: Validación de estado.
-    * `GAME_PAUSED`: Timestamp exacto para detener audio en clientes.
-    * `SUBMIT_GUESS`: Procesamiento y emisión de `GUESS_REVEAL`.
+    4. Audio playback start and server-side timer (0.0s - 15.0s).
+* **Events:**
+    * `LOCK_REQUEST`: State validation.
+    * `GAME_PAUSED`: Exact timestamp to stop audio on clients.
+    * `SUBMIT_GUESS`: Processing and emission of `GUESS_REVEAL`.
 
-### Fase 6: Puntuación y Gestión de Errores
+### Phase 6: Scoring and Error Handling
 
-| Concepto | Lógica Aplicada |
+| Concept | Applied Logic |
 | :--- | :--- |
-| **Acierto** | Puntos base + Bono de velocidad (`(Total - Transcurrido) * Factor`) |
-| **Fallo/Timeout** | Penalización fija + `COOLDOWN` de 5s (entrada deshabilitada) |
-| **Desconexión** | Reanudación inmediata del audio para el resto de jugadores |
-| **Troll Pause** | Límite de 10s en servidor -> Penalización + Reanudación automática |
-| **Drift Correction** | Reanudación con `seekTo` basado en timestamp del servidor |
+| **Correct Answer** | Base points + Speed bonus (`(Total - Elapsed) * Factor`) |
+| **Wrong Answer / Timeout** | Fixed penalty + 5s `COOLDOWN` (input disabled) |
+| **Disconnection** | Immediate playback resume for remaining players |
+| **Troll Pause** | 10s server-side limit -> Penalty + Automatic resume |
+| **Drift Correction** | Resume playback with `seekTo` based on server timestamp |

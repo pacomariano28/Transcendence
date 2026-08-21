@@ -25,6 +25,6 @@ RUN apk add --no-cache ffmpeg python3 py3-pip \
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci
-# en dev montamos el código desde volumen, por eso no copiamos el resto
+# in dev we mount the code via volume, which is why we don't copy the rest
 EXPOSE 4004
 CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npx tsx prisma/seed.ts && npm run dev"]

@@ -1,10 +1,14 @@
 /**
  * Per-round sync phase before countdown.
  *
- * Each connected player must ack `round:ready`. If one player never acks,
- * FORCE_COUNTDOWN_MS starts the countdown anyway so the round cannot stall.
+ * Each connected player must ack `round:ready` (fired once the browser's
+ * audio element has buffered the round's preview track). If one player
+ * never acks — slow connection, backgrounded tab, etc — FORCE_COUNTDOWN_MS
+ * starts the countdown anyway once the first player is ready, so the round
+ * cannot stall forever waiting on a straggler.
  */
 import {
+  FORCE_COUNTDOWN_MS,
   ROUND_COUNTDOWN_SECONDS,
   SECOND_MS,
 } from "../../utils/constants.js";
@@ -15,9 +19,6 @@ import {
 } from "./match.registry.js";
 import type { MatchTimerContext } from "./match.timers.js";
 import { getConnectedPlayers } from "./match.utils.js";
-
-/** Max wait for all players to ack round sync before forcing countdown. */
-const FORCE_COUNTDOWN_MS = 150;
 
 export function markRoundReady(
   registry: MatchRegistry,
@@ -69,7 +70,7 @@ export function markRoundReady(
         match.round.phase === "sync"
       ) {
         console.log(
-          `[Match ${match.matchId}] Forzando inicio de ronda por jugador ausente.`,
+          `[Match ${match.matchId}] Forcing round start due to missing player.`,
         );
 
         match.round.phase = "countdown";

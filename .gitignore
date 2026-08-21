@@ -157,5 +157,4 @@ media
 # Authority
 authority
 
-# Local machine bootstrap state (IP / cert generation)
-infra/.machine-state
+.machine-state
