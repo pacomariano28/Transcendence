@@ -17,7 +17,11 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
 import { socket } from "../api/socket";
-import type { MatchStatePayload, RematchPayload, ScoreEntry } from "../types/socket.payloads";
+import type {
+  MatchStatePayload,
+  RematchPayload,
+  ScoreEntry,
+} from "../types/socket.payloads";
 import NotFoundPage from "./NotFoundPage";
 import MatchPageHeader from "../match/components/MatchPageHeader";
 import MatchPlaySection from "../match/components/MatchPlaySection";
@@ -259,6 +263,15 @@ export default function MatchPage() {
     nav("/");
   }, [nav, setActiveMatch]);
 
+  const leaveMatch = useCallback(() => {
+    if (socket.connected) {
+      socket.emit("match:leave");
+    }
+
+    setActiveMatch(null);
+    nav("/");
+  }, [nav, setActiveMatch]);
+
   const requestRematch = useCallback(() => {
     if (!socket.connected) {
       socket.connect();
@@ -402,6 +415,11 @@ export default function MatchPage() {
             roundPhase={roundPhase}
             skipUserIds={skipUserIds}
           />
+        </div>
+        <div className="flex w-full justify-end">
+          <button className="btn-ghost" type="button" onClick={leaveMatch}>
+            {t("lobby.leaveRoom")}
+          </button>
         </div>
       </div>
     </div>
