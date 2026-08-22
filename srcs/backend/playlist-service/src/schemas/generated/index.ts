@@ -14,6 +14,8 @@ export const TransactionIsolationLevelSchema = z.enum(['ReadUncommitted','ReadCo
 
 export const SongScalarFieldEnumSchema = z.enum(['id','isrc','fileName','spotifyTrackId','title','artist','status','failReason','source','used','createdAt','updatedAt']);
 
+export const ClipCounterScalarFieldEnumSchema = z.enum(['id']);
+
 export const PlaylistTrackUsageScalarFieldEnumSchema = z.enum(['id','playlistKey','isrc','used','createdAt','updatedAt']);
 
 export const SortOrderSchema = z.enum(['asc','desc']);
@@ -50,6 +52,19 @@ export const SongSchema = z.object({
 })
 
 export type Song = z.infer<typeof SongSchema>
+
+/////////////////////////////////////////
+// CLIP COUNTER SCHEMA
+/////////////////////////////////////////
+
+/**
+ * Global monotonic counter for opaque clip file names (clip_000042.ext).
+ */
+export const ClipCounterSchema = z.object({
+  id: z.number().int(),
+})
+
+export type ClipCounter = z.infer<typeof ClipCounterSchema>
 
 /////////////////////////////////////////
 // PLAYLIST TRACK USAGE SCHEMA
@@ -89,6 +104,13 @@ export const SongSelectSchema: z.ZodType<Prisma.SongSelect> = z.object({
   used: z.boolean().optional(),
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
+}).strict()
+
+// CLIP COUNTER
+//------------------------------------------------------
+
+export const ClipCounterSelectSchema: z.ZodType<Prisma.ClipCounterSelect> = z.object({
+  id: z.boolean().optional(),
 }).strict()
 
 // PLAYLIST TRACK USAGE
@@ -221,6 +243,43 @@ export const SongScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.SongScal
   used: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema), z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
+});
+
+export const ClipCounterWhereInputSchema: z.ZodType<Prisma.ClipCounterWhereInput> = z.strictObject({
+  AND: z.union([ z.lazy(() => ClipCounterWhereInputSchema), z.lazy(() => ClipCounterWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ClipCounterWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ClipCounterWhereInputSchema), z.lazy(() => ClipCounterWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
+});
+
+export const ClipCounterOrderByWithRelationInputSchema: z.ZodType<Prisma.ClipCounterOrderByWithRelationInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const ClipCounterWhereUniqueInputSchema: z.ZodType<Prisma.ClipCounterWhereUniqueInput> = z.object({
+  id: z.number().int(),
+})
+.and(z.strictObject({
+  id: z.number().int().optional(),
+  AND: z.union([ z.lazy(() => ClipCounterWhereInputSchema), z.lazy(() => ClipCounterWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ClipCounterWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ClipCounterWhereInputSchema), z.lazy(() => ClipCounterWhereInputSchema).array() ]).optional(),
+}));
+
+export const ClipCounterOrderByWithAggregationInputSchema: z.ZodType<Prisma.ClipCounterOrderByWithAggregationInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  _count: z.lazy(() => ClipCounterCountOrderByAggregateInputSchema).optional(),
+  _avg: z.lazy(() => ClipCounterAvgOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => ClipCounterMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => ClipCounterMinOrderByAggregateInputSchema).optional(),
+  _sum: z.lazy(() => ClipCounterSumOrderByAggregateInputSchema).optional(),
+});
+
+export const ClipCounterScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.ClipCounterScalarWhereWithAggregatesInput> = z.strictObject({
+  AND: z.union([ z.lazy(() => ClipCounterScalarWhereWithAggregatesInputSchema), z.lazy(() => ClipCounterScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ClipCounterScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ClipCounterScalarWhereWithAggregatesInputSchema), z.lazy(() => ClipCounterScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => IntWithAggregatesFilterSchema), z.number() ]).optional(),
 });
 
 export const PlaylistTrackUsageWhereInputSchema: z.ZodType<Prisma.PlaylistTrackUsageWhereInput> = z.strictObject({
@@ -396,6 +455,31 @@ export const SongUncheckedUpdateManyInputSchema: z.ZodType<Prisma.SongUncheckedU
   used: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const ClipCounterCreateInputSchema: z.ZodType<Prisma.ClipCounterCreateInput> = z.strictObject({
+});
+
+export const ClipCounterUncheckedCreateInputSchema: z.ZodType<Prisma.ClipCounterUncheckedCreateInput> = z.strictObject({
+  id: z.number().int().optional(),
+});
+
+export const ClipCounterUpdateInputSchema: z.ZodType<Prisma.ClipCounterUpdateInput> = z.strictObject({
+});
+
+export const ClipCounterUncheckedUpdateInputSchema: z.ZodType<Prisma.ClipCounterUncheckedUpdateInput> = z.strictObject({
+  id: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export const ClipCounterCreateManyInputSchema: z.ZodType<Prisma.ClipCounterCreateManyInput> = z.strictObject({
+  id: z.number().int().optional(),
+});
+
+export const ClipCounterUpdateManyMutationInputSchema: z.ZodType<Prisma.ClipCounterUpdateManyMutationInput> = z.strictObject({
+});
+
+export const ClipCounterUncheckedUpdateManyInputSchema: z.ZodType<Prisma.ClipCounterUncheckedUpdateManyInput> = z.strictObject({
+  id: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 });
 
 export const PlaylistTrackUsageCreateInputSchema: z.ZodType<Prisma.PlaylistTrackUsageCreateInput> = z.strictObject({
@@ -632,6 +716,53 @@ export const DateTimeWithAggregatesFilterSchema: z.ZodType<Prisma.DateTimeWithAg
   _max: z.lazy(() => NestedDateTimeFilterSchema).optional(),
 });
 
+export const IntFilterSchema: z.ZodType<Prisma.IntFilter> = z.strictObject({
+  equals: z.number().optional(),
+  in: z.number().array().optional(),
+  notIn: z.number().array().optional(),
+  lt: z.number().optional(),
+  lte: z.number().optional(),
+  gt: z.number().optional(),
+  gte: z.number().optional(),
+  not: z.union([ z.number(),z.lazy(() => NestedIntFilterSchema) ]).optional(),
+});
+
+export const ClipCounterCountOrderByAggregateInputSchema: z.ZodType<Prisma.ClipCounterCountOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const ClipCounterAvgOrderByAggregateInputSchema: z.ZodType<Prisma.ClipCounterAvgOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const ClipCounterMaxOrderByAggregateInputSchema: z.ZodType<Prisma.ClipCounterMaxOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const ClipCounterMinOrderByAggregateInputSchema: z.ZodType<Prisma.ClipCounterMinOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const ClipCounterSumOrderByAggregateInputSchema: z.ZodType<Prisma.ClipCounterSumOrderByAggregateInput> = z.strictObject({
+  id: z.lazy(() => SortOrderSchema).optional(),
+});
+
+export const IntWithAggregatesFilterSchema: z.ZodType<Prisma.IntWithAggregatesFilter> = z.strictObject({
+  equals: z.number().optional(),
+  in: z.number().array().optional(),
+  notIn: z.number().array().optional(),
+  lt: z.number().optional(),
+  lte: z.number().optional(),
+  gt: z.number().optional(),
+  gte: z.number().optional(),
+  not: z.union([ z.number(),z.lazy(() => NestedIntWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _avg: z.lazy(() => NestedFloatFilterSchema).optional(),
+  _sum: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedIntFilterSchema).optional(),
+  _max: z.lazy(() => NestedIntFilterSchema).optional(),
+});
+
 export const PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInputSchema: z.ZodType<Prisma.PlaylistTrackUsagePlaylistKeyIsrcCompoundUniqueInput> = z.strictObject({
   playlistKey: z.string(),
   isrc: z.string(),
@@ -682,6 +813,14 @@ export const BoolFieldUpdateOperationsInputSchema: z.ZodType<Prisma.BoolFieldUpd
 
 export const DateTimeFieldUpdateOperationsInputSchema: z.ZodType<Prisma.DateTimeFieldUpdateOperationsInput> = z.strictObject({
   set: z.coerce.date().optional(),
+});
+
+export const IntFieldUpdateOperationsInputSchema: z.ZodType<Prisma.IntFieldUpdateOperationsInput> = z.strictObject({
+  set: z.number().optional(),
+  increment: z.number().optional(),
+  decrement: z.number().optional(),
+  multiply: z.number().optional(),
+  divide: z.number().optional(),
 });
 
 export const NestedStringFilterSchema: z.ZodType<Prisma.NestedStringFilter> = z.strictObject({
@@ -823,6 +962,33 @@ export const NestedDateTimeWithAggregatesFilterSchema: z.ZodType<Prisma.NestedDa
   _max: z.lazy(() => NestedDateTimeFilterSchema).optional(),
 });
 
+export const NestedIntWithAggregatesFilterSchema: z.ZodType<Prisma.NestedIntWithAggregatesFilter> = z.strictObject({
+  equals: z.number().optional(),
+  in: z.number().array().optional(),
+  notIn: z.number().array().optional(),
+  lt: z.number().optional(),
+  lte: z.number().optional(),
+  gt: z.number().optional(),
+  gte: z.number().optional(),
+  not: z.union([ z.number(),z.lazy(() => NestedIntWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _avg: z.lazy(() => NestedFloatFilterSchema).optional(),
+  _sum: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedIntFilterSchema).optional(),
+  _max: z.lazy(() => NestedIntFilterSchema).optional(),
+});
+
+export const NestedFloatFilterSchema: z.ZodType<Prisma.NestedFloatFilter> = z.strictObject({
+  equals: z.number().optional(),
+  in: z.number().array().optional(),
+  notIn: z.number().array().optional(),
+  lt: z.number().optional(),
+  lte: z.number().optional(),
+  gt: z.number().optional(),
+  gte: z.number().optional(),
+  not: z.union([ z.number(),z.lazy(() => NestedFloatFilterSchema) ]).optional(),
+});
+
 /////////////////////////////////////////
 // ARGS
 /////////////////////////////////////////
@@ -882,6 +1048,63 @@ export const SongFindUniqueArgsSchema: z.ZodType<Prisma.SongFindUniqueArgs> = z.
 export const SongFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.SongFindUniqueOrThrowArgs> = z.object({
   select: SongSelectSchema.optional(),
   where: SongWhereUniqueInputSchema, 
+}).strict();
+
+export const ClipCounterFindFirstArgsSchema: z.ZodType<Prisma.ClipCounterFindFirstArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereInputSchema.optional(), 
+  orderBy: z.union([ ClipCounterOrderByWithRelationInputSchema.array(), ClipCounterOrderByWithRelationInputSchema ]).optional(),
+  cursor: ClipCounterWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ClipCounterScalarFieldEnumSchema, ClipCounterScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const ClipCounterFindFirstOrThrowArgsSchema: z.ZodType<Prisma.ClipCounterFindFirstOrThrowArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereInputSchema.optional(), 
+  orderBy: z.union([ ClipCounterOrderByWithRelationInputSchema.array(), ClipCounterOrderByWithRelationInputSchema ]).optional(),
+  cursor: ClipCounterWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ClipCounterScalarFieldEnumSchema, ClipCounterScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const ClipCounterFindManyArgsSchema: z.ZodType<Prisma.ClipCounterFindManyArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereInputSchema.optional(), 
+  orderBy: z.union([ ClipCounterOrderByWithRelationInputSchema.array(), ClipCounterOrderByWithRelationInputSchema ]).optional(),
+  cursor: ClipCounterWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ClipCounterScalarFieldEnumSchema, ClipCounterScalarFieldEnumSchema.array() ]).optional(),
+}).strict();
+
+export const ClipCounterAggregateArgsSchema: z.ZodType<Prisma.ClipCounterAggregateArgs> = z.object({
+  where: ClipCounterWhereInputSchema.optional(), 
+  orderBy: z.union([ ClipCounterOrderByWithRelationInputSchema.array(), ClipCounterOrderByWithRelationInputSchema ]).optional(),
+  cursor: ClipCounterWhereUniqueInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict();
+
+export const ClipCounterGroupByArgsSchema: z.ZodType<Prisma.ClipCounterGroupByArgs> = z.object({
+  where: ClipCounterWhereInputSchema.optional(), 
+  orderBy: z.union([ ClipCounterOrderByWithAggregationInputSchema.array(), ClipCounterOrderByWithAggregationInputSchema ]).optional(),
+  by: ClipCounterScalarFieldEnumSchema.array(), 
+  having: ClipCounterScalarWhereWithAggregatesInputSchema.optional(), 
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict();
+
+export const ClipCounterFindUniqueArgsSchema: z.ZodType<Prisma.ClipCounterFindUniqueArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereUniqueInputSchema, 
+}).strict();
+
+export const ClipCounterFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.ClipCounterFindUniqueOrThrowArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereUniqueInputSchema, 
 }).strict();
 
 export const PlaylistTrackUsageFindFirstArgsSchema: z.ZodType<Prisma.PlaylistTrackUsageFindFirstArgs> = z.object({
@@ -988,6 +1211,56 @@ export const SongUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.SongUpdateManyA
 
 export const SongDeleteManyArgsSchema: z.ZodType<Prisma.SongDeleteManyArgs> = z.object({
   where: SongWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const ClipCounterCreateArgsSchema: z.ZodType<Prisma.ClipCounterCreateArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  data: z.union([ ClipCounterCreateInputSchema, ClipCounterUncheckedCreateInputSchema ]).optional(),
+}).strict();
+
+export const ClipCounterUpsertArgsSchema: z.ZodType<Prisma.ClipCounterUpsertArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereUniqueInputSchema, 
+  create: z.union([ ClipCounterCreateInputSchema, ClipCounterUncheckedCreateInputSchema ]),
+  update: z.union([ ClipCounterUpdateInputSchema, ClipCounterUncheckedUpdateInputSchema ]),
+}).strict();
+
+export const ClipCounterCreateManyArgsSchema: z.ZodType<Prisma.ClipCounterCreateManyArgs> = z.object({
+  data: z.union([ ClipCounterCreateManyInputSchema, ClipCounterCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict();
+
+export const ClipCounterCreateManyAndReturnArgsSchema: z.ZodType<Prisma.ClipCounterCreateManyAndReturnArgs> = z.object({
+  data: z.union([ ClipCounterCreateManyInputSchema, ClipCounterCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict();
+
+export const ClipCounterDeleteArgsSchema: z.ZodType<Prisma.ClipCounterDeleteArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  where: ClipCounterWhereUniqueInputSchema, 
+}).strict();
+
+export const ClipCounterUpdateArgsSchema: z.ZodType<Prisma.ClipCounterUpdateArgs> = z.object({
+  select: ClipCounterSelectSchema.optional(),
+  data: z.union([ ClipCounterUpdateInputSchema, ClipCounterUncheckedUpdateInputSchema ]),
+  where: ClipCounterWhereUniqueInputSchema, 
+}).strict();
+
+export const ClipCounterUpdateManyArgsSchema: z.ZodType<Prisma.ClipCounterUpdateManyArgs> = z.object({
+  data: z.union([ ClipCounterUpdateManyMutationInputSchema, ClipCounterUncheckedUpdateManyInputSchema ]),
+  where: ClipCounterWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const ClipCounterUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.ClipCounterUpdateManyAndReturnArgs> = z.object({
+  data: z.union([ ClipCounterUpdateManyMutationInputSchema, ClipCounterUncheckedUpdateManyInputSchema ]),
+  where: ClipCounterWhereInputSchema.optional(), 
+  limit: z.number().optional(),
+}).strict();
+
+export const ClipCounterDeleteManyArgsSchema: z.ZodType<Prisma.ClipCounterDeleteManyArgs> = z.object({
+  where: ClipCounterWhereInputSchema.optional(), 
   limit: z.number().optional(),
 }).strict();
 

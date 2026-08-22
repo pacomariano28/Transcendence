@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,13 +19,19 @@ export type EnsureTrackResult = {
   failReason: string | null;
 };
 
-const MEDIA_DIR =
-  process.env.MEDIA_DIR || "/media";
-const inFlight = new Set<string>();
+const MEDIA_DIR = process.env.MEDIA_DIR || "/media";
+const CLIP_DURATION_SECONDS = 20;
+const MAX_CONCURRENT_CLIPS = 3;
+const YTDLP_PARTIAL_TIMEOUT_MS = 60_000;
+const YTDLP_FULL_TIMEOUT_MS = 120_000;
+const FFMPEG_TRIM_TIMEOUT_MS = 30_000;
 
-function safeFileName(isrc: string): string {
-  const hash = isrc.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40);
-  return `clip_${hash}.mp3`;
+const inFlight = new Set<string>();
+const clipQueue: EnsureTrackInput[] = [];
+let activeClipJobs = 0;
+
+function clipNumberBase(clipNumber: number): string {
+  return `clip_${String(clipNumber).padStart(6, "0")}`;
 }
 
 function runCommand(
@@ -62,92 +69,220 @@ async function toolsAvailable(): Promise<boolean> {
   return yt.code === 0 && ff.code === 0;
 }
 
+async function allocateClipNumber(): Promise<number> {
+  const row = await prisma.clipCounter.create({ data: {} });
+  return row.id;
+}
+
+async function findClipFileByNumber(
+  clipNumber: number,
+): Promise<string | null> {
+  const base = clipNumberBase(clipNumber);
+  const prefix = `${base}.`;
+  const files = await fs.readdir(MEDIA_DIR);
+  return files.find((file) => file.startsWith(prefix)) ?? null;
+}
+
+async function findTempDownload(stem: string): Promise<string | null> {
+  const prefix = `${stem}.`;
+  const files = await fs.readdir(MEDIA_DIR);
+  return files.find((file) => file.startsWith(prefix)) ?? null;
+}
+
+async function removeFilesByPrefix(prefix: string): Promise<void> {
+  const files = await fs.readdir(MEDIA_DIR).catch(() => [] as string[]);
+  await Promise.all(
+    files
+      .filter((file) => file.startsWith(prefix))
+      .map((file) =>
+        fs.unlink(path.join(MEDIA_DIR, file)).catch(() => undefined),
+      ),
+  );
+}
+
+function buildSearchUrl(search: string): string {
+  return `https://music.youtube.com/search?q=${encodeURIComponent(search)}#songs`;
+}
+
+function partialDownloadArgs(
+  searchUrl: string,
+  outputTemplate: string,
+): string[] {
+  return [
+    "-I",
+    "1",
+    searchUrl,
+    "--download-sections",
+    `*0-${CLIP_DURATION_SECONDS}`,
+    "-f",
+    "bestaudio/best",
+    "--no-embed-metadata",
+    "--quiet",
+    "--no-warnings",
+    "-o",
+    outputTemplate,
+  ];
+}
+
+function fullDownloadArgs(searchUrl: string, outputTemplate: string): string[] {
+  return [
+    "ytmsearch1:" -x --match-filter "title !~* '(?i)(live | en vivo)'"
+    "-I",
+    "1",
+    searchUrl,
+    "-f",
+    "bestaudio/best",
+    "--no-embed-metadata",
+    "--quiet",
+    "--no-warnings",
+    "-o",
+    outputTemplate,
+  ];
+}
+
+async function trimWithFfmpeg(
+  inputPath: string,
+  outputPath: string,
+): Promise<{ code: number; stderr: string }> {
+  const copyResult = await runCommand(
+    "ffmpeg",
+    [
+      "-y",
+      "-i",
+      inputPath,
+      "-ss",
+      "0",
+      "-t",
+      String(CLIP_DURATION_SECONDS),
+      "-c",
+      "copy",
+      outputPath,
+    ],
+    FFMPEG_TRIM_TIMEOUT_MS,
+  );
+
+  if (copyResult.code === 0) {
+    return copyResult;
+  }
+
+  return runCommand(
+    "ffmpeg",
+    [
+      "-y",
+      "-i",
+      inputPath,
+      "-ss",
+      "0",
+      "-t",
+      String(CLIP_DURATION_SECONDS),
+      outputPath,
+    ],
+    FFMPEG_TRIM_TIMEOUT_MS,
+  );
+}
+
+async function markClipFailed(
+  isrc: string,
+  failReason: string,
+  clipNumber?: number,
+): Promise<void> {
+  if (clipNumber !== undefined) {
+    await removeFilesByPrefix(`${clipNumberBase(clipNumber)}.`);
+  }
+
+  await prisma.song.update({
+    where: { isrc },
+    data: { status: "failed", failReason },
+  });
+}
+
 /**
- * Best-effort clip generation from t=0 using yt-dlp + ffmpeg.
- * Experimental — may fail if tools/media volume are missing.
+ * Best-effort clip generation from t=0 using yt-dlp (partial native download)
+ * with fallback to full download + ffmpeg trim.
  */
 async function generateClip(track: EnsureTrackInput): Promise<void> {
   const search = [track.title, track.artist].filter(Boolean).join(" ").trim();
   if (!search) {
-    await prisma.song.update({
-      where: { isrc: track.isrc },
-      data: {
-        status: "failed",
-        failReason: "MISSING_TITLE_ARTIST",
-      },
-    });
+    await markClipFailed(track.isrc, "MISSING_TITLE_ARTIST");
     return;
   }
 
   if (!(await toolsAvailable())) {
-    await prisma.song.update({
-      where: { isrc: track.isrc },
-      data: {
-        status: "failed",
-        failReason: "CLIP_TOOLS_UNAVAILABLE",
-      },
-    });
+    await markClipFailed(track.isrc, "CLIP_TOOLS_UNAVAILABLE");
     return;
   }
 
   try {
     await fs.mkdir(MEDIA_DIR, { recursive: true });
   } catch {
-    await prisma.song.update({
-      where: { isrc: track.isrc },
-      data: { status: "failed", failReason: "MEDIA_DIR_UNAVAILABLE" },
-    });
+    await markClipFailed(track.isrc, "MEDIA_DIR_UNAVAILABLE");
     return;
   }
 
-  const fileName = safeFileName(track.isrc);
-  const outPath = path.join(MEDIA_DIR, fileName);
-  const tmpFull = path.join(MEDIA_DIR, `tmp_full_${track.isrc}.mp3`);
+  const clipNumber = await allocateClipNumber();
+  const clipBase = clipNumberBase(clipNumber);
+  const outputTemplate = path.join(MEDIA_DIR, `${clipBase}.%(ext)s`);
+  const searchUrl = buildSearchUrl(search);
 
-  const download = await runCommand(
+  const partial = await runCommand(
     "yt-dlp",
-    [
-      "-x",
-      "--audio-format",
-      "mp3",
-      "--quiet",
-      "--no-warnings",
-      `ytsearch1:${search}`,
-      "-o",
-      tmpFull,
-    ],
-    180_000,
+    partialDownloadArgs(searchUrl, outputTemplate),
+    YTDLP_PARTIAL_TIMEOUT_MS,
   );
 
-  if (download.code !== 0) {
-    await prisma.song.update({
-      where: { isrc: track.isrc },
-      data: {
-        status: "failed",
-        failReason: `YTDLP_FAILED:${download.stderr.slice(0, 200)}`,
-      },
-    });
-    await fs.unlink(tmpFull).catch(() => undefined);
-    return;
+  let fileName = await findClipFileByNumber(clipNumber);
+
+  if (partial.code !== 0 || !fileName) {
+    await removeFilesByPrefix(`${clipBase}.`);
+
+    const tempStem = `tmp_${randomUUID()}`;
+    const tempTemplate = path.join(MEDIA_DIR, `${tempStem}.%(ext)s`);
+    const fullDownload = await runCommand(
+      "yt-dlp",
+      fullDownloadArgs(searchUrl, tempTemplate),
+      YTDLP_FULL_TIMEOUT_MS,
+    );
+
+    const tempFileName = await findTempDownload(tempStem);
+    if (fullDownload.code !== 0 || !tempFileName) {
+      await removeFilesByPrefix(`${tempStem}.`);
+      await markClipFailed(
+        track.isrc,
+        `YTDLP_FAILED:${(fullDownload.stderr || partial.stderr).slice(0, 200)}`,
+        clipNumber,
+      );
+      return;
+    }
+
+    const tempPath = path.join(MEDIA_DIR, tempFileName);
+    const ext = path.extname(tempFileName);
+    fileName = `${clipBase}${ext}`;
+    const clipPath = path.join(MEDIA_DIR, fileName);
+
+    const trim = await trimWithFfmpeg(tempPath, clipPath);
+    await fs.unlink(tempPath).catch(() => undefined);
+
+    if (trim.code !== 0) {
+      await fs.unlink(clipPath).catch(() => undefined);
+      await markClipFailed(
+        track.isrc,
+        `FFMPEG_FAILED:${trim.stderr.slice(0, 200)}`,
+        clipNumber,
+      );
+      return;
+    }
   }
 
-  const clip = await runCommand(
-    "ffmpeg",
-    ["-y", "-i", tmpFull, "-ss", "0", "-t", "20", "-acodec", "libmp3lame", outPath],
-    60_000,
-  );
-
-  await fs.unlink(tmpFull).catch(() => undefined);
-
-  if (clip.code !== 0) {
-    await prisma.song.update({
-      where: { isrc: track.isrc },
-      data: {
-        status: "failed",
-        failReason: `FFMPEG_FAILED:${clip.stderr.slice(0, 200)}`,
-      },
-    });
-    await fs.unlink(outPath).catch(() => undefined);
+  const clipPath = path.join(MEDIA_DIR, fileName);
+  try {
+    const stat = await fs.stat(clipPath);
+    if (stat.size <= 0) {
+      await fs.unlink(clipPath).catch(() => undefined);
+      await markClipFailed(track.isrc, "CLIP_EMPTY_FILE", clipNumber);
+      return;
+    }
+  } catch {
+    await markClipFailed(track.isrc, "CLIP_FILE_MISSING", clipNumber);
     return;
   }
 
@@ -165,17 +300,29 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
   });
 }
 
+function drainClipQueue(): void {
+  while (activeClipJobs < MAX_CONCURRENT_CLIPS && clipQueue.length > 0) {
+    const track = clipQueue.shift();
+    if (!track) return;
+
+    activeClipJobs += 1;
+    void generateClip(track)
+      .catch((err) => {
+        console.error(`[clip-worker] Failed for ${track.isrc}`, err);
+      })
+      .finally(() => {
+        activeClipJobs -= 1;
+        inFlight.delete(track.isrc);
+        drainClipQueue();
+      });
+  }
+}
+
 function enqueueClip(track: EnsureTrackInput): void {
   if (inFlight.has(track.isrc)) return;
   inFlight.add(track.isrc);
-
-  void generateClip(track)
-    .catch((err) => {
-      console.error(`[clip-worker] Failed for ${track.isrc}`, err);
-    })
-    .finally(() => {
-      inFlight.delete(track.isrc);
-    });
+  clipQueue.push(track);
+  drainClipQueue();
 }
 
 /**

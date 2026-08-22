@@ -35,6 +35,11 @@ model Song {
   updatedAt      DateTime   @updatedAt
 }
 
+/// Global monotonic counter for opaque clip file names (clip_000042.ext).
+model ClipCounter {
+  id Int @id @default(autoincrement())
+}
+
 /// Per-playlist rotation for lobby selections (separate from global Song.used pool).
 model PlaylistTrackUsage {
   id          String   @id @default(uuid())
