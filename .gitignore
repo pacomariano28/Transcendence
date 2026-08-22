@@ -155,3 +155,7 @@ vite.config.ts.timestamp-*
 authority
 
 .machine-state
+
+.cursor
+
+clip*.mp3
