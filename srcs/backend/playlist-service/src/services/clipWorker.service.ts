@@ -25,6 +25,8 @@ const MAX_CONCURRENT_CLIPS = 3;
 const YTDLP_PARTIAL_TIMEOUT_MS = 60_000;
 const YTDLP_FULL_TIMEOUT_MS = 120_000;
 const FFMPEG_TRIM_TIMEOUT_MS = 30_000;
+const FFMPEG_REMUX_TIMEOUT_MS = 30_000;
+const YTDLP_AUDIO_FORMAT = "ba[ext=m4a]/ba/bestaudio/best";
 
 const inFlight = new Set<string>();
 const clipQueue: EnsureTrackInput[] = [];
@@ -115,7 +117,7 @@ function partialDownloadArgs(
     "--download-sections",
     `*0-${CLIP_DURATION_SECONDS}`,
     "-f",
-    "bestaudio/best",
+    YTDLP_AUDIO_FORMAT,
     "--no-embed-metadata",
     "--quiet",
     "--no-warnings",
@@ -126,12 +128,11 @@ function partialDownloadArgs(
 
 function fullDownloadArgs(searchUrl: string, outputTemplate: string): string[] {
   return [
-    "ytmsearch1:" -x --match-filter "title !~* '(?i)(live | en vivo)'"
     "-I",
     "1",
     searchUrl,
     "-f",
-    "bestaudio/best",
+    YTDLP_AUDIO_FORMAT,
     "--no-embed-metadata",
     "--quiet",
     "--no-warnings",
@@ -175,10 +176,54 @@ async function trimWithFfmpeg(
       "0",
       "-t",
       String(CLIP_DURATION_SECONDS),
+      "-c:a",
+      "aac",
+      "-b:a",
+      "128k",
       outputPath,
     ],
     FFMPEG_TRIM_TIMEOUT_MS,
   );
+}
+
+/** Remux webm/opus (etc.) to m4a for reliable Web Audio playback in browsers. */
+async function remuxToM4a(
+  inputPath: string,
+  outputPath: string,
+): Promise<{ code: number; stderr: string }> {
+  return runCommand(
+    "ffmpeg",
+    ["-y", "-i", inputPath, "-c:a", "aac", "-b:a", "128k", outputPath],
+    FFMPEG_REMUX_TIMEOUT_MS,
+  );
+}
+
+function isBrowserSafeClipExt(ext: string): boolean {
+  const normalized = ext.toLowerCase();
+  return normalized === ".m4a" || normalized === ".mp3";
+}
+
+async function ensureClipIsM4a(
+  clipNumber: number,
+  fileName: string,
+): Promise<{ fileName: string | null; stderr: string }> {
+  const ext = path.extname(fileName);
+  if (isBrowserSafeClipExt(ext)) {
+    return { fileName, stderr: "" };
+  }
+
+  const clipBase = clipNumberBase(clipNumber);
+  const m4aFileName = `${clipBase}.m4a`;
+  const inputPath = path.join(MEDIA_DIR, fileName);
+  const outputPath = path.join(MEDIA_DIR, m4aFileName);
+
+  const remux = await remuxToM4a(inputPath, outputPath);
+  if (remux.code !== 0) {
+    return { fileName: null, stderr: remux.stderr };
+  }
+
+  await fs.unlink(inputPath).catch(() => undefined);
+  return { fileName: m4aFileName, stderr: "" };
 }
 
 async function markClipFailed(
@@ -201,7 +246,12 @@ async function markClipFailed(
  * with fallback to full download + ffmpeg trim.
  */
 async function generateClip(track: EnsureTrackInput): Promise<void> {
-  const search = [track.title, track.artist].filter(Boolean).join(" ").trim();
+  const search = [track.title, track.artist]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+    .concat(' "topic"');
+  // const search = [track.title, track.artist].filter(Boolean).join(" ").trim();
   if (!search) {
     await markClipFailed(track.isrc, "MISSING_TITLE_ARTIST");
     return;
@@ -255,8 +305,7 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
     }
 
     const tempPath = path.join(MEDIA_DIR, tempFileName);
-    const ext = path.extname(tempFileName);
-    fileName = `${clipBase}${ext}`;
+    fileName = `${clipBase}.m4a`;
     const clipPath = path.join(MEDIA_DIR, fileName);
 
     const trim = await trimWithFfmpeg(tempPath, clipPath);
@@ -285,6 +334,17 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
     await markClipFailed(track.isrc, "CLIP_FILE_MISSING", clipNumber);
     return;
   }
+
+  const normalized = await ensureClipIsM4a(clipNumber, fileName);
+  if (!normalized.fileName) {
+    await markClipFailed(
+      track.isrc,
+      `FFMPEG_REMUX_FAILED:${normalized.stderr.slice(0, 200)}`,
+      clipNumber,
+    );
+    return;
+  }
+  fileName = normalized.fileName;
 
   await prisma.song.update({
     where: { isrc: track.isrc },
