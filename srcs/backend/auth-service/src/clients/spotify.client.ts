@@ -287,6 +287,7 @@ export type SpotifyPlaylistTrack = {
   name: string;
   artists: string;
   isrc: string | null;
+  durationMs: number | null;
   imageUrl: string | null;
 };
 
@@ -296,6 +297,7 @@ type SpotifyPlaylistItemEntry = {
     name?: string;
     artists?: Array<{ name: string }>;
     external_ids?: { isrc?: string };
+    duration_ms?: number;
     album?: { images?: Array<{ url: string }> };
   } | null;
   item?: SpotifyPlaylistItemEntry["track"];
@@ -344,11 +346,49 @@ function collectPlaylistTrackIds(data: unknown): string[] {
   return ids;
 }
 
+function mapPlaylistItemEntry(
+  entry: SpotifyPlaylistItemEntry,
+): SpotifyPlaylistTrack | null {
+  const track = entry?.item ?? entry?.track;
+  if (!track?.id || !track?.name) return null;
+
+  return {
+    spotifyTrackId: track.id,
+    name: track.name,
+    artists: (track.artists ?? []).map((artist) => artist.name).join(", "),
+    isrc: track.external_ids?.isrc ?? null,
+    durationMs: track.duration_ms ?? null,
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+  };
+}
+
+function collectPlaylistTracksFromPage(data: unknown): SpotifyPlaylistTrack[] {
+  const tracks: SpotifyPlaylistTrack[] = [];
+
+  for (const entry of extractPlaylistTrackEntries(data)) {
+    const mapped = mapPlaylistItemEntry(entry);
+    if (mapped) tracks.push(mapped);
+  }
+
+  return tracks;
+}
+
+export type PlaylistTracksFetchOptions = {
+  maxTracks?: number;
+  targetPool?: number;
+  maxPages?: number;
+};
+
+const PLAYLIST_PAGE_SIZE = 50;
+const PLAYLIST_ITEM_FIELDS =
+  "items(item(id,name,artists(name),external_ids,duration_ms,album(images)),track(id,name,artists(name),external_ids,duration_ms,album(images))),next";
+
 type SpotifyFullTrack = {
   id: string;
   name: string;
   artists?: Array<{ name: string }>;
   external_ids?: { isrc?: string };
+  duration_ms?: number;
   album?: { images?: Array<{ url: string }> };
 };
 
@@ -378,18 +418,22 @@ function readSpotifyErrorStatus(details: unknown): number | undefined {
   return undefined;
 }
 
-async function fetchPlaylistItemsResponse(
+async function fetchPlaylistItemsFirstPage(
   accessToken: string,
   playlistId: string,
-  cappedLimit: number,
+  pageSize: number,
 ): Promise<Response> {
-  const query = `limit=${cappedLimit}&market=from_token`;
+  const params = new URLSearchParams({
+    limit: String(pageSize),
+    market: "from_token",
+    fields: PLAYLIST_ITEM_FIELDS,
+  });
   const headers = { Authorization: `Bearer ${accessToken}` };
   const encodedId = encodeURIComponent(playlistId);
 
   const endpoints = [
-    `https://api.spotify.com/v1/playlists/${encodedId}/items?${query}`,
-    `https://api.spotify.com/v1/playlists/${encodedId}/tracks?${query}`,
+    `https://api.spotify.com/v1/playlists/${encodedId}/items?${params.toString()}`,
+    `https://api.spotify.com/v1/playlists/${encodedId}/tracks?${params.toString()}`,
   ];
 
   let lastResponse: Response | null = null;
@@ -406,6 +450,113 @@ async function fetchPlaylistItemsResponse(
   }
 
   return lastResponse ?? fetch(endpoints[0], { headers });
+}
+
+async function fetchPaginatedPlaylistTracks(
+  accessToken: string,
+  playlistId: string,
+  options: PlaylistTracksFetchOptions,
+): Promise<SpotifyPlaylistTrack[]> {
+  const maxTracks = options.maxTracks ?? Number.POSITIVE_INFINITY;
+  const targetPool = options.targetPool ?? Number.POSITIVE_INFINITY;
+  const maxPages = options.maxPages ?? Number.POSITIVE_INFINITY;
+
+  const firstResponse = await fetchPlaylistItemsFirstPage(
+    accessToken,
+    playlistId,
+    PLAYLIST_PAGE_SIZE,
+  );
+  const firstJson = (await firstResponse.json()) as {
+    next?: string | null;
+    error?: { message?: string; status?: number };
+  };
+
+  if (!firstResponse.ok) {
+    const spotifyStatus = readSpotifyErrorStatus(firstJson) ?? firstResponse.status;
+    const errorCode =
+      spotifyStatus === 403
+        ? "SPOTIFY_PLAYLIST_FORBIDDEN"
+        : "SPOTIFY_PLAYLIST_TRACKS_FAILED";
+
+    throw Object.assign(new Error(errorCode), {
+      details: firstJson,
+      spotifyStatus,
+    });
+  }
+
+  const collected = [...collectPlaylistTracksFromPage(firstJson)];
+  let nextUrl = firstJson.next ?? null;
+  let pagesFetched = 1;
+
+  while (
+    nextUrl &&
+    pagesFetched < maxPages &&
+    collected.length < targetPool &&
+    collected.length < maxTracks
+  ) {
+    const pageResponse = await fetch(nextUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const pageJson = (await pageResponse.json()) as {
+      next?: string | null;
+      error?: { message?: string; status?: number };
+    };
+
+    if (!pageResponse.ok) {
+      console.warn(
+        `[spotify] Playlist ${playlistId} pagination stopped at ${collected.length} track(s) (${pageResponse.status})`,
+      );
+      break;
+    }
+
+    collected.push(...collectPlaylistTracksFromPage(pageJson));
+    nextUrl = pageJson.next ?? null;
+    pagesFetched += 1;
+  }
+
+  return collected.slice(0, maxTracks);
+}
+
+async function enrichTracksMissingIsrc(
+  accessToken: string,
+  tracks: SpotifyPlaylistTrack[],
+): Promise<SpotifyPlaylistTrack[]> {
+  const missingIsrcIds = tracks
+    .filter((track) => !track.isrc)
+    .map((track) => track.spotifyTrackId);
+
+  if (missingIsrcIds.length === 0) {
+    return tracks;
+  }
+
+  const fullTracks = await fetchFullTracksByIds(accessToken, missingIsrcIds);
+  const isrcByTrackId = new Map(
+    fullTracks
+      .filter((track) => track.external_ids?.isrc)
+      .map((track) => [track.id, track.external_ids!.isrc!]),
+  );
+
+  const durationByTrackId = new Map(
+    fullTracks
+      .filter(
+        (track): track is SpotifyFullTrack & { duration_ms: number } =>
+          typeof track.duration_ms === "number",
+      )
+      .map((track) => [track.id, track.duration_ms]),
+  );
+
+  return tracks.map((track) =>
+    track.isrc
+      ? track
+      : {
+          ...track,
+          isrc: isrcByTrackId.get(track.spotifyTrackId) ?? null,
+          durationMs:
+            track.durationMs ??
+            durationByTrackId.get(track.spotifyTrackId) ??
+            null,
+        },
+  );
 }
 
 async function fetchFullTrackById(
@@ -438,6 +589,7 @@ function mapFullTrackToPlaylistTrack(
     name: track.name,
     artists: (track.artists ?? []).map((a) => a.name).join(", "),
     isrc: track.external_ids?.isrc ?? null,
+    durationMs: track.duration_ms ?? null,
     imageUrl: track.album?.images?.[0]?.url ?? null,
   };
 }
@@ -519,70 +671,44 @@ export async function getUserPlaylists(
 }
 
 /**
- * Fetches the first `limit` tracks of a playlist, including ISRC when available.
+ * Fetches playlist tracks using inline playlist-item metadata (no per-track N+1).
  */
 export async function getPlaylistTracks(
   accessToken: string,
   playlistId: string,
   limit = 30,
+  options: PlaylistTracksFetchOptions = {},
 ): Promise<SpotifyPlaylistTrack[]> {
-  const cappedLimit = Math.min(limit, 50);
-
-  const res = await fetchPlaylistItemsResponse(
-    accessToken,
-    playlistId,
-    cappedLimit,
-  );
-
-  const json = (await res.json()) as {
-    error?: { message?: string; status?: number };
+  const fetchOptions: PlaylistTracksFetchOptions = {
+    maxTracks: options.maxTracks ?? limit,
+    targetPool: options.targetPool ?? limit,
+    maxPages: options.maxPages ?? 1,
   };
 
-  if (!res.ok) {
-    const spotifyStatus = readSpotifyErrorStatus(json) ?? res.status;
-    const errorCode =
-      spotifyStatus === 403
-        ? "SPOTIFY_PLAYLIST_FORBIDDEN"
-        : "SPOTIFY_PLAYLIST_TRACKS_FAILED";
-
-    console.warn(
-      `[spotify] Playlist items ${playlistId} failed (${spotifyStatus})${
-        json.error?.message ? `: ${json.error.message}` : ""
-      }`,
-    );
-
-    throw Object.assign(new Error(errorCode), {
-      details: json,
-      spotifyStatus,
-    });
-  }
-
-  const trackIds = collectPlaylistTrackIds(json);
-
-  console.info(
-    `[spotify] Playlist ${playlistId}: ${trackIds.length} track id(s) from items endpoint`,
-  );
-
-  if (trackIds.length === 0) {
-    throw Object.assign(new Error("SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE"), {
-      details: json,
-      spotifyStatus: res.status,
-    });
-  }
-
-  const fullTracks = await fetchFullTracksByIds(
+  const tracks = await fetchPaginatedPlaylistTracks(
     accessToken,
-    trackIds.slice(0, cappedLimit),
+    playlistId,
+    fetchOptions,
   );
-
-  const tracks = fullTracks.map(mapFullTrackToPlaylistTrack);
-  const withIsrc = tracks.filter((track) => Boolean(track.isrc)).length;
 
   console.info(
-    `[spotify] Playlist ${playlistId}: ${tracks.length} track(s) resolved, ${withIsrc} with ISRC`,
+    `[spotify] Playlist ${playlistId}: ${tracks.length} track(s) collected from items`,
   );
 
-  return tracks;
+  if (tracks.length === 0) {
+    throw Object.assign(new Error("SPOTIFY_PLAYLIST_ITEMS_UNAVAILABLE"), {
+      spotifyStatus: 404,
+    });
+  }
+
+  const enriched = await enrichTracksMissingIsrc(accessToken, tracks);
+  const withIsrc = enriched.filter((track) => Boolean(track.isrc)).length;
+
+  console.info(
+    `[spotify] Playlist ${playlistId}: ${enriched.length} track(s) resolved, ${withIsrc} with ISRC`,
+  );
+
+  return enriched;
 }
 
 /**

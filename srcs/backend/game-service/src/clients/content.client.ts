@@ -23,6 +23,7 @@ export type PublicPlaylistTrack = {
   name: string;
   artists: string;
   isrc: string | null;
+  durationMs?: number | null;
   imageUrl: string | null;
 };
 

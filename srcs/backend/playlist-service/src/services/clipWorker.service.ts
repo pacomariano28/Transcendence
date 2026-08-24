@@ -4,12 +4,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../lib/prisma.js";
 import { mediaFileExists } from "../lib/mediaFiles.js";
+import { logError } from "../lib/logger.js";
 
 export type EnsureTrackInput = {
   isrc: string;
   title?: string | null;
   artist?: string | null;
   spotifyTrackId?: string | null;
+  durationMs?: number | null;
 };
 
 export type EnsureTrackResult = {
@@ -21,16 +23,25 @@ export type EnsureTrackResult = {
 
 const MEDIA_DIR = process.env.MEDIA_DIR || "/media";
 const CLIP_DURATION_SECONDS = 20;
-const MAX_CONCURRENT_CLIPS = 3;
-const YTDLP_PARTIAL_TIMEOUT_MS = 60_000;
-const YTDLP_FULL_TIMEOUT_MS = 120_000;
+const MAX_CONCURRENT_CLIPS = Number(process.env.MAX_CONCURRENT_CLIPS ?? 6);
+const YTDLP_PARTIAL_TIMEOUT_MS = 45_000;
+const YTDLP_FULL_TIMEOUT_MS = 90_000;
 const FFMPEG_TRIM_TIMEOUT_MS = 30_000;
 const FFMPEG_REMUX_TIMEOUT_MS = 30_000;
 const YTDLP_AUDIO_FORMAT = "ba[ext=m4a]/ba/bestaudio/best";
+const YTDLP_MAX_DOWNLOADS_REACHED = 101;
+const CLIP_DOWNLOAD_ATTEMPTS = 2;
+const CLIP_RETRY_DELAY_MS = 400;
+const DURATION_TOLERANCE_SECONDS = 5;
+const FALLBACK_MIN_DURATION_SECONDS = 60;
+const FALLBACK_MAX_DURATION_SECONDS = 600;
 
 const inFlight = new Set<string>();
 const clipQueue: EnsureTrackInput[] = [];
 let activeClipJobs = 0;
+let clipToolsAvailable: boolean | null = null;
+let clipToolsCheckedAt = 0;
+const CLIP_TOOLS_CACHE_MS = 5 * 60_000;
 
 function clipNumberBase(clipNumber: number): string {
   return `clip_${String(clipNumber).padStart(6, "0")}`;
@@ -66,9 +77,19 @@ function runCommand(
 }
 
 async function toolsAvailable(): Promise<boolean> {
+  const now = Date.now();
+  if (
+    clipToolsAvailable !== null &&
+    now - clipToolsCheckedAt < CLIP_TOOLS_CACHE_MS
+  ) {
+    return clipToolsAvailable;
+  }
+
   const yt = await runCommand("yt-dlp", ["--version"], 5_000);
   const ff = await runCommand("ffmpeg", ["-version"], 5_000);
-  return yt.code === 0 && ff.code === 0;
+  clipToolsAvailable = yt.code === 0 && ff.code === 0;
+  clipToolsCheckedAt = now;
+  return clipToolsAvailable;
 }
 
 async function allocateClipNumber(): Promise<number> {
@@ -102,43 +123,86 @@ async function removeFilesByPrefix(prefix: string): Promise<void> {
   );
 }
 
-function buildSearchUrl(search: string): string {
-  return `https://music.youtube.com/search?q=${encodeURIComponent(search)}#songs`;
+function sanitizeSearchText(value: string): string {
+  return value
+    .replace(/["\n\r]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function partialDownloadArgs(
-  searchUrl: string,
-  outputTemplate: string,
-): string[] {
-  return [
-    "-I",
+function primaryArtistName(artist: string | null | undefined): string {
+  if (!artist) return "";
+  return sanitizeSearchText(artist.split(",")[0] ?? "");
+}
+
+/**
+ * Prefer Topic-channel audio (best artist match). If duration filtering
+ * rejects that hit (short cuts, mixes), fall back to official audio search.
+ */
+function buildClipSources(track: EnsureTrackInput): string[] {
+  const title = sanitizeSearchText(track.title ?? "");
+  const artist = primaryArtistName(track.artist);
+  if (!title && !artist) return [];
+
+  if (artist && title) {
+    return [
+      `ytsearch1:${title} ${artist} "topic"`,
+      `ytsearch1:${artist} - ${title} Official Audio`,
+    ];
+  }
+
+  return [`ytsearch1:${artist || title}`];
+}
+
+function durationMatchFilter(durationMs?: number | null): string {
+  if (
+    typeof durationMs === "number" &&
+    Number.isFinite(durationMs) &&
+    durationMs > 0
+  ) {
+    const durationSec = Math.round(durationMs / 1000);
+    const min = Math.max(30, durationSec - DURATION_TOLERANCE_SECONDS);
+    const max = durationSec + DURATION_TOLERANCE_SECONDS;
+    return `duration >= ${min} & duration <= ${max} & !is_live`;
+  }
+
+  return `duration >= ${FALLBACK_MIN_DURATION_SECONDS} & duration <= ${FALLBACK_MAX_DURATION_SECONDS} & !is_live`;
+}
+
+function ytdlpDownloadArgs(options: {
+  source: string;
+  outputTemplate: string;
+  durationMs?: number | null;
+  partial: boolean;
+}): string[] {
+  const args = [
+    options.source,
+    "--max-downloads",
     "1",
-    searchUrl,
-    "--download-sections",
-    `*0-${CLIP_DURATION_SECONDS}`,
+    "--match-filter",
+    durationMatchFilter(options.durationMs),
     "-f",
     YTDLP_AUDIO_FORMAT,
     "--no-embed-metadata",
     "--quiet",
     "--no-warnings",
+    "--force-ipv4",
+    "-x",
+    "--audio-format",
+    "m4a",
     "-o",
-    outputTemplate,
+    options.outputTemplate,
   ];
+
+  if (options.partial) {
+    args.push("--download-sections", `*0-${CLIP_DURATION_SECONDS}`);
+  }
+
+  return args;
 }
 
-function fullDownloadArgs(searchUrl: string, outputTemplate: string): string[] {
-  return [
-    "-I",
-    "1",
-    searchUrl,
-    "-f",
-    YTDLP_AUDIO_FORMAT,
-    "--no-embed-metadata",
-    "--quiet",
-    "--no-warnings",
-    "-o",
-    outputTemplate,
-  ];
+function ytdlpSucceeded(code: number): boolean {
+  return code === 0 || code === YTDLP_MAX_DOWNLOADS_REACHED;
 }
 
 async function trimWithFfmpeg(
@@ -246,13 +310,8 @@ async function markClipFailed(
  * with fallback to full download + ffmpeg trim.
  */
 async function generateClip(track: EnsureTrackInput): Promise<void> {
-  const search = [track.title, track.artist]
-    .filter(Boolean)
-    .join(" ")
-    .trim()
-    .concat(' "topic"');
-  // const search = [track.title, track.artist].filter(Boolean).join(" ").trim();
-  if (!search) {
+  const sources = buildClipSources(track);
+  if (sources.length === 0) {
     await markClipFailed(track.isrc, "MISSING_TITLE_ARTIST");
     return;
   }
@@ -272,33 +331,61 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
   const clipNumber = await allocateClipNumber();
   const clipBase = clipNumberBase(clipNumber);
   const outputTemplate = path.join(MEDIA_DIR, `${clipBase}.%(ext)s`);
-  const searchUrl = buildSearchUrl(search);
 
-  const partial = await runCommand(
-    "yt-dlp",
-    partialDownloadArgs(searchUrl, outputTemplate),
-    YTDLP_PARTIAL_TIMEOUT_MS,
-  );
+  let fileName: string | null = null;
+  let lastStderr = "";
 
-  let fileName = await findClipFileByNumber(clipNumber);
+  for (let attempt = 0; attempt < CLIP_DOWNLOAD_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, CLIP_RETRY_DELAY_MS));
+    }
 
-  if (partial.code !== 0 || !fileName) {
+    for (const source of sources) {
+      await removeFilesByPrefix(`${clipBase}.`);
+      const partial = await runCommand(
+        "yt-dlp",
+        ytdlpDownloadArgs({
+          source,
+          outputTemplate,
+          durationMs: track.durationMs,
+          partial: true,
+        }),
+        YTDLP_PARTIAL_TIMEOUT_MS,
+      );
+      lastStderr = partial.stderr;
+      fileName = await findClipFileByNumber(clipNumber);
+      if (ytdlpSucceeded(partial.code) && fileName) {
+        break;
+      }
+      fileName = null;
+    }
+
+    if (fileName) break;
+  }
+
+  if (!fileName) {
     await removeFilesByPrefix(`${clipBase}.`);
 
     const tempStem = `tmp_${randomUUID()}`;
     const tempTemplate = path.join(MEDIA_DIR, `${tempStem}.%(ext)s`);
+    const fullSource = sources[0] ?? "";
     const fullDownload = await runCommand(
       "yt-dlp",
-      fullDownloadArgs(searchUrl, tempTemplate),
+      ytdlpDownloadArgs({
+        source: fullSource,
+        outputTemplate: tempTemplate,
+        durationMs: track.durationMs,
+        partial: false,
+      }),
       YTDLP_FULL_TIMEOUT_MS,
     );
 
     const tempFileName = await findTempDownload(tempStem);
-    if (fullDownload.code !== 0 || !tempFileName) {
+    if (!ytdlpSucceeded(fullDownload.code) || !tempFileName) {
       await removeFilesByPrefix(`${tempStem}.`);
       await markClipFailed(
         track.isrc,
-        `YTDLP_FAILED:${(fullDownload.stderr || partial.stderr).slice(0, 200)}`,
+        `YTDLP_FAILED:${(fullDownload.stderr || lastStderr).slice(0, 200)}`,
         clipNumber,
       );
       return;
@@ -361,14 +448,29 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
 }
 
 function drainClipQueue(): void {
+  if (
+    activeClipJobs === 0 &&
+    clipQueue.length > 0 &&
+    clipToolsAvailable === null
+  ) {
+    void toolsAvailable();
+  }
+
   while (activeClipJobs < MAX_CONCURRENT_CLIPS && clipQueue.length > 0) {
     const track = clipQueue.shift();
     if (!track) return;
 
     activeClipJobs += 1;
     void generateClip(track)
-      .catch((err) => {
-        console.error(`[clip-worker] Failed for ${track.isrc}`, err);
+      .catch((err: unknown) => {
+        const error = err instanceof Error ? err : new Error(String(err));
+        logError({
+          event: "clip_worker_failed",
+          message: `Failed for ${track.isrc}`,
+          errorName: error.name,
+          errorMessage: error.message,
+          stack: error.stack,
+        });
       })
       .finally(() => {
         activeClipJobs -= 1;
@@ -418,6 +520,7 @@ export async function ensureTracks(
         title: track.title ?? song.title,
         artist: track.artist ?? song.artist,
         spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
+        durationMs: track.durationMs,
       });
     } else if (song.status === "ready" && song.fileName) {
       const fileStillExists = await mediaFileExists(song.fileName);
@@ -431,6 +534,7 @@ export async function ensureTracks(
           title: track.title ?? song.title,
           artist: track.artist ?? song.artist,
           spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
+          durationMs: track.durationMs,
         });
         song = { ...song, status: "pending", fileName: null };
       }
