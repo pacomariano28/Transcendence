@@ -62,14 +62,14 @@ export default function AppHeader() {
       <div className="container-page flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
-            to="/"
+            to="/play"
             className="rounded-xl px-3 py-2 text-sm font-semibold tracking-wide text-white/90 transition duration-150 hover:bg-white/10 hover:text-white"
           >
             Songuess
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">
-            <NavItem to="/" label={t("header.nav_home")} />
+            <NavItem to="/play" label={t("header.nav_home")} />
             <NavItem to="/profile" label={t("header.nav_profile")} />
           </nav>
         </div>

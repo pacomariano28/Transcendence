@@ -5,6 +5,7 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { ActiveMatchProvider } from "./context/active.match.context"; // 1. Imports the provider (adjust the route if necessary)
 import AppHeader from "./components/AppHeader";
 import HomePage from "./pages/HomePage";
+import CompactLandingPage from "./pages/CompactLandingPage";
 import LoginPage from "./pages/LoginPage";
 import SpotifySuccessPage from "./pages/SpotifySuccessPage";
 import RouteTransition from "./components/RouteTransition";
@@ -38,7 +39,7 @@ function AppShell() {
       <main className="flex-1">
         <RouteTransition>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/play" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/auth/spotify/success"
@@ -79,7 +80,11 @@ export default function App() {
       <AuthProvider>
         {/* 2. We wrap AppShell so that AppHeader and all pages have access */}
         <ActiveMatchProvider>
-          <AppShell />
+          <Routes>
+            {/* Public marketing route — renders its own nav/footer, no AppHeader/Footer shell */}
+            <Route path="/" element={<CompactLandingPage />} />
+            <Route path="/*" element={<AppShell />} />
+          </Routes>
         </ActiveMatchProvider>
       </AuthProvider>
     </BrowserRouter>

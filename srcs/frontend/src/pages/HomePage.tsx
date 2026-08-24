@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
@@ -44,7 +44,7 @@ async function ensureSocketConnected() {
 export default function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string>("");
   const [songsAvailable, setSongsAvailable] = useState<number | null>(null);
