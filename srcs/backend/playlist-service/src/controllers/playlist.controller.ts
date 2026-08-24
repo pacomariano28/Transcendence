@@ -39,7 +39,10 @@ export async function getRandomSongs(req: Request, res: Response) {
     const excludeParam = req.query.exclude;
     const excludeIsrcs =
       typeof excludeParam === "string" && excludeParam.length > 0
-        ? excludeParam.split(",").map((isrc) => isrc.trim()).filter(Boolean)
+        ? excludeParam
+            .split(",")
+            .map((isrc) => isrc.trim())
+            .filter(Boolean)
         : [];
 
     const songs = await selectRandomSongs(count, excludeIsrcs);
@@ -70,7 +73,7 @@ export async function getPlaylist(req: Request, res: Response) {
 
 /**
  * POST /ensure-songs
- * Body: { tracks: [{ isrc, title?, artist?, spotifyTrackId? }] }
+ * Body: { tracks: [{ isrc, title?, artist?, spotifyTrackId?, durationMs? }] }
  */
 export async function ensureSongs(req: Request, res: Response) {
   try {
@@ -184,12 +187,22 @@ export async function orderPlaylistTracks(req: Request, res: Response) {
     }
 
     const normalized = tracks
-      .map((track: { isrc?: string; title?: string; artist?: string; spotifyTrackId?: string }) => ({
-        isrc: track.isrc?.trim() ?? "",
-        title: track.title ?? null,
-        artist: track.artist ?? null,
-        spotifyTrackId: track.spotifyTrackId ?? null,
-      }))
+      .map(
+        (track: {
+          isrc?: string;
+          title?: string;
+          artist?: string;
+          spotifyTrackId?: string;
+          durationMs?: number | null;
+        }) => ({
+          isrc: track.isrc?.trim() ?? "",
+          title: track.title ?? null,
+          artist: track.artist ?? null,
+          spotifyTrackId: track.spotifyTrackId ?? null,
+          durationMs:
+            typeof track.durationMs === "number" ? track.durationMs : null,
+        }),
+      )
       .filter((track) => track.isrc.length > 0);
 
     if (normalized.length === 0) {

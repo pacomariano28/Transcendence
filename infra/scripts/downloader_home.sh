@@ -42,14 +42,23 @@ download_audio() {
   local search_term="$1"
   local output_file="$2"
   local error_log="$3"
+  local status=0
 
   yt-dlp --quiet --no-warnings \
+    --force-ipv4 \
     --extractor-args "youtube:player_client=android,web" \
+    --match-filter "duration >= 60 & duration <= 600 & !is_live" \
+    --download-sections "*0-20" \
+    --max-downloads 1 \
     -x --audio-format mp3 \
     "ytsearch1:$search_term" \
-    -o "$output_file" 2> "$error_log"
+    -o "$output_file" 2> "$error_log" || status=$?
 
-  [ -f "$output_file" ] && [ -s "$output_file" ]
+  # yt-dlp exits 101 when --max-downloads is reached after a successful fetch
+  if [ -f "$output_file" ] && [ -s "$output_file" ]; then
+    return 0
+  fi
+  return "$status"
 }
 
 GREEN="\033[0;32m"
@@ -65,18 +74,20 @@ rm -f "$TARGET_DIR"/song_*.mp3
 echo "Obteniendo datos del CSV..."
 
 songs=()
+artists=()
 isrcs=()
 
 # Extraer Canción + Artista
-while IFS= read -r line; do
-  songs+=("$line")
+while IFS=$'\t' read -r artist song; do
+  artists+=("$artist")
+  songs+=("$song")
 done < <(python3 -c '
 import csv, sys
 with open(sys.argv[1], newline="", encoding="utf-8-sig") as f:
     reader = csv.DictReader(f)
     for row in reader:
         if "Song" in row and "Artist" in row:
-            print(row["Song"] + " " + row["Artist"])
+            print(row["Artist"].replace("\t", " ") + "\t" + row["Song"].replace("\t", " "))
 ' "$CSV_FILE")
 
 # Extraer ISRC
@@ -105,25 +116,25 @@ echo "----------------------------------------"
 # 5. Archivo temporal para ir guardando los datos válidos del seed
 SEED_DATA_TMP=$(mktemp)
 
-i=0
 SUCCESS_COUNT=0
 declare -A seen_isrcs
 
 # 6. Bucle de descarga con control de fallos
-for song in "${songs[@]}"
+for i in "${!songs[@]}"
 do
   INDEX=$(printf "%03d" $((i+1)))
   ISRC="${isrcs[$i]}"
+  ARTIST="${artists[$i]}"
+  SONG="${songs[$i]}"
 
   if [[ -n "${seen_isrcs[$ISRC]}" ]]; then
     echo -e "${RED}⚠️  [$INDEX] ISRC duplicado: $ISRC (Skipeando)${NC}"
-    i=$((i+1))
     continue
   fi
   seen_isrcs[$ISRC]=1
 
-  # Añadimos la palabra "audio" a la búsqueda para evitar videoclips
-  SEARCH_TERM="$song audio"
+  SEARCH_TERM="${ARTIST} - ${SONG} Official Audio"
+  FALLBACK_TERM="${ARTIST} ${SONG}"
 
   echo "🎧 [$INDEX] buscando y descargando: $SEARCH_TERM"
 
@@ -131,7 +142,7 @@ do
   PREVIEW_NAME="preview_$INDEX.mp3"
   PREVIEW_PATH="$TARGET_DIR/$PREVIEW_NAME"
 
-  if download_audio "$SEARCH_TERM" "$FILE" yt-error.log; then
+  if download_audio "$SEARCH_TERM" "$FILE" yt-error.log || download_audio "$FALLBACK_TERM" "$FILE" yt-error.log; then
     if ffmpeg -y -i "$FILE" -ss 00:00:00 -t 20 "$PREVIEW_PATH" 2> ffmpeg-error.log; then
 
       rm -f "$FILE"
@@ -157,8 +168,6 @@ EOF
     echo -e "${RED}❌ download error en yt-dlp: $ERROR_MSG (Skipeando)${NC}"
     rm -f "$FILE"
   fi
-
-  i=$((i+1))
 done
 
 # 7. Reconstrucción del archivo seed.ts

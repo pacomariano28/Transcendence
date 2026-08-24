@@ -102,6 +102,7 @@ type SpotifyFullTrack = {
   name: string;
   artists?: Array<{ name: string }>;
   external_ids?: { isrc?: string };
+  duration_ms?: number;
   album?: { images?: Array<{ url: string }> };
 };
 
@@ -147,6 +148,7 @@ function mapFullTrackToPublicPlaylistTrack(
     name: track.name,
     artists: (track.artists ?? []).map((a) => a.name).join(", "),
     isrc: track.external_ids?.isrc ?? null,
+    durationMs: track.duration_ms ?? null,
     imageUrl: track.album?.images?.[0]?.url ?? null,
   };
 }
@@ -415,6 +417,7 @@ export type PublicPlaylistTrack = {
   name: string;
   artists: string;
   isrc: string | null;
+  durationMs: number | null;
   imageUrl: string | null;
 };
 
@@ -473,7 +476,7 @@ export async function getPublicPlaylistTracks(
   }
 
   const fields =
-    "items(item(id,name,artists(name),external_ids,album(images)),track(id,name,artists(name),external_ids,album(images)))";
+    "items(item(id,name,artists(name),external_ids,duration_ms,album(images)),track(id,name,artists(name),external_ids,duration_ms,album(images)))";
   const requestConfig = {
     params: {
       limit: Math.min(limit, 50),

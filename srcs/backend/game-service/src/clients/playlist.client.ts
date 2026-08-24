@@ -107,6 +107,7 @@ export async function ensureSongs(
     title?: string | null;
     artist?: string | null;
     spotifyTrackId?: string | null;
+    durationMs?: number | null;
   }>,
 ): Promise<EnsureSongsResponse> {
   const controller = new AbortController();
@@ -239,6 +240,7 @@ export async function orderPlaylistTracks(
     title?: string | null;
     artist?: string | null;
     spotifyTrackId?: string | null;
+    durationMs?: number | null;
   }>,
 ): Promise<
   | {
@@ -248,6 +250,7 @@ export async function orderPlaylistTracks(
         title?: string | null;
         artist?: string | null;
         spotifyTrackId?: string | null;
+        durationMs?: number | null;
       }>;
     }
   | { ok: false; error: string }
@@ -269,6 +272,7 @@ export async function orderPlaylistTracks(
         title?: string | null;
         artist?: string | null;
         spotifyTrackId?: string | null;
+        durationMs?: number | null;
       }>;
       error?: string;
     };

@@ -21,7 +21,7 @@ CMD ["node", "dist/index.js"]
 FROM node:24.15.0-alpine3.22 AS development
 WORKDIR /app
 RUN apk add --no-cache ffmpeg python3 py3-pip \
-  && pip3 install --break-system-packages --no-cache-dir yt-dlp
+  && pip3 install --break-system-packages --no-cache-dir "yt-dlp[default]"
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci

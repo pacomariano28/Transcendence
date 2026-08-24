@@ -287,6 +287,7 @@ export type SpotifyPlaylistTrack = {
   name: string;
   artists: string;
   isrc: string | null;
+  durationMs: number | null;
   imageUrl: string | null;
 };
 
@@ -296,6 +297,7 @@ type SpotifyPlaylistItemEntry = {
     name?: string;
     artists?: Array<{ name: string }>;
     external_ids?: { isrc?: string };
+    duration_ms?: number;
     album?: { images?: Array<{ url: string }> };
   } | null;
   item?: SpotifyPlaylistItemEntry["track"];
@@ -355,6 +357,7 @@ function mapPlaylistItemEntry(
     name: track.name,
     artists: (track.artists ?? []).map((artist) => artist.name).join(", "),
     isrc: track.external_ids?.isrc ?? null,
+    durationMs: track.duration_ms ?? null,
     imageUrl: track.album?.images?.[0]?.url ?? null,
   };
 }
@@ -378,13 +381,14 @@ export type PlaylistTracksFetchOptions = {
 
 const PLAYLIST_PAGE_SIZE = 50;
 const PLAYLIST_ITEM_FIELDS =
-  "items(item(id,name,artists(name),external_ids,album(images)),track(id,name,artists(name),external_ids,album(images))),next";
+  "items(item(id,name,artists(name),external_ids,duration_ms,album(images)),track(id,name,artists(name),external_ids,duration_ms,album(images))),next";
 
 type SpotifyFullTrack = {
   id: string;
   name: string;
   artists?: Array<{ name: string }>;
   external_ids?: { isrc?: string };
+  duration_ms?: number;
   album?: { images?: Array<{ url: string }> };
 };
 
@@ -532,12 +536,25 @@ async function enrichTracksMissingIsrc(
       .map((track) => [track.id, track.external_ids!.isrc!]),
   );
 
+  const durationByTrackId = new Map(
+    fullTracks
+      .filter(
+        (track): track is SpotifyFullTrack & { duration_ms: number } =>
+          typeof track.duration_ms === "number",
+      )
+      .map((track) => [track.id, track.duration_ms]),
+  );
+
   return tracks.map((track) =>
     track.isrc
       ? track
       : {
           ...track,
           isrc: isrcByTrackId.get(track.spotifyTrackId) ?? null,
+          durationMs:
+            track.durationMs ??
+            durationByTrackId.get(track.spotifyTrackId) ??
+            null,
         },
   );
 }
@@ -572,6 +589,7 @@ function mapFullTrackToPlaylistTrack(
     name: track.name,
     artists: (track.artists ?? []).map((a) => a.name).join(", "),
     isrc: track.external_ids?.isrc ?? null,
+    durationMs: track.duration_ms ?? null,
     imageUrl: track.album?.images?.[0]?.url ?? null,
   };
 }

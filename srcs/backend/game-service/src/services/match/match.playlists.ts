@@ -20,6 +20,7 @@ import {
   CLIP_PREP_POLL_MS,
   CLIP_PREP_POLL_SLOW_AFTER_MS,
   CLIP_PREP_POLL_SLOW_MS,
+  CLIP_PREP_RETRY_WAIT_MS,
   CLIP_PREP_TIMEOUT_MS,
   LOCAL_SEED_PLAYLIST,
   MIN_PLAYABLE_SONGS,
@@ -74,6 +75,7 @@ type TrackCandidate = {
   title?: string;
   artist?: string;
   spotifyTrackId?: string;
+  durationMs?: number | null;
 };
 
 type PlayablePreparedSong = {
@@ -155,11 +157,12 @@ async function pollPreparedCandidates(
   matchId: string,
   emit: EmitMatchEvent,
   match: MatchState,
+  maxWaitMs = CLIP_PREP_TIMEOUT_MS,
 ): Promise<PlayablePreparedSong[] | null> {
   const isrcs = candidates.map((candidate) => candidate.isrc);
   const startedAt = Date.now();
 
-  while (Date.now() - startedAt < CLIP_PREP_TIMEOUT_MS) {
+  while (Date.now() - startedAt < maxWaitMs) {
     if (prepTokens.get(matchId) !== prepToken) return null;
 
     const status = await fetchSongsStatus(isrcs);
@@ -294,6 +297,56 @@ async function prepareSelectedPlaylistSongs(
 
     if (playable.length >= MIN_PLAYABLE_SONGS) {
       break;
+    }
+  }
+
+  if (
+    playable.length < MIN_PLAYABLE_SONGS &&
+    prepTokens.get(matchId) === prepToken
+  ) {
+    const retryStatus = await fetchSongsStatus(
+      ordered.map((track) => track.isrc),
+    );
+    if (retryStatus.ok) {
+      const failedIsrcs = new Set(
+        retryStatus.results
+          .filter((result) => result.status === "failed")
+          .map((result) => result.isrc),
+      );
+      const retryTracks = ordered.filter(
+        (track) => failedIsrcs.has(track.isrc) && Boolean(track.title),
+      );
+
+      if (retryTracks.length > 0) {
+        const retryEnsure = await ensureSongs(retryTracks);
+        if (!retryEnsure.ok) {
+          match.playlistPrepStatus = "error";
+          match.playlistPrepError = retryEnsure.error;
+          emitLobbyState(emit, match);
+          return false;
+        }
+
+        const retried = await pollPreparedCandidates(
+          retryTracks,
+          prepToken,
+          matchId,
+          emit,
+          match,
+          CLIP_PREP_RETRY_WAIT_MS,
+        );
+        if (retried === null) return false;
+
+        const seen = new Set(playable.map((song) => song.isrc));
+        for (const song of retried) {
+          if (!seen.has(song.isrc)) {
+            playable.push(song);
+            seen.add(song.isrc);
+          }
+        }
+
+        match.playlistPrepReady = playable.length;
+        emitLobbyState(emit, match);
+      }
     }
   }
 
@@ -616,6 +669,7 @@ async function materializeSelectedPlaylist(
     name: string;
     artists: string;
     isrc: string | null;
+    durationMs?: number | null;
   }> = [];
   let lastError = "SPOTIFY_NOT_LINKED";
 
@@ -735,6 +789,7 @@ async function materializeSelectedPlaylist(
       title: track.name,
       artist: track.artists,
       spotifyTrackId: track.spotifyTrackId,
+      durationMs: track.durationMs ?? null,
     }));
 
   if (withIsrc.length === 0) {
