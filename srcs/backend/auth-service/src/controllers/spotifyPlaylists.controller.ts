@@ -138,7 +138,8 @@ export async function getUserPlaylistTracksInternal(
   }
 
   try {
-    const tracks = await listPlaylistTracks(userId, playlistId);
+    const mode = req.query.mode === "prep" ? "prep" : "preview";
+    const tracks = await listPlaylistTracks(userId, playlistId, mode);
     return res.json({ ok: true, tracks });
   } catch (err) {
     return mapSpotifyError(err, res);

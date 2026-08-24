@@ -21,9 +21,9 @@ export type EnsureTrackResult = {
 
 const MEDIA_DIR = process.env.MEDIA_DIR || "/media";
 const CLIP_DURATION_SECONDS = 20;
-const MAX_CONCURRENT_CLIPS = 3;
-const YTDLP_PARTIAL_TIMEOUT_MS = 60_000;
-const YTDLP_FULL_TIMEOUT_MS = 120_000;
+const MAX_CONCURRENT_CLIPS = Number(process.env.MAX_CONCURRENT_CLIPS ?? 6);
+const YTDLP_PARTIAL_TIMEOUT_MS = 45_000;
+const YTDLP_FULL_TIMEOUT_MS = 90_000;
 const FFMPEG_TRIM_TIMEOUT_MS = 30_000;
 const FFMPEG_REMUX_TIMEOUT_MS = 30_000;
 const YTDLP_AUDIO_FORMAT = "ba[ext=m4a]/ba/bestaudio/best";
@@ -31,6 +31,9 @@ const YTDLP_AUDIO_FORMAT = "ba[ext=m4a]/ba/bestaudio/best";
 const inFlight = new Set<string>();
 const clipQueue: EnsureTrackInput[] = [];
 let activeClipJobs = 0;
+let clipToolsAvailable: boolean | null = null;
+let clipToolsCheckedAt = 0;
+const CLIP_TOOLS_CACHE_MS = 5 * 60_000;
 
 function clipNumberBase(clipNumber: number): string {
   return `clip_${String(clipNumber).padStart(6, "0")}`;
@@ -66,9 +69,19 @@ function runCommand(
 }
 
 async function toolsAvailable(): Promise<boolean> {
+  const now = Date.now();
+  if (
+    clipToolsAvailable !== null &&
+    now - clipToolsCheckedAt < CLIP_TOOLS_CACHE_MS
+  ) {
+    return clipToolsAvailable;
+  }
+
   const yt = await runCommand("yt-dlp", ["--version"], 5_000);
   const ff = await runCommand("ffmpeg", ["-version"], 5_000);
-  return yt.code === 0 && ff.code === 0;
+  clipToolsAvailable = yt.code === 0 && ff.code === 0;
+  clipToolsCheckedAt = now;
+  return clipToolsAvailable;
 }
 
 async function allocateClipNumber(): Promise<number> {
@@ -361,6 +374,14 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
 }
 
 function drainClipQueue(): void {
+  if (
+    activeClipJobs === 0 &&
+    clipQueue.length > 0 &&
+    clipToolsAvailable === null
+  ) {
+    void toolsAvailable();
+  }
+
   while (activeClipJobs < MAX_CONCURRENT_CLIPS && clipQueue.length > 0) {
     const track = clipQueue.shift();
     if (!track) return;

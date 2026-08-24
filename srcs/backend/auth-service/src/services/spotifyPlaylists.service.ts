@@ -11,6 +11,15 @@ import { decryptToken, encryptToken } from "../lib/tokenEncryption.js";
 
 const TOKEN_SKEW_MS = 60_000;
 
+function fisherYatesShuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 async function getProfileOrThrow(userId: string) {
   const profile = await prisma.spotifyProfile.findUnique({
     where: { userId },
@@ -94,8 +103,19 @@ export async function listUserPlaylists(
 export async function listPlaylistTracks(
   userId: string,
   playlistId: string,
+  mode: "prep" | "preview" = "preview",
 ): Promise<SpotifyPlaylistTrack[]> {
   const accessToken = await getValidSpotifyAccessToken(userId);
+
+  if (mode === "prep") {
+    const tracks = await getPlaylistTracks(accessToken, playlistId, 150, {
+      maxTracks: 150,
+      targetPool: 150,
+      maxPages: 3,
+    });
+    return fisherYatesShuffle(tracks);
+  }
+
   return getPlaylistTracks(accessToken, playlistId, 30);
 }
 
