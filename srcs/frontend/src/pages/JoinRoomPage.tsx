@@ -156,7 +156,7 @@ export default function JoinRoomPage() {
 
             <Link
               className="btn-ghost flex-1 flex items-center justify-center p-4 text-center"
-              to="/"
+              to="/play"
             >
               {t("join.back")}
             </Link>
