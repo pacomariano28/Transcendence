@@ -18,10 +18,14 @@ import {
 } from "../../clients/playlist.client.js";
 import {
   CLIP_PREP_POLL_MS,
+  CLIP_PREP_POLL_SLOW_AFTER_MS,
+  CLIP_PREP_POLL_SLOW_MS,
+  CLIP_PREP_RETRY_WAIT_MS,
   CLIP_PREP_TIMEOUT_MS,
-  FALLBACK_PREP_SONGS,
   LOCAL_SEED_PLAYLIST,
   MIN_PLAYABLE_SONGS,
+  PREP_CANDIDATE_POOL,
+  PREP_ENSURE_BATCH,
   SYSTEM_PLAYLIST_OWNER_ID,
   TARGET_PREP_SONGS,
   getGenrePlaylist,
@@ -71,6 +75,7 @@ type TrackCandidate = {
   title?: string;
   artist?: string;
   spotifyTrackId?: string;
+  durationMs?: number | null;
 };
 
 type PlayablePreparedSong = {
@@ -81,9 +86,20 @@ type PlayablePreparedSong = {
 };
 
 function computeInitialPrepBatchSize(totalTracks: number): number {
-  if (totalTracks >= TARGET_PREP_SONGS) return TARGET_PREP_SONGS;
-  if (totalTracks >= FALLBACK_PREP_SONGS) return FALLBACK_PREP_SONGS;
-  return totalTracks;
+  return Math.min(PREP_ENSURE_BATCH, totalTracks);
+}
+
+function buildPrepCandidatePool(tracks: TrackCandidate[]): TrackCandidate[] {
+  if (tracks.length <= PREP_CANDIDATE_POOL) {
+    return fisherYatesShuffle(tracks);
+  }
+  return fisherYatesShuffle(tracks).slice(0, PREP_CANDIDATE_POOL);
+}
+
+function currentClipPollDelayMs(elapsedMs: number): number {
+  return elapsedMs >= CLIP_PREP_POLL_SLOW_AFTER_MS
+    ? CLIP_PREP_POLL_SLOW_MS
+    : CLIP_PREP_POLL_MS;
 }
 
 function isSongMediaPlayable(song: {
@@ -141,11 +157,12 @@ async function pollPreparedCandidates(
   matchId: string,
   emit: EmitMatchEvent,
   match: MatchState,
+  maxWaitMs = CLIP_PREP_TIMEOUT_MS,
 ): Promise<PlayablePreparedSong[] | null> {
   const isrcs = candidates.map((candidate) => candidate.isrc);
   const startedAt = Date.now();
 
-  while (Date.now() - startedAt < CLIP_PREP_TIMEOUT_MS) {
+  while (Date.now() - startedAt < maxWaitMs) {
     if (prepTokens.get(matchId) !== prepToken) return null;
 
     const status = await fetchSongsStatus(isrcs);
@@ -172,7 +189,9 @@ async function pollPreparedCandidates(
       return playable;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, CLIP_PREP_POLL_MS));
+    await new Promise((resolve) =>
+      setTimeout(resolve, currentClipPollDelayMs(Date.now() - startedAt)),
+    );
   }
 
   const finalStatus = await fetchSongsStatus(isrcs);
@@ -203,7 +222,9 @@ async function prepareSelectedPlaylistSongs(
     return false;
   }
 
-  const orderedResult = await orderPlaylistTracks(playlistKey, tracks);
+  const prepPool = buildPrepCandidatePool(tracks);
+
+  const orderedResult = await orderPlaylistTracks(playlistKey, prepPool);
   if (!orderedResult.ok) {
     match.playlistPrepStatus = "error";
     match.playlistPrepError = orderedResult.error;
@@ -212,31 +233,44 @@ async function prepareSelectedPlaylistSongs(
   }
 
   const ordered = orderedResult.tracks;
-  let cursor = 0;
-  let playable: PlayablePreparedSong[] = [];
-  const initialBatchSize = computeInitialPrepBatchSize(ordered.length);
+  const ensureBatchSize = computeInitialPrepBatchSize(ordered.length);
+  const ensureBatch = ordered.slice(0, ensureBatchSize);
 
   match.playlistPrepNeeded = MIN_PLAYABLE_SONGS;
   match.playlistPrepReady = 0;
   emitLobbyState(emit, match);
+
+  const ensureResult = await ensureSongs(ensureBatch);
+  if (!ensureResult.ok) {
+    match.playlistPrepStatus = "error";
+    match.playlistPrepError = ensureResult.error;
+    emitLobbyState(emit, match);
+    return false;
+  }
+
+  let playable = await pollPreparedCandidates(
+    ensureBatch,
+    prepToken,
+    matchId,
+    emit,
+    match,
+  );
+  if (playable === null) return false;
+
+  let cursor = ensureBatchSize;
 
   while (
     playable.length < MIN_PLAYABLE_SONGS &&
     cursor < ordered.length &&
     prepTokens.get(matchId) === prepToken
   ) {
-    const remaining = ordered.length - cursor;
-    const batchSize =
-      cursor === 0
-        ? Math.min(initialBatchSize, remaining)
-        : Math.min(3, remaining);
-    const batch = ordered.slice(cursor, cursor + batchSize);
-    cursor += batchSize;
+    const batch = ordered.slice(cursor, cursor + 3);
+    cursor += batch.length;
 
-    const ensureResult = await ensureSongs(batch);
-    if (!ensureResult.ok) {
+    const retryEnsure = await ensureSongs(batch);
+    if (!retryEnsure.ok) {
       match.playlistPrepStatus = "error";
-      match.playlistPrepError = ensureResult.error;
+      match.playlistPrepError = retryEnsure.error;
       emitLobbyState(emit, match);
       return false;
     }
@@ -263,6 +297,56 @@ async function prepareSelectedPlaylistSongs(
 
     if (playable.length >= MIN_PLAYABLE_SONGS) {
       break;
+    }
+  }
+
+  if (
+    playable.length < MIN_PLAYABLE_SONGS &&
+    prepTokens.get(matchId) === prepToken
+  ) {
+    const retryStatus = await fetchSongsStatus(
+      ordered.map((track) => track.isrc),
+    );
+    if (retryStatus.ok) {
+      const failedIsrcs = new Set(
+        retryStatus.results
+          .filter((result) => result.status === "failed")
+          .map((result) => result.isrc),
+      );
+      const retryTracks = ordered.filter(
+        (track) => failedIsrcs.has(track.isrc) && Boolean(track.title),
+      );
+
+      if (retryTracks.length > 0) {
+        const retryEnsure = await ensureSongs(retryTracks);
+        if (!retryEnsure.ok) {
+          match.playlistPrepStatus = "error";
+          match.playlistPrepError = retryEnsure.error;
+          emitLobbyState(emit, match);
+          return false;
+        }
+
+        const retried = await pollPreparedCandidates(
+          retryTracks,
+          prepToken,
+          matchId,
+          emit,
+          match,
+          CLIP_PREP_RETRY_WAIT_MS,
+        );
+        if (retried === null) return false;
+
+        const seen = new Set(playable.map((song) => song.isrc));
+        for (const song of retried) {
+          if (!seen.has(song.isrc)) {
+            playable.push(song);
+            seen.add(song.isrc);
+          }
+        }
+
+        match.playlistPrepReady = playable.length;
+        emitLobbyState(emit, match);
+      }
     }
   }
 
@@ -585,6 +669,7 @@ async function materializeSelectedPlaylist(
     name: string;
     artists: string;
     isrc: string | null;
+    durationMs?: number | null;
   }> = [];
   let lastError = "SPOTIFY_NOT_LINKED";
 
@@ -672,7 +757,7 @@ async function materializeSelectedPlaylist(
     const tracksResult = await fetchUserPlaylistTracks(
       tokenUserId,
       selected.id,
-      50,
+      "prep",
     );
     if (tracksResult.ok && tracksResult.tracks.length > 0) {
       tracks = tracksResult.tracks;
@@ -704,6 +789,7 @@ async function materializeSelectedPlaylist(
       title: track.name,
       artist: track.artists,
       spotifyTrackId: track.spotifyTrackId,
+      durationMs: track.durationMs ?? null,
     }));
 
   if (withIsrc.length === 0) {

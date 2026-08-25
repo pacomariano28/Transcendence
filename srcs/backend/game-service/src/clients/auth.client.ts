@@ -9,6 +9,7 @@ export type SpotifyPlaylistTrackDto = {
   name: string;
   artists: string;
   isrc: string | null;
+  durationMs?: number | null;
   imageUrl: string | null;
 };
 
@@ -63,6 +64,7 @@ export async function fetchUserPlaylistMeta(
 export async function fetchUserPlaylistTracks(
   userId: string,
   playlistId: string,
+  mode: "prep" | "full" = "prep",
 ): Promise<
   | { ok: true; tracks: SpotifyPlaylistTrackDto[] }
   | { ok: false; error: string; spotifyStatus?: number }
@@ -73,9 +75,11 @@ export async function fetchUserPlaylistTracks(
     AUTH_PLAYLIST_TRACKS_TIMEOUT_MS,
   );
 
+  const modeQuery = mode === "prep" ? "?mode=prep" : "";
+
   try {
     const response = await fetch(
-      `${AUTH_SERVICE_URL}/internal/users/${encodeURIComponent(userId)}/spotify/playlists/${encodeURIComponent(playlistId)}/tracks`,
+      `${AUTH_SERVICE_URL}/internal/users/${encodeURIComponent(userId)}/spotify/playlists/${encodeURIComponent(playlistId)}/tracks${modeQuery}`,
       { signal: controller.signal },
     );
     const payload = (await response.json()) as {
