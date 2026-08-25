@@ -277,7 +277,7 @@ export default function MatchPage() {
       socket.emit("match:leave");
     }
     setActiveMatch(null);
-    nav("/");
+    nav("/play");
   }, [nav, setActiveMatch]);
 
   const leaveMatch = useCallback(() => {
@@ -286,7 +286,7 @@ export default function MatchPage() {
     }
 
     setActiveMatch(null);
-    nav("/");
+    nav("/play");
   }, [nav, setActiveMatch]);
 
   const requestRematch = useCallback(() => {
