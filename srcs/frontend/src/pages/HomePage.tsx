@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
-import LinkIcon from "../components/icons/LinkIcon";
 import { socket } from "../api/socket";
 import { getState } from "../api/state";
 import {
@@ -164,8 +163,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container-page py-8 sm:py-10 lg:py-12">
-      <div className="mx-auto max-w-4xl flex flex-col gap-14">
+    <div className="container-page flex min-h-[calc(100svh-9rem)] items-center py-8 sm:py-10 lg:py-12">
+      <div className="mx-auto w-full max-w-4xl">
         <div className="page-card">
           <div className="section-stack">
             <div className="space-y-3">
@@ -238,66 +237,6 @@ export default function HomePage() {
                 </span>
               )}
             </div> */}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <TypingText text={t("home.made_by")} size="md" className="ms-1" />
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
-            <a
-              href="https://github.com/pacomariano28"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>frmarian</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/seilanmoore"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>smoore-a</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/jortiz-m/jortiz-m"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>jortiz-m</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/svetameanssun"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>stitovsk</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/rjaada"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>rjaada</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
           </div>
         </div>
       </div>
