@@ -62,7 +62,7 @@ export default function AppHeader() {
       <div className="container-page flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
-            to="/play"
+            to="/"
             className="rounded-xl px-3 py-2 text-sm font-semibold tracking-wide text-white/90 transition duration-150 hover:bg-white/10 hover:text-white"
           >
             Songuess
