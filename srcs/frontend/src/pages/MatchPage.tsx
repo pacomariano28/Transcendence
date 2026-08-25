@@ -247,9 +247,7 @@ export default function MatchPage() {
   const canLock =
     roundPhase === "playing" && audioReady && !lockOwnerId && !isCooldownActive;
 
-  const hasSkipped = Boolean(
-    myUserId && skipUserIds.includes(myUserId),
-  );
+  const hasSkipped = Boolean(myUserId && skipUserIds.includes(myUserId));
 
   const canSkip =
     roundPhase === "playing" && audioReady && !lockOwnerId && !hasSkipped;
@@ -434,11 +432,13 @@ export default function MatchPage() {
             skipUserIds={skipUserIds}
           />
         </div>
-        <div className="flex w-full justify-end">
-          <button className="btn-ghost" type="button" onClick={leaveMatch}>
-            {t("lobby.leaveRoom")}
-          </button>
-        </div>
+        {!isMatchFinished && (
+          <div className="flex w-full justify-end">
+            <button className="btn-ghost" type="button" onClick={leaveMatch}>
+              {t("lobby.leaveRoom")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
