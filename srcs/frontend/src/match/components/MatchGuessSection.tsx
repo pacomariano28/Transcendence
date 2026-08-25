@@ -1,4 +1,5 @@
 /** Lock status label, guesser search form, and live typing preview for spectators. */
+import { useEffect, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
 import { translateError } from "../../i18n/translateError";
@@ -59,6 +60,15 @@ export default function MatchGuessSection({
   requestSkip,
 }: MatchGuessSectionProps) {
   const { t } = useTranslation();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!canGuess) return;
+    const timerId = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
+    return () => window.clearTimeout(timerId);
+  }, [canGuess]);
 
   const showSkipButton = roundPhase !== "guessing" && !isMatchFinished;
 
@@ -133,11 +143,11 @@ export default function MatchGuessSection({
       </div>
 
       <div
-        className={`transition-all duration-700 ease-in-out origin-top
+        className={`transition-[max-height,opacity,margin] duration-700 ease-in-out
             ${
               roundPhase === "guessing"
-                ? "mt-5 max-h-[600px] scale-100 opacity-100"
-                : "pointer-events-none mt-0 max-h-0 scale-95 overflow-hidden opacity-0"
+                ? "mt-5 max-h-[600px] opacity-100"
+                : "pointer-events-none mt-0 max-h-0 overflow-hidden opacity-0"
             }`}
       >
         <div className="rounded-2xl bg-black/20 p-4">
@@ -146,7 +156,7 @@ export default function MatchGuessSection({
               <div className="relative">
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <input
-                    autoFocus
+                    ref={searchInputRef}
                     className={`lock-input input flex-1 text-center ${
                       selectedTrack ? "normal-case" : "lowercase"
                     }`}
@@ -160,6 +170,9 @@ export default function MatchGuessSection({
                       event.preventDefault();
                       onSubmitGuess();
                     }}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     disabled={!canGuess}
                   />
                   <button

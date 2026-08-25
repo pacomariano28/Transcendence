@@ -95,7 +95,7 @@ export default function MatchPage() {
 
   const canGuess =
     roundPhase === "guessing" &&
-    Boolean(lockOwnerId && lockOwnerId === myUserId);
+    Boolean(lockOwnerId && myUserId && String(lockOwnerId) === String(myUserId));
 
   const {
     searchTerm,

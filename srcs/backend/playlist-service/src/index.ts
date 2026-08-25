@@ -3,6 +3,8 @@ import "dotenv/config"; // carga .env automáticamente en dev
 import express from "express";
 import playlistRouter from "./routes/playlist.routes.js";
 import cookieParser from "cookie-parser";
+import { logError } from "./lib/logger.js";
+import { bootstrapDefaultPlaylist } from "./services/defaultPlaylistBootstrap.service.js";
 
 const app = express();
 
@@ -22,4 +24,14 @@ const port = Number(
 
 app.listen(port, () => {
   console.log(`[playlist-service] listening on http://localhost:${port}`);
+  void bootstrapDefaultPlaylist().catch((err: unknown) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logError({
+      event: "default_playlist_bootstrap_failed",
+      message: error.message,
+      errorName: error.name,
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+  });
 });

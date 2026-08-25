@@ -147,6 +147,8 @@ services:
       PORT: 4004
       SERVICE_NAME: playlist-service
       MEDIA_DIR: /media
+      CONTENT_SERVICE_URL: http://content-service:4003
+      DEFAULT_SPOTIFY_PLAYLIST_ID: 4m6KPiWl16XF39K0q9qbGm
     env_file:
       - ./backend/playlist-service/.env
     container_name: songuess-playlist-service
@@ -154,6 +156,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      content-service:
+        condition: service_started
     #command: sh -c "npx prisma migrate deploy && npm run dev"
     ports:
       - "4004:4004"

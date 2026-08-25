@@ -51,15 +51,12 @@ Setup:
    - SPOTIFY_REDIRECT_URI = https://127.0.0.1:8443/api/auth/spotify/callback
 3. If you need HTTPS locally for Spotify, generate certs for Nginx:
    - bash infra/scripts/certs.sh
-4. Get local preview audio (matches work without this, but rounds will fail
-   to play any track):
-   - Export a Spotify playlist as CSV from https://www.chosic.com/spotify-playlist-exporter/
-   - bash infra/scripts/downloader.sh <playlist.csv>
-   - Downloads 20s previews into srcs/frontend/public/media/ (served
-     automatically by the frontend dev server — gitignored, not committed)
-     and regenerates srcs/backend/playlist-service/prisma/seed.ts to match.
-5. Start the stack:
+4. Start the stack:
    - make up
+   - playlist-service downloads the built-in Classic Mix in the background
+     on first start (Spotify metadata via content-service, clips via the
+     same worker used for lobby playlists). Rounds can start once
+     `/available-count` reports at least 5 ready songs.
 
 Access:
 
@@ -89,7 +86,8 @@ Common commands:
   - GEMINI_API_KEY (optional, future use)
   - REDIS_URL
 - Playlist Service: srcs/backend/playlist-service/.env
-  - DATABASE_URL
+  - DATABASE_URL, CONTENT_SERVICE_URL
+  - DEFAULT_SPOTIFY_PLAYLIST_ID (built-in Classic Mix source playlist)
 - Frontend: srcs/frontend/.env (optional, currently empty)
 
 ## Ports

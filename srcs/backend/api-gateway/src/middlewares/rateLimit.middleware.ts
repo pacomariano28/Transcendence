@@ -20,5 +20,5 @@ export const globalLimiter = rateLimit({
 export const searchLimiter = rateLimit({
   ...baseConfig,
   windowMs: toInt(process.env.SEARCH_RATE_LIMIT_WINDOW_MS, 1000),
-  limit: toInt(process.env.SEARCH_RATE_LIMIT_MAX_REQUESTS, 2),
+  limit: toInt(process.env.SEARCH_RATE_LIMIT_MAX_REQUESTS, 8),
 });

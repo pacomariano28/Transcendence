@@ -5,7 +5,7 @@ export const LOCAL_SEED_PLAYLIST_ID = "__local_seed__";
 
 export const LOCAL_SEED_PLAYLIST = {
   id: LOCAL_SEED_PLAYLIST_ID,
-  name: "Classic Mix",
+  name: "Default Mix",
   imageUrl: null as string | null,
   ownerUserId: SYSTEM_PLAYLIST_OWNER_ID,
   ownerDisplayName: "Songuess",

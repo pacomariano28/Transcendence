@@ -191,7 +191,7 @@
     "playlistSearchFailed": "No se pudieron buscar playlists en Spotify.",
     "playlistSectionGenres": "Géneros",
     "playlistSectionBuiltin": "Integrada",
-    "localPlaylistName": "Mix clásico",
+    "localPlaylistName": "Mix predeterminado",
     "localPlaylistSubtitle": "Sin Spotify",
     "playlistSectionPlayers": "De jugadores",
     "playlistSectionSearch": "Resultados de Spotify",
@@ -301,7 +301,7 @@
     "close": "Cerrar",
     "continue": "Entendido, continuar",
     "autoAppliedTitle": "Aplicado automáticamente",
-    "playWithoutSpotify": "Puedes jugar ya con la playlist integrada Mix clásico — no hace falta cuenta de Spotify.",
+    "playWithoutSpotify": "Puedes jugar ya con la playlist integrada Mix predeterminado — no hace falta cuenta de Spotify.",
     "checksTitle": "Estado",
     "checkServices": "Servicios backend",
     "checkSongLibrary": "Biblioteca local de canciones",
@@ -330,8 +330,8 @@
         "body": "En Spotify Developer Dashboard añade exactamente: {{redirectUri}}. Debe coincidir con SPOTIFY_REDIRECT_URI en auth-service/.env."
       },
       "media_library": {
-        "title": "Añade archivos de preview locales",
-        "body": "La playlist integrada necesita MP3 en srcs/frontend/public/media/. Ejecuta: bash infra/scripts/downloader_home.sh <playlist.csv> y luego make playlist (o make up)."
+        "title": "Espera a la playlist integrada",
+        "body": "playlist-service descarga Mix predeterminado en segundo plano al levantar el stack. Espera a que el setup muestre canciones listas, o revisa logs con: make playlist-logs"
       },
       "trust_certificate": {
         "title": "Confía en el certificado HTTPS local",
@@ -363,7 +363,7 @@
     "PLAYLIST_PREP_TIMEOUT": "Tiempo agotado preparando los clips de la playlist.",
     "PLAYLIST_PREP_FAILED": "No se pudo preparar la playlist seleccionada.",
     "NOT_HOST": "Solo el host puede elegir la playlist.",
-    "SPOTIFY_NOT_LINKED": "Spotify no está vinculado. Vincula tu cuenta o usa Mix clásico.",
+    "SPOTIFY_NOT_LINKED": "Spotify no está vinculado. Vincula tu cuenta o usa Mix predeterminado.",
     "SPOTIFY_NOT_CONFIGURED": "La API de Spotify no está configurada en este equipo. Configura CLIENT_ID/CLIENT_SECRET en content-service/.env y SPOTIFY_CLIENT_* en auth-service/.env.",
     "SPOTIFY_PLAYLIST_FORBIDDEN": "Spotify ha denegado el acceso a las canciones de esta playlist. En apps Development Mode normalmente solo puedes leer playlists propias o colaborativas.",
     "SPOTIFY_PLAYLIST_TRACKS_FAILED": "No se pudieron cargar las canciones de Spotify para esta playlist.",

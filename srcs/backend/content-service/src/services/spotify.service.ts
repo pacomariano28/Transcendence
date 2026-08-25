@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { getRedisClient } from "../lib/redis.js";
 import {
   formatTrackName,
@@ -27,12 +27,99 @@ const CLIENT_SECRET =
 /** Spotify Web API search limit (Dev Mode max since Feb 2026). */
 const SEARCH_LIMIT_MAX = 10;
 const MAX_LIMIT_FETCH = SEARCH_LIMIT_MAX;
+/** Keep retries inside nginx/api proxy_read_timeout (30s). */
+const SPOTIFY_REQUEST_TIMEOUT_MS = 8_000;
+const SPOTIFY_RETRY_MAX_ATTEMPTS = 3;
+const SPOTIFY_RETRY_BASE_DELAY_MS = 400;
+const SPOTIFY_RETRY_MAX_DELAY_MS = 2_000;
 
-function logSpotifyError(
-  context: string,
-  status: number,
-  data: unknown,
-): void {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(header: string | undefined): number | null {
+  if (!header) return null;
+
+  const asSeconds = Number(header);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return Math.min(asSeconds * 1000, SPOTIFY_RETRY_MAX_DELAY_MS);
+  }
+
+  const asDate = Date.parse(header);
+  if (!Number.isNaN(asDate)) {
+    return Math.min(Math.max(asDate - Date.now(), 0), SPOTIFY_RETRY_MAX_DELAY_MS);
+  }
+
+  return null;
+}
+
+function backoffDelayMs(attempt: number, retryAfterMs: number | null): number {
+  if (retryAfterMs !== null) return retryAfterMs;
+  const exp = SPOTIFY_RETRY_BASE_DELAY_MS * 2 ** attempt;
+  const jitter = Math.random() * SPOTIFY_RETRY_BASE_DELAY_MS;
+  return Math.min(exp + jitter, SPOTIFY_RETRY_MAX_DELAY_MS);
+}
+
+function isRetryableSpotifyStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function readRetryAfterHeader(headers: AxiosResponse["headers"]): string | undefined {
+  const raw = headers["retry-after"];
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0];
+  return undefined;
+}
+
+/**
+ * @brief GETs a Spotify Web API URL and retries 429/5xx with short backoff.
+ *
+ * @description
+ * Respects Retry-After when present, capped so the caller still answers
+ * before the 30s nginx proxy timeout. Network errors are retried the same way.
+ */
+async function spotifyGet<T>(
+  url: string,
+  config: Omit<AxiosRequestConfig, "validateStatus" | "url" | "timeout"> = {},
+): Promise<AxiosResponse<T>> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < SPOTIFY_RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await axios.get<T>(url, {
+        ...config,
+        timeout: SPOTIFY_REQUEST_TIMEOUT_MS,
+        validateStatus: () => true,
+      });
+
+      if (!isRetryableSpotifyStatus(response.status)) {
+        return response;
+      }
+
+      lastError = new Error(`SPOTIFY_HTTP_${response.status}`);
+      if (attempt === SPOTIFY_RETRY_MAX_ATTEMPTS - 1) {
+        return response;
+      }
+
+      const retryAfterMs = parseRetryAfterMs(
+        readRetryAfterHeader(response.headers),
+      );
+      await sleep(backoffDelayMs(attempt, retryAfterMs));
+    } catch (error: unknown) {
+      lastError = error;
+      if (attempt === SPOTIFY_RETRY_MAX_ATTEMPTS - 1) {
+        throw error;
+      }
+      await sleep(backoffDelayMs(attempt, null));
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("SPOTIFY_REQUEST_FAILED");
+}
+
+function logSpotifyError(context: string, status: number, data: unknown): void {
   const message =
     typeof data === "object" &&
     data !== null &&
@@ -66,8 +153,7 @@ function extractPlaylistTrackEntries(
 ): SpotifyPlaylistTrackEntry[] {
   const payload = data as {
     items?:
-      | SpotifyPlaylistTrackEntry[]
-      | { items?: SpotifyPlaylistTrackEntry[] };
+      SpotifyPlaylistTrackEntry[] | { items?: SpotifyPlaylistTrackEntry[] };
     tracks?: { items?: SpotifyPlaylistTrackEntry[] };
   };
 
@@ -106,38 +192,35 @@ type SpotifyFullTrack = {
   album?: { images?: Array<{ url: string }> };
 };
 
+const SPOTIFY_IDS_PER_REQUEST = 50;
+
 async function fetchFullTracksByIds(
   token: string,
   trackIds: string[],
 ): Promise<SpotifyFullTrack[]> {
   const uniqueIds = [...new Set(trackIds.filter(Boolean))];
+  const tracks: SpotifyFullTrack[] = [];
 
-  const results = await Promise.all(
-    uniqueIds.map(async (trackId) => {
-      const trackRes = await axios.get(
-        `https://api.spotify.com/v1/tracks/${encodeURIComponent(trackId)}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          validateStatus: (status) => status < 500,
-        },
-      );
+  for (let i = 0; i < uniqueIds.length; i += SPOTIFY_IDS_PER_REQUEST) {
+    const chunk = uniqueIds.slice(i, i + SPOTIFY_IDS_PER_REQUEST);
+    const response = await spotifyGet<{
+      tracks?: Array<SpotifyFullTrack | null>;
+    }>("https://api.spotify.com/v1/tracks", {
+      params: { ids: chunk.join(",") },
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      if (trackRes.status !== 200 || !trackRes.data?.id) {
-        logSpotifyError(
-          `Track ${trackId} unavailable`,
-          trackRes.status,
-          trackRes.data,
-        );
-        return null;
-      }
+    if (response.status !== 200) {
+      logSpotifyError("Track batch unavailable", response.status, response.data);
+      continue;
+    }
 
-      return trackRes.data as SpotifyFullTrack;
-    }),
-  );
+    for (const track of response.data?.tracks ?? []) {
+      if (track?.id && track.name) tracks.push(track);
+    }
+  }
 
-  return results.filter(
-    (track): track is SpotifyFullTrack => Boolean(track?.id && track?.name),
-  );
+  return tracks;
 }
 
 function mapFullTrackToPublicPlaylistTrack(
@@ -183,6 +266,7 @@ async function fetchSpotifyToken(): Promise<string | null> {
       client_secret: CLIENT_SECRET || "",
     }).toString(),
     {
+      timeout: SPOTIFY_REQUEST_TIMEOUT_MS,
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -234,26 +318,34 @@ async function fetchSpotifyToken(): Promise<string | null> {
  *       to ensure tokens are refreshed before actual expiration.
  */
 export async function getSpotifyToken(): Promise<string | null> {
-  const redis = getRedisClient();
-
-  const cachedToken = await redis.get("spotify_token");
-  if (cachedToken) {
-    // console.log(cachedToken);
-    return cachedToken;
+  try {
+    const redis = getRedisClient();
+    const cachedToken = await redis.get("spotify_token");
+    if (cachedToken) {
+      return cachedToken;
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[spotify] token cache read failed: ${message}`);
   }
 
-  // Return the existing promise if a fetch is already in progress
   if (tokenFetchPromise) {
     return tokenFetchPromise;
   }
 
-  try {
-    tokenFetchPromise = fetchSpotifyToken();
-    const newToken = await tokenFetchPromise;
-    return newToken;
-  } finally {
-    tokenFetchPromise = null; // Reset lock regardless of success or failure
-  }
+  tokenFetchPromise = (async () => {
+    try {
+      return await fetchSpotifyToken();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[spotify] token fetch failed: ${message}`);
+      return null;
+    } finally {
+      tokenFetchPromise = null;
+    }
+  })();
+
+  return tokenFetchPromise;
 }
 
 /**
@@ -269,7 +361,7 @@ export async function getSpotifyToken(): Promise<string | null> {
  *       Use @ref searchTracks() for a high-level interface with deduplication.
  */
 async function fetchTracks(term: string, offset: number, token: string | null) {
-  const response = axios.get("https://api.spotify.com/v1/search", {
+  return spotifyGet("https://api.spotify.com/v1/search", {
     params: {
       q: term,
       type: "track",
@@ -281,84 +373,81 @@ async function fetchTracks(term: string, offset: number, token: string | null) {
       Authorization: `Bearer ${token}`,
     },
   });
-
-  if ((await response).status === 429) {
-    console.log((await response).headers);
-  }
-
-  return response;
 }
 
 /**
  * @brief Searches Spotify for tracks matching the given term with deduplication.
  *
- * @details Fetches tracks from two paginated result pages (20 total results) and
- * returns up to 10 unique songs. Variants of the same song (remix, live, radio
- * edit, etc.) are grouped into a single search result via @ref getSearchGroupKey().
- *
- * Uses @ref normalizeSearchTitle() for search display names.
- *
- * @param term The search query to find on Spotify
- *
- * @return A promise that resolves to an array of @c TrackData objects (max 10 unique tracks)
- *         containing track name, artist name, Spotify track ID, and ISRC
- *
- * @see searchTracks()
- * @see normalizeSearchTitle()
- *
- * @note Results are limited to the Spanish market (@c market: 'ES')
+ * @description
+ * Fetches one search page (Dev Mode max 10) and returns up to 10 unique songs.
+ * Remix/live/radio variants of the same song are grouped via getSearchGroupKey().
+ * Transient Spotify failures return an empty list instead of throwing, so guess
+ * search does not 502 through the gateway.
  */
 export async function searchTracks(term: string): Promise<TrackData[]> {
-  const token = await getSpotifyToken();
-
-  const [page1Response, page2Response] = await Promise.all([
-    fetchTracks(term, 0, token),
-    fetchTracks(term, MAX_LIMIT_FETCH, token),
-  ]);
-
-  const results = [
-    ...page1Response.data.tracks.items,
-    ...page2Response.data.tracks.items,
-  ];
-
-  const uniqueTracks: TrackData[] = [];
-  const seenGroupKeys = new Map<string, { index: number; isVariant: boolean }>();
-
-  for (const track of results) {
-    const rawTrackName: string = track.name;
-    const rawArtistName: string = track.artists[0]?.name || "Unknown Artist";
-    const isrc: string | undefined = track.external_ids?.isrc;
-
-    if (!isrc) {
-      continue;
+  try {
+    const token = await getSpotifyToken();
+    if (!token) {
+      return [];
     }
 
-    const groupKey = getSearchGroupKey(rawTrackName, rawArtistName);
-    const isVariant = isVersionVariant(rawTrackName);
-    const existing = seenGroupKeys.get(groupKey);
-    const nextTrack: TrackData = {
-      track: normalizeSearchTitle(rawTrackName),
-      artist: rawArtistName,
-      id: track.id,
-      isrc,
-    };
+    const response = await fetchTracks(term, 0, token);
+    if (response.status !== 200) {
+      logSpotifyError("Track search", response.status, response.data);
+      return [];
+    }
 
-    if (existing === undefined) {
-      seenGroupKeys.set(groupKey, { index: uniqueTracks.length, isVariant });
-      uniqueTracks.push(nextTrack);
-      if (uniqueTracks.length === 10) {
-        break;
+    const results = (response.data?.tracks?.items ?? []).filter(
+      (track): track is NonNullable<typeof track> =>
+        Boolean(track && typeof track.name === "string" && track.id),
+    );
+
+    const uniqueTracks: TrackData[] = [];
+    const seenGroupKeys = new Map<
+      string,
+      { index: number; isVariant: boolean }
+    >();
+
+    for (const track of results) {
+      const rawTrackName: string = track.name;
+      const rawArtistName: string = track.artists?.[0]?.name || "Unknown Artist";
+      const isrc: string | undefined = track.external_ids?.isrc;
+
+      if (!isrc) {
+        continue;
       }
-      continue;
+
+      const groupKey = getSearchGroupKey(rawTrackName, rawArtistName);
+      const isVariant = isVersionVariant(rawTrackName);
+      const nextTrack: TrackData = {
+        track: normalizeSearchTitle(rawTrackName),
+        artist: rawArtistName,
+        id: track.id,
+        isrc,
+      };
+
+      const existing = seenGroupKeys.get(groupKey);
+      if (existing === undefined) {
+        seenGroupKeys.set(groupKey, { index: uniqueTracks.length, isVariant });
+        uniqueTracks.push(nextTrack);
+        if (uniqueTracks.length === 10) {
+          break;
+        }
+        continue;
+      }
+
+      if (existing.isVariant && !isVariant) {
+        uniqueTracks[existing.index] = nextTrack;
+        seenGroupKeys.set(groupKey, { index: existing.index, isVariant: false });
+      }
     }
 
-    if (existing.isVariant && !isVariant) {
-      uniqueTracks[existing.index] = nextTrack;
-      seenGroupKeys.set(groupKey, { index: existing.index, isVariant: false });
-    }
+    return uniqueTracks;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[spotify] searchTracks failed: ${message}`);
+    return [];
   }
-
-  return uniqueTracks;
 }
 
 export type TrackMetadata = {
@@ -366,6 +455,9 @@ export type TrackMetadata = {
   artist: string;
   imageUrl: string | null;
   spotifyUrl: string | null;
+  id: string | null;
+  isrc: string;
+  durationMs: number | null;
 };
 
 /**
@@ -379,7 +471,18 @@ export async function lookupTrackByIsrc(
     return null;
   }
 
-  const response = await axios.get("https://api.spotify.com/v1/search", {
+  const response = await spotifyGet<{
+    tracks?: {
+      items?: Array<{
+        id?: string;
+        name: string;
+        artists?: Array<{ name: string }>;
+        album?: { images?: Array<{ url: string }> };
+        external_urls?: { spotify?: string };
+        duration_ms?: number;
+      }>;
+    };
+  }>("https://api.spotify.com/v1/search", {
     params: {
       q: `isrc:${isrc}`,
       type: "track",
@@ -398,9 +501,13 @@ export async function lookupTrackByIsrc(
 
   return {
     track: formatTrackName(track.name),
-    artist: track.artists[0]?.name || "Unknown Artist",
+    artist: track.artists?.[0]?.name || "Unknown Artist",
     imageUrl: track.album?.images?.[0]?.url ?? null,
     spotifyUrl: track.external_urls?.spotify ?? null,
+    id: track.id ?? null,
+    isrc,
+    durationMs:
+      typeof track.duration_ms === "number" ? track.duration_ms : null,
   };
 }
 
@@ -430,17 +537,19 @@ export async function getPublicPlaylist(
   const token = await getSpotifyToken();
   if (!token) return null;
 
-  const response = await axios.get(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`,
-    {
-      params: {
-        fields:
-          "id,name,images,items.total,tracks.total,owner.display_name",
-      },
-      headers: { Authorization: `Bearer ${token}` },
-      validateStatus: (status) => status < 500,
+  const response = await spotifyGet<{
+    id?: string;
+    name?: string;
+    images?: Array<{ url: string }>;
+    items?: { total?: number };
+    tracks?: { total?: number };
+    owner?: { display_name?: string };
+  }>(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, {
+    params: {
+      fields: "id,name,images,items.total,tracks.total,owner.display_name",
     },
-  );
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   if (response.status !== 200 || !response.data?.id) {
     logSpotifyError(
@@ -461,8 +570,11 @@ export async function getPublicPlaylist(
   };
 }
 
+const SPOTIFY_PLAYLIST_PAGE_SIZE = 50;
+const PUBLIC_PLAYLIST_TRACKS_MAX = 100;
+
 /**
- * Fetches the first `limit` tracks of a public playlist (with ISRC when present).
+ * Fetches up to `limit` tracks of a public playlist (with ISRC when present).
  */
 export async function getPublicPlaylistTracks(
   playlistId: string,
@@ -475,53 +587,70 @@ export async function getPublicPlaylistTracks(
     });
   }
 
+  const target = Math.min(Math.max(limit, 1), PUBLIC_PLAYLIST_TRACKS_MAX);
   const fields =
-    "items(item(id,name,artists(name),external_ids,duration_ms,album(images)),track(id,name,artists(name),external_ids,duration_ms,album(images)))";
-  const requestConfig = {
-    params: {
-      limit: Math.min(limit, 50),
-      fields,
-    },
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: (status: number) => status < 500,
-  };
+    "items(item(id),track(id))";
+  const headers = { Authorization: `Bearer ${token}` };
+  const encodedId = encodeURIComponent(playlistId);
 
-  let response = await axios.get(
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items`,
-    requestConfig,
-  );
+  let resource: "items" | "tracks" = "items";
+  const trackIds: string[] = [];
+  let offset = 0;
 
-  if (response.status === 404) {
-    response = await axios.get(
-      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
+  while (trackIds.length < target) {
+    const pageLimit = Math.min(
+      SPOTIFY_PLAYLIST_PAGE_SIZE,
+      target - trackIds.length,
+    );
+    const requestConfig = {
+      params: { limit: pageLimit, offset, fields },
+      headers,
+    };
+
+    let response = await spotifyGet<unknown>(
+      `https://api.spotify.com/v1/playlists/${encodedId}/${resource}`,
       requestConfig,
     );
+
+    if (offset === 0 && response.status === 404 && resource === "items") {
+      resource = "tracks";
+      response = await spotifyGet<unknown>(
+        `https://api.spotify.com/v1/playlists/${encodedId}/tracks`,
+        requestConfig,
+      );
+    }
+
+    if (response.status === 403) {
+      console.warn(
+        `[spotify] Playlist tracks ${playlistId} forbidden (403) — Client Credentials cannot read playlist items; use a linked Spotify user token instead.`,
+      );
+      throw Object.assign(new Error("SPOTIFY_PLAYLIST_FORBIDDEN"), {
+        code: "SPOTIFY_PLAYLIST_FORBIDDEN",
+      });
+    }
+
+    if (response.status !== 200) {
+      logSpotifyError(
+        `Playlist tracks ${playlistId} unavailable`,
+        response.status,
+        response.data,
+      );
+      break;
+    }
+
+    const pageIds = collectPlaylistTrackIds(response.data);
+    if (pageIds.length === 0) break;
+
+    trackIds.push(...pageIds);
+    if (pageIds.length < pageLimit) break;
+    offset += pageLimit;
   }
 
-  if (response.status === 403) {
-    console.warn(
-      `[spotify] Playlist tracks ${playlistId} forbidden (403) — Client Credentials cannot read playlist items; use a linked Spotify user token instead.`,
-    );
-    throw Object.assign(new Error("SPOTIFY_PLAYLIST_FORBIDDEN"), {
-      code: "SPOTIFY_PLAYLIST_FORBIDDEN",
-    });
-  }
-
-  if (response.status !== 200) {
-    logSpotifyError(
-      `Playlist tracks ${playlistId} unavailable`,
-      response.status,
-      response.data,
-    );
-    return [];
-  }
-
-  const trackIds = collectPlaylistTrackIds(response.data);
   if (trackIds.length === 0) return [];
 
   const fullTracks = await fetchFullTracksByIds(
     token,
-    trackIds.slice(0, Math.min(limit, 50)),
+    trackIds.slice(0, target),
   );
 
   return fullTracks.map(mapFullTrackToPublicPlaylistTrack);
@@ -550,14 +679,24 @@ export async function searchPlaylists(
   const q = term.trim();
   if (!q) return [];
 
-  const response = await axios.get("https://api.spotify.com/v1/search", {
+  const response = await spotifyGet<{
+    playlists?: {
+      items?: Array<{
+        id?: string;
+        name?: string;
+        images?: Array<{ url: string }>;
+        items?: { total?: number };
+        tracks?: { total?: number };
+        owner?: { id?: string; display_name?: string };
+      }>;
+    };
+  }>("https://api.spotify.com/v1/search", {
     params: {
       q,
       type: "playlist",
       limit: clampSearchLimit(limit),
     },
     headers: { Authorization: `Bearer ${token}` },
-    validateStatus: (status) => status < 500,
   });
 
   if (response.status !== 200) {
@@ -606,14 +745,24 @@ export async function searchAlbums(
   const q = term.trim();
   if (!q) return [];
 
-  const response = await axios.get("https://api.spotify.com/v1/search", {
+  const response = await spotifyGet<{
+    albums?: {
+      items?: Array<{
+        id?: string;
+        name?: string;
+        images?: Array<{ url: string }>;
+        total_tracks?: number;
+        release_date?: string;
+        artists?: Array<{ name?: string }>;
+      }>;
+    };
+  }>("https://api.spotify.com/v1/search", {
     params: {
       q,
       type: "album",
       limit: clampSearchLimit(limit),
     },
     headers: { Authorization: `Bearer ${token}` },
-    validateStatus: (status) => status < 500,
   });
 
   if (response.status !== 200) {
@@ -676,16 +825,23 @@ export async function getPublicAlbum(
   const token = await getSpotifyToken();
   if (!token) return null;
 
-  const response = await axios.get(
-    `https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      validateStatus: (status) => status < 500,
-    },
-  );
+  const response = await spotifyGet<{
+    id?: string;
+    name?: string;
+    images?: Array<{ url: string }>;
+    total_tracks?: number;
+    tracks?: { total?: number };
+    artists?: Array<{ name?: string }>;
+  }>(`https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   if (response.status !== 200 || !response.data?.id) {
-    logSpotifyError(`Album ${albumId} unavailable`, response.status, response.data);
+    logSpotifyError(
+      `Album ${albumId} unavailable`,
+      response.status,
+      response.data,
+    );
     return null;
   }
 
@@ -715,14 +871,15 @@ export async function getPublicAlbumTracks(
   const token = await getSpotifyToken();
   if (!token) return [];
 
-  const albumTracksRes = await axios.get(
+  const albumTracksRes = await spotifyGet<{
+    items?: Array<{ id?: string }>;
+  }>(
     `https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}/tracks`,
     {
       params: {
         limit: Math.min(limit, 50),
       },
       headers: { Authorization: `Bearer ${token}` },
-      validateStatus: (status) => status < 500,
     },
   );
 
@@ -742,10 +899,7 @@ export async function getPublicAlbumTracks(
 
   if (trackIds.length === 0) return [];
 
-  const fullTracks = await fetchFullTracksByIds(
-    token,
-    trackIds.slice(0, 50),
-  );
+  const fullTracks = await fetchFullTracksByIds(token, trackIds.slice(0, 50));
 
   return fullTracks.map(mapFullTrackToPublicPlaylistTrack);
 }
