@@ -18,10 +18,12 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import Footer from "./components/AppFooter";
 import SetupGuideModal, { useSetupGuide } from "./components/SetupGuideModal";
+import { usePreventSpaceScroll } from "./hooks/usePreventSpaceScroll";
 
 function AppShell() {
   const { loading } = useAuth();
   const setupGuide = useSetupGuide();
+  usePreventSpaceScroll();
 
   if (loading) {
     return (

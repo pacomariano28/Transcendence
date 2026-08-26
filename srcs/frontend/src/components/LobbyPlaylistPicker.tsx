@@ -395,6 +395,9 @@ export default function LobbyPlaylistPicker({
       : t("lobby.playlistGuestHint");
 
   const selectedGenre = getGenrePlaylist(selected?.id ?? "");
+  const changeLabel = selected
+    ? t("lobby.playlistChange")
+    : t("lobby.playlistChoose");
   const showEmpty =
     filteredOptions.builtin.length === 0 &&
     filteredOptions.genres.length === 0 &&
@@ -713,7 +716,28 @@ export default function LobbyPlaylistPicker({
     <>
       {panel}
 
-      <div className="mt-8 page-card">
+      <div
+        className={[
+          "mt-8 page-card",
+          isHost ? "lobby-playlist-card-interactive" : "",
+        ].join(" ")}
+        onClick={isHost ? openPanel : undefined}
+        onKeyDown={
+          isHost
+            ? (event) => {
+                if (event.key === "Enter" || event.code === "Space") {
+                  event.preventDefault();
+                  openPanel();
+                }
+              }
+            : undefined
+        }
+        role={isHost ? "button" : undefined}
+        tabIndex={isHost ? 0 : undefined}
+        aria-haspopup={isHost ? "dialog" : undefined}
+        aria-expanded={isHost ? isOpen : undefined}
+        aria-label={isHost ? changeLabel : undefined}
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
             {t("lobby.playlistTitle")}
@@ -724,20 +748,7 @@ export default function LobbyPlaylistPicker({
         </div>
 
         <div className="mt-4 flex items-center gap-4">
-          <button
-            type="button"
-            onClick={openPanel}
-            disabled={!isHost}
-            className={[
-              "group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d046]/45",
-              isHost
-                ? "cursor-pointer transition duration-300 ease-out hover:scale-[1.03]"
-                : "cursor-default",
-            ].join(" ")}
-            aria-haspopup="dialog"
-            aria-expanded={isOpen}
-            aria-label={t("lobby.playlistChange")}
-          >
+          <div className="lobby-playlist-cover-shell relative shrink-0">
             <PlaylistCover
               imageUrl={selectedImageUrl}
               sizeClass="h-20 w-20 sm:h-24 sm:w-24"
@@ -746,15 +757,13 @@ export default function LobbyPlaylistPicker({
               label={selected?.name}
             />
             {isHost ? (
-              <span className="pointer-events-none absolute inset-0 flex items-end justify-center rounded-2xl bg-gradient-to-t from-black/75 via-black/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                <span className="mb-2 rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-100 backdrop-blur-sm">
-                  {selected
-                    ? t("lobby.playlistChange")
-                    : t("lobby.playlistChoose")}
+              <span className="lobby-playlist-cover-hint pointer-events-none absolute inset-x-0 bottom-0 flex h-11 items-center justify-center rounded-b-xl bg-gradient-to-t from-black/90 to-transparent pt-1">
+                <span className="rounded-md bg-black/50 px-2 py-0.5 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-100 backdrop-blur-sm">
+                  {changeLabel}
                 </span>
               </span>
             ) : null}
-          </button>
+          </div>
 
           <div className="min-w-0 flex-1">
             <div className="truncate text-base font-medium text-zinc-100 sm:text-lg">
@@ -783,16 +792,6 @@ export default function LobbyPlaylistPicker({
               <div className="mt-2 text-xs text-rose-200">
                 {translateError(prepError ?? "PLAYLIST_PREP_FAILED", t)}
               </div>
-            ) : null}
-
-            {isHost && !selected && prepStatus === "idle" ? (
-              <button
-                type="button"
-                onClick={openPanel}
-                className="mt-3 text-xs font-medium text-[#f7d046] transition hover:text-[#ffe08a]"
-              >
-                {t("lobby.playlistChoose")} →
-              </button>
             ) : null}
           </div>
         </div>

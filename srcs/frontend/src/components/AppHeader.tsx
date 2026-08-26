@@ -6,6 +6,7 @@ import { useActiveMatch } from "../context/active.match.context";
 import { socket } from "../api/socket";
 import GuestLanguageMenu from "./GuestLanguageMenu";
 import UserAvatarMenu from "./UserAvatarMenu";
+import LeaveRoomButton from "./LeaveRoomButton";
 
 export default function AppHeader() {
   const { t } = useTranslation();
@@ -99,29 +100,7 @@ export default function AppHeader() {
                     {activeMatch.roundLabel}
                   </span>
                 )}
-                <div className="group relative flex items-center">
-                  <button
-                    type="button"
-                    onClick={leaveMatch}
-                    aria-label={t("lobby.leaveRoom")}
-                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors duration-150 hover:bg-zinc-950/20"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                      strokeLinecap="round"
-                      className="h-3.5 w-3.5"
-                    >
-                      <line x1="4" y1="4" x2="20" y2="20" />
-                      <line x1="20" y1="4" x2="4" y2="20" />
-                    </svg>
-                  </button>
-                  <span className="pointer-events-none absolute -top-8 right-[-12px] whitespace-nowrap rounded-md bg-zinc-950 px-2 py-1 font-mono text-[9px] sm:text-[10px] font-black tracking-widest text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
-                    {t("lobby.leaveRoom")}
-                  </span>
-                </div>
+                <LeaveRoomButton onClick={leaveMatch} />
               </div>
             </div>
           </div>
