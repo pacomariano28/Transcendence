@@ -13,14 +13,32 @@ import {
 } from "./match.registry.js";
 import { getConnectedPlayers } from "./match.utils.js";
 
+export type MatchLobbyContext = MatchRegistry & {
+  /** Match ids whose lobby-to-game transition is currently awaiting I/O. */
+  startingMatchIds: Set<string>;
+};
+
+type LoadPlaylist = (match: MatchState) => Promise<void>;
+
 export async function markReady(
-  registry: MatchRegistry,
+  ctx: MatchLobbyContext,
   socketId: string,
   emit: EmitMatchEvent,
+  loadPlaylistForMatch: LoadPlaylist = loadPlaylist,
 ): Promise<ReadyResult> {
-  const match = getMatchBySocketOrThrow(registry, socketId);
+  const match = getMatchBySocketOrThrow(ctx, socketId);
 
   if (match.phase !== "lobby") {
+    return {
+      match,
+      countdownStarted: false,
+    };
+  }
+
+  // Claiming the transition happens synchronously before loadPlaylist's first
+  // await. Any ready event arriving while the playlist is loading must be a
+  // no-op; otherwise two callers can both start the same match.
+  if (ctx.startingMatchIds.has(match.matchId)) {
     return {
       match,
       countdownStarted: false,
@@ -61,33 +79,57 @@ export async function markReady(
       };
     }
 
-    const previousPhase = match.phase;
-    await loadPlaylist(match);
+    ctx.startingMatchIds.add(match.matchId);
 
-    if (match.playlistError || match.playlist.length < requiredRounds) {
-      const errorMessage = match.playlistError ?? "NOT_ENOUGH_SONGS_AVAILABLE";
+    try {
+      await loadPlaylistForMatch(match);
+
+      if (match.playlistError || match.playlist.length < requiredRounds) {
+        const errorMessage =
+          match.playlistError ?? "NOT_ENOUGH_SONGS_AVAILABLE";
+        match.playlist = [];
+        match.playlistError = null;
+        connectedPlayers.forEach((entry) => {
+          entry.ready = false;
+        });
+        emit(match.matchId, "match:error", {
+          message: errorMessage,
+        });
+        return {
+          match,
+          countdownStarted: false,
+        };
+      }
+
+      // The match may have been removed while playlist I/O was in flight.
+      // Never transition a stale object that is no longer authoritative.
+      if (ctx.matches.get(match.matchId) !== match || match.phase !== "lobby") {
+        return {
+          match,
+          countdownStarted: false,
+        };
+      }
+
+      const previousPhase = match.phase;
+      match.phase = "in-game";
+      startRound(match);
+      emit(match.matchId, "match:phase", {
+        matchId: match.matchId,
+        phase: match.phase,
+        previousPhase,
+      });
+      emit(match.matchId, "round:sync", toRoundSyncPayload(match));
+    } catch (error) {
+      // Restore a retryable lobby if playlist loading throws unexpectedly.
       match.playlist = [];
       match.playlistError = null;
       connectedPlayers.forEach((entry) => {
         entry.ready = false;
       });
-      emit(match.matchId, "match:error", {
-        message: errorMessage,
-      });
-      return {
-        match,
-        countdownStarted: false,
-      };
+      throw error;
+    } finally {
+      ctx.startingMatchIds.delete(match.matchId);
     }
-
-    match.phase = "in-game";
-    startRound(match);
-    emit(match.matchId, "match:phase", {
-      matchId: match.matchId,
-      phase: match.phase,
-      previousPhase,
-    });
-    emit(match.matchId, "round:sync", toRoundSyncPayload(match));
   }
 
   return {
