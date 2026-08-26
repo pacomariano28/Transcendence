@@ -14,7 +14,7 @@ export const PREP_CANDIDATE_POOL = 18;
 /** Tracks enqueued for clip download in a single ensure-songs call. */
 export const PREP_ENSURE_BATCH = 12;
 export const MAX_PLAYER = 5;
-export const ROUND_COUNTDOWN_SECONDS = 1;
+export const ROUND_COUNTDOWN_SECONDS = 5;
 export const GUESS_WINDOW_SECONDS = 20;
 /** Max characters broadcast for live guess typing. Must stay text-only. */
 export const GUESS_TYPING_MAX_LENGTH = 80;

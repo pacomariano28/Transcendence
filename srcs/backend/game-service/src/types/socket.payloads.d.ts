@@ -19,6 +19,7 @@ export type MatchStatePayload = {
     connected: boolean;
     disconnectedAt: string | null;
   }>;
+  scores: ScoreEntry[];
   availablePlaylists: LobbyPlaylistOption[];
   selectedPlaylist: SelectedLobbyPlaylist | null;
   playlistPrepStatus: PlaylistPrepStatus;
