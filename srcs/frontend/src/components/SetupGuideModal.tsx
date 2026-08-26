@@ -240,6 +240,8 @@ export default function SetupGuideModal({
   );
 }
 
+// This colocated hook and component share the setup status contract.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSetupGuide() {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [visible, setVisible] = useState(false);

@@ -46,12 +46,11 @@ export function useSpotifyGuessSearch({
     const term = searchTerm.trim();
     if (term.length < 2) return;
 
-    setSearching(true);
-
     const abort = new AbortController();
     let cancelled = false;
 
     const timerId = window.setTimeout(() => {
+      setSearching(true);
       searchSpotifyTracks(term, abort.signal)
         .then((tracks) => {
           if (cancelled) return;

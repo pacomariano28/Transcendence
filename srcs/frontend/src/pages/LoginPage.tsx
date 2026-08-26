@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { login, register } from "../api/auth";
@@ -50,16 +50,16 @@ export default function LoginPage() {
     setSearchParams(returnTo ? { returnTo } : {}, { replace: true });
   }, [searchParams, setSearchParams, t]);
 
-  function redirectAfterAuth() {
+  const redirectAfterAuth = useCallback(() => {
     const destination = resolveReturnTo(searchParams.get("returnTo"));
     clearAuthReturnTo();
     nav(destination, { replace: true });
-  }
+  }, [nav, searchParams]);
 
   useEffect(() => {
     if (loading || !user || submitting) return;
     redirectAfterAuth();
-  }, [loading, user, submitting]);
+  }, [loading, user, submitting, redirectAfterAuth]);
 
   function loginWithSpotify() {
     const destination = resolveReturnTo(searchParams.get("returnTo"));

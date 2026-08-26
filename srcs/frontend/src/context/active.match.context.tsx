@@ -46,6 +46,8 @@ export function ActiveMatchProvider({
   );
 }
 
+// The provider and its access hook intentionally share this context module.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useActiveMatch() {
   const context = useContext(ActiveMatchContext);
   if (!context) {

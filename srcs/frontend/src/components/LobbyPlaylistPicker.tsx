@@ -276,16 +276,13 @@ export default function LobbyPlaylistPicker({
 
   useEffect(() => {
     if (!isOpen || !hasQuery) {
-      setAlbumResults([]);
-      setPlaylistResults([]);
-      setSearchStatus("idle");
       return;
     }
 
     const requestId = ++searchRequestId.current;
-    setSearchStatus("loading");
 
     const timer = window.setTimeout(async () => {
+      setSearchStatus("loading");
       try {
         const results = await searchSpotifyCatalog(trimmedQuery, searchFilter);
         if (searchRequestId.current !== requestId) return;
@@ -369,7 +366,8 @@ export default function LobbyPlaylistPicker({
     }
     if (prepStatus === "ready" && wasPreparingRef.current && isOpen) {
       wasPreparingRef.current = false;
-      closePanel();
+      const timer = window.setTimeout(closePanel, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [prepStatus, isOpen]);
 

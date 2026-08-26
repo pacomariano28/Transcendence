@@ -496,5 +496,8 @@ export function useMatchSocket({
     // onRematchReceived are intentionally excluded — read via refs above so
     // a new function identity from the parent each render doesn't tear down
     // and rebind all socket listeners.
+    // The remaining setters are React-stable or intentionally accessed through
+    // refs above; rebinding all socket listeners on each render is incorrect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, nav, user]);
 }

@@ -1,5 +1,3 @@
-import { useEffect, useRef } from "react";
-
 const MATCH_CODE_LENGTH = 6;
 const PLACEHOLDER = "—";
 const STAGGER_MS = 80;
@@ -13,14 +11,7 @@ export default function MatchCodePreview({
   code,
   className = "",
 }: MatchCodePreviewProps) {
-  const prevLengthRef = useRef(code.length);
-  const addedCount = Math.max(0, code.length - prevLengthRef.current);
-  const stagger = addedCount > 1;
-  const staggerStart = code.length - addedCount;
-
-  useEffect(() => {
-    prevLengthRef.current = code.length;
-  }, [code]);
+  const stagger = code.length > 1;
 
   return (
     <div
@@ -42,7 +33,7 @@ export default function MatchCodePreview({
         }
 
         const delayMs = stagger
-          ? Math.max(0, index - staggerStart) * STAGGER_MS
+          ? index * STAGGER_MS
           : 0;
 
         return (
