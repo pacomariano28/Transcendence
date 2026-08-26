@@ -52,6 +52,7 @@ import type {
 import { isMatchNotFoundError, normalizeCode } from "../utils";
 import { mergeScoresFromPayload } from "../utils/scoreUtils";
 import i18n from "../../i18n/i18n";
+import { toGameServiceErrorCode } from "../gameServiceErrors";
 
 type AuthUser = {
   id: string | number;
@@ -177,6 +178,7 @@ export function useMatchSocket({
     }
 
     const joinMatch = () => {
+      setError(null);
       socket.emit("match:join", {
         matchId: code,
         displayName:
@@ -188,7 +190,17 @@ export function useMatchSocket({
       joinMatch();
     }
 
+    const handleDisconnect = () => {
+      setError("GAME_CONNECTION_LOST");
+    };
+
+    const handleConnectError = (err: unknown) => {
+      setError(toGameServiceErrorCode(err));
+    };
+
     socket.on("connect", joinMatch);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
 
     socket.on("match:state", (payload: MatchStatePayload) => {
       setMatchState(payload);
@@ -468,7 +480,7 @@ export function useMatchSocket({
         setNotFound(true);
         return;
       }
-      setError(err.message);
+      setError(toGameServiceErrorCode(err.message));
       setLockRequested(false);
       setSkipRequested(false);
       setRematchPending(false);
@@ -476,6 +488,8 @@ export function useMatchSocket({
 
     return () => {
       socket.off("connect", joinMatch);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
       socket.off("match:state");
       socket.off("match:phase");
       socket.off("round:sync");

@@ -1,6 +1,7 @@
 import { socket } from "../api/socket";
 import { getState } from "../api/state";
 import { ensureEnoughSongsForMatch } from "../api/playlist";
+import { toGameServiceErrorCode } from "./gameServiceErrors";
 
 async function ensureSocketConnected() {
   if (!socket.connected) {
@@ -13,7 +14,7 @@ async function ensureSocketConnected() {
       const handleConnectError = (err: unknown) => {
         cleanup();
         console.error("Failed to connect socket:", err);
-        reject(err);
+        reject(new Error(toGameServiceErrorCode(err)));
       };
 
       const cleanup = () => {
@@ -32,12 +33,16 @@ export async function createMatchRoom(
   displayName: string,
   roundsTotal = 3,
 ): Promise<string> {
-  const res = await getState();
+  try {
+    const res = await getState();
 
-  if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
+    if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
 
-  await ensureEnoughSongsForMatch();
-  await ensureSocketConnected();
+    await ensureEnoughSongsForMatch();
+    await ensureSocketConnected();
+  } catch (err) {
+    throw new Error(toGameServiceErrorCode(err));
+  }
 
   let matchId = "";
 
@@ -52,7 +57,11 @@ export async function createMatchRoom(
 
     const handleError = (payload: { message?: string }) => {
       cleanup();
-      reject(new Error(payload.message || "MATCH_CREATE_FAILED"));
+      reject(
+        new Error(
+          toGameServiceErrorCode(payload.message || "MATCH_CREATE_FAILED"),
+        ),
+      );
     };
 
     const cleanup = () => {

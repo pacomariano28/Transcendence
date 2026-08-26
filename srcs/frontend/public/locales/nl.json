@@ -350,6 +350,8 @@
     "MATCH_NOT_FOUND": "Match niet gevonden",
     "USER_ALREADY_IN_GAME": "Je bent al actief in een andere spelsessie.",
     "MATCH_CREATE_FAILED": "Kan geen verbinding maken of een kamer aanmaken.",
+    "GAME_SERVICE_UNAVAILABLE": "De gameserver is tijdelijk niet beschikbaar. Probeer het zo opnieuw.",
+    "GAME_CONNECTION_LOST": "Verbinding met de gameserver verbroken. Opnieuw verbinden…",
     "DEFAULT_ERROR": "Er is een onverwachte fout opgetreden.",
     "LOGIN_REQUIRED": "Je moet inloggen om toegang te krijgen tot een actieve spelkamer.",
     "MATCH_FINISHED": "Deze match is al afgelopen.",

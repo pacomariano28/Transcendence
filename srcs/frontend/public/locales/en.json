@@ -350,6 +350,8 @@
     "MATCH_NOT_FOUND": "Match not found",
     "USER_ALREADY_IN_GAME": "You are already active in another game session.",
     "MATCH_CREATE_FAILED": "Failed to establish a connection or create a room.",
+    "GAME_SERVICE_UNAVAILABLE": "The game server is temporarily unavailable. Please try again in a moment.",
+    "GAME_CONNECTION_LOST": "Connection to the game server was lost. Reconnecting…",
     "DEFAULT_ERROR": "An unexpected error occurred.",
     "LOGIN_REQUIRED": "You must log in to access an active game room.",
     "MATCH_FINISHED": "This match has already finished.",

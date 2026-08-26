@@ -17,6 +17,7 @@ import type {
 } from "../types/socket.payloads";
 import { translateError } from "../i18n/translateError";
 import i18n from "../i18n/i18n";
+import { toGameServiceErrorCode } from "../match/gameServiceErrors";
 
 import {
   GENRE_PLAYLISTS,
@@ -170,6 +171,7 @@ export default function RoomLobbyPage() {
     }
 
     const joinMatch = () => {
+      setError(null);
       socket.emit("match:join", {
         matchId: code,
         displayName:
@@ -181,7 +183,17 @@ export default function RoomLobbyPage() {
       joinMatch();
     }
 
+    const handleDisconnect = () => {
+      setError("GAME_CONNECTION_LOST");
+    };
+
+    const handleConnectError = (err: unknown) => {
+      setError(toGameServiceErrorCode(err));
+    };
+
     socket.on("connect", joinMatch);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
 
     socket.on("match:state", (payload: MatchStatePayload) => {
       setMatchState(payload);
@@ -210,11 +222,13 @@ export default function RoomLobbyPage() {
         setNotFound(true);
         return;
       }
-      setError(err.message);
+      setError(toGameServiceErrorCode(err.message));
     });
 
     return () => {
       socket.off("connect", joinMatch);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
       socket.off("match:state");
       socket.off("match:phase");
       socket.off("match:error");

@@ -193,7 +193,17 @@ export async function apiJsonPost<T>(
 
   if (!res.ok)
     throw new Error(
-      data.message === "MATCH_NOT_FOUND" ? "MATCH_NOT_FOUND" : "",
+      data &&
+        typeof data === "object" &&
+        "message" in data &&
+        (data as { message?: unknown }).message === "MATCH_NOT_FOUND"
+        ? "MATCH_NOT_FOUND"
+        : data &&
+            typeof data === "object" &&
+            "error" in data &&
+            typeof (data as { error?: unknown }).error === "string"
+          ? String((data as { error: string }).error)
+          : `HTTP_${res.status}`,
     );
 
   return data as T;
