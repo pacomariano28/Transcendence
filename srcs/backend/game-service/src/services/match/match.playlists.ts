@@ -9,6 +9,7 @@ import {
   fetchPublicAlbum,
   fetchPublicAlbumTracks,
   fetchPublicPlaylist,
+  fetchPublicPlaylistTracks,
 } from "../../clients/content.client.js";
 import {
   ensureSongs,
@@ -697,8 +698,6 @@ async function materializeSelectedPlaylist(
       lastError = "PLAYLIST_NO_ISRC_TRACKS";
     }
   } else if (isSystemOwned) {
-    // Playlist track lists are not available with Client Credentials (Spotify
-    // returns 403). Metadata may still work; tracks come from user OAuth below.
     const meta = await fetchPublicPlaylist(selected.id);
     if (meta.ok && prepTokens.get(matchId) === prepToken) {
       const genre = getGenrePlaylist(selected.id);
@@ -712,6 +711,14 @@ async function materializeSelectedPlaylist(
         kind: "playlist",
       };
       emitLobbyState(emit, match);
+    }
+
+    const tracksResult = await fetchPublicPlaylistTracks(selected.id, 50);
+    if (tracksResult.ok && tracksResult.tracks.length > 0) {
+      tracks = tracksResult.tracks;
+      lastError = "";
+    } else if (tracksResult.ok === false) {
+      lastError = tracksResult.error;
     }
   }
 

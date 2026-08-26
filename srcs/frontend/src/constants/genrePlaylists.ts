@@ -12,7 +12,7 @@ export type GenrePlaylistDef = {
 
 /**
  * Curated public playlists for the main genres.
- * Track lists require a linked Spotify account (user OAuth token).
+ * Tracks are resolved server-side without requiring a linked Spotify account.
  */
 export const GENRE_PLAYLISTS: GenrePlaylistDef[] = [
   {
