@@ -69,7 +69,6 @@
     "password_too_short": "Password requires at least 3 characters",
     "password_too_long": "Maximum 12 characters allowed for password"
   },
-
   "profile": {
     "title": "PROFILE",
     "session_data": "Session data",
@@ -225,10 +224,10 @@
   "terms": {
     "title": "Terms of Service",
     "lastUpdated": "Last updated: July 8, 2026",
-    "intro": "These Terms of Service (\"Terms\") govern your use of <1>Songuess</1>, a real-time multiplayer music trivia game. By accessing or using Songuess, you agree to these Terms.",
+    "intro": "These Terms of Service (“Terms”) govern your use of <b>Songuess</b>, a real-time multiplayer music trivia game. By accessing or using Songuess, you agree to these Terms.",
     "sections": {
       "academicTitle": "1. Academic project",
-      "academicBody": "Songuess is an academic project developed by students at <1>42</1> as part of the ft_transcendence curriculum. It is a learning exercise and MVP, not a commercial product or a publicly operated online service.",
+      "academicBody": "Songuess is an academic project developed by students at <b>42</b> as part of the ft_transcendence curriculum. It is a learning exercise and MVP, not a commercial product or a publicly operated online service.",
       "intendedTitle": "2. Intended use",
       "intendedBody1": "Songuess is intended solely for local development, testing, and evaluation — including project reviews and peer assessments at 42. It is not designed for general public use on the Internet, and we do not offer it as a hosted service to external users.",
       "intendedBody2": "You may access Songuess only in environments where the project is deployed for academic purposes (for example, a local or school-provided setup used during evaluation).",
@@ -240,11 +239,11 @@
       "acceptableRule4": "Use automated tools or scripts to interfere with gameplay or server operations.",
       "acceptableOutro": "We may restrict or terminate access if we determine that use is abusive or incompatible with the academic purpose of the project.",
       "availabilityTitle": "4. No guarantee of availability",
-      "availabilityBody": "Songuess is provided on an \"as is\" and \"as available\" basis. Because it is an MVP under active development, we do <1>not</1> guarantee continuous availability, uptime, data persistence, or error-free operation. The service may be offline, reset, or unavailable at any time without notice — including during evaluations, demos, or development work.",
+      "availabilityBody": "Songuess is provided on an “as is” and “as available” basis. Because it is an MVP under active development, we do <b>not</b> guarantee continuous availability, uptime, data persistence, or error-free operation. The service may be offline, reset, or unavailable at any time without notice — including during evaluations, demos, or development work.",
       "changesDevTitle": "5. Changes during development",
       "changesDevBody": "The development team may add, modify, or remove features, rules, or data at any time as part of ongoing work on the project. Game mechanics, authentication flows, and stored data models may change without prior notice. You acknowledge that your experience may differ between versions and evaluation sessions.",
       "spotifyTitle": "6. Spotify as a third-party service",
-      "spotifyBody1": "Songuess uses <1>Spotify</1> solely for user authentication and, with your consent, to retrieve profile and listening-taste information used inside the app. Your use of Spotify login is also subject to Spotify's own terms and privacy policies.",
+      "spotifyBody1": "Songuess uses <b>Spotify</b> solely for user authentication and, with your consent, to retrieve profile and listening-taste information used inside the app. Your use of Spotify login is also subject to Spotify's own terms and privacy policies.",
       "spotifyBody2": "We are not affiliated with, endorsed by, or responsible for Spotify. If Spotify is unavailable or changes its API, Spotify login or related features in Songuess may stop working without notice.",
       "accountsTitle": "7. Accounts and content",
       "accountsBody1": "You are responsible for the accuracy of the information you provide when registering (email, username, and password) or when signing in with Spotify. You are responsible for maintaining the confidentiality of your credentials.",
@@ -252,27 +251,27 @@
       "liabilityTitle": "8. Limitation of liability",
       "liabilityBody": "To the fullest extent permitted in this academic context, the developers of Songuess are not liable for any loss of data, interrupted gameplay, or other damages arising from use of this MVP. The project is provided free of charge, without monetization, advertising, or warranties of any kind.",
       "contactTitle": "9. Contact",
-      "contactBody": "For questions about these Terms or about your data, contact the development team through the GitHub profiles listed on the <1>home page</1>.",
+      "contactBody": "For questions about these Terms or about your data, contact the development team through the GitHub profiles listed on the <home>home page</home>.",
       "changesTermsTitle": "10. Changes to these Terms",
-      "changesTermsBody": "We may update these Terms as the project evolves. Continued use of Songuess after changes are published constitutes acceptance of the revised Terms. The \"Last updated\" date at the top of this page indicates the latest revision."
+      "changesTermsBody": "We may update these Terms as the project evolves. Continued use of Songuess after changes are published constitutes acceptance of the revised Terms. The “Last updated” date at the top of this page indicates the latest revision."
     },
-    "seeAlso": "See also our <PrivacyLink>Privacy Policy</PrivacyLink>."
+    "seeAlso": "See also our <privacy>Privacy Policy</privacy>."
   },
   "privacy": {
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: July 8, 2026",
-    "intro": "This Privacy Policy describes how <1>Songuess</1> — a real-time multiplayer music trivia game developed as an academic project at 42 — collects, uses, and stores personal information. Songuess is currently an MVP intended for local development, testing, and evaluation only. It is not designed for public deployment on the Internet.",
+    "intro": "This Privacy Policy describes how <b>Songuess</b> — a real-time multiplayer music trivia game developed as an academic project at 42 — collects, uses, and stores personal information. Songuess is currently an MVP intended for local development, testing, and evaluation only. It is not designed for public deployment on the Internet.",
     "sections": {
       "dataTitle": "1. Data we store",
       "dataIntro": "When you create an account or sign in, we store only the information needed to run the application:",
-      "dataRule1": "<1>Account data:</1> email address, username, and a bcrypt-hashed password (we never store your password in plain text).",
-      "dataRule2": "<1>Session data:</1> hashed refresh tokens linked to your account, plus short-lived access tokens delivered through HTTP-only cookies (<3>access_token</3>, <5>refresh_token</5>).",
-      "dataRule3": "<1>Spotify profile data</1> (optional, only if you sign in with Spotify): Spotify user ID, display name, email, profile image URL, your top artists and genres, and your most-listened tracks (recent and all-time). This data is refreshed each time you authenticate with Spotify.",
+      "dataRule1": "<b>Account data:</b> email address, username, and a bcrypt-hashed password (we never store your password in plain text).",
+      "dataRule2": "<b>Session data:</b> hashed refresh tokens linked to your account, plus short-lived access tokens delivered through HTTP-only cookies (<code>access_token</code>, <code>refresh_token</code>).",
+      "dataRule3": "<b>Spotify profile data</b> (optional, only if you sign in with Spotify): Spotify user ID, display name, email, profile image URL, your top artists and genres, and your most-listened tracks (recent and all-time). This data is refreshed each time you authenticate with Spotify.",
       "dataOutro1": "During active multiplayer matches, your display name and score are held in server memory so other players can see them. Match results are not permanently stored in our database.",
-      "dataOutro2": "Your browser may also store a login flag, session timing values, and game cooldown timestamps in <1>localStorage</1>. These are used for session management and gameplay mechanics only.",
+      "dataOutro2": "Your browser may also store a login flag, session timing values, and game cooldown timestamps in <code>localStorage</code>. These are used for session management and gameplay mechanics only.",
       "spotifyTitle": "2. Information obtained through Spotify OAuth",
-      "spotifyBody1": "If you choose &ldquo;Continue with Spotify,&rdquo; we redirect you to Spotify's authorization page. With your consent, Spotify shares profile and listening-taste data through the following scopes: <1>user-read-email</1>, <3>user-read-private</3>, and <5>user-top-read</5>.",
-      "spotifyBody2": "From Spotify we receive your profile information (ID, email, display name, avatar) and your top artists, derived genres, and top tracks. Spotify OAuth access tokens are used only during the login callback and are <1>not</1> stored long-term on our servers.",
+      "spotifyBody1": "If you choose “Continue with Spotify,” we redirect you to Spotify's authorization page. With your consent, Spotify shares profile and listening-taste data through the following scopes: <code>user-read-email</code>, <code>user-read-private</code>, and <code>user-top-read</code>.",
+      "spotifyBody2": "From Spotify we receive your profile information (ID, email, display name, avatar) and your top artists, derived genres, and top tracks. Spotify OAuth access tokens are used only during the login callback and are <b>not</b> stored long-term on our servers.",
       "spotifyBody3": "Spotify is the only third-party service used for user authentication. We do not integrate with any other external login providers.",
       "useTitle": "3. How we use your data",
       "useIntro": "We use the data described above exclusively to:",
@@ -285,11 +284,11 @@
       "academicBody": "Songuess is a student project built for the ft_transcendence curriculum at 42. It runs in a local development and evaluation environment. We do not operate it as a commercial or publicly hosted service, and we do not guarantee the same protections or availability you would expect from a production application.",
       "retentionTitle": "5. Data retention and deletion",
       "retentionBody1": "Account and Spotify profile data remain stored while your account exists. Session tokens expire automatically (access tokens after 15 minutes; refresh tokens after 30 days, or sooner if you log out).",
-      "retentionBody2": "Songuess does not currently offer an in-app account deletion feature. If you want your stored data removed, please contact the development team through their GitHub profiles listed on the <1>home page</1>. We will handle deletion requests on a best-effort basis within this academic project context.",
+      "retentionBody2": "Songuess does not currently offer an in-app account deletion feature. If you want your stored data removed, please contact the development team through their GitHub profiles listed on the <home>home page</home>. We will handle deletion requests on a best-effort basis within this academic project context.",
       "changesTitle": "6. Changes to this policy",
-      "changesBody": "We may update this Privacy Policy as the project evolves during development and evaluation. The &ldquo;Last updated&rdquo; date at the top of this page will reflect the most recent revision."
+      "changesBody": "We may update this Privacy Policy as the project evolves during development and evaluation. The “Last updated” date at the top of this page will reflect the most recent revision."
     },
-    "seeAlso": "See also our <TermsLink>Terms of Service</TermsLink>."
+    "seeAlso": "See also our <terms>Terms of Service</terms>."
   },
   "common": {
     "loading": "Loading..."
