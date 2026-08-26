@@ -25,6 +25,7 @@ export function toPayload(match: MatchState): MatchStatePayload {
       connected: player.connected,
       disconnectedAt: player.disconnectedAt,
     })),
+    scores: match.scores,
     availablePlaylists: match.availablePlaylists,
     selectedPlaylist: match.selectedPlaylist,
     playlistPrepStatus: match.playlistPrepStatus,
