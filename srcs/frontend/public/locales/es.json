@@ -350,6 +350,8 @@
     "MATCH_NOT_FOUND": "Partida no encontrada",
     "USER_ALREADY_IN_GAME": "Ya estás activo en otra sesión de juego.",
     "MATCH_CREATE_FAILED": "No se pudo establecer la conexión o crear la sala.",
+    "GAME_SERVICE_UNAVAILABLE": "El servidor de juego no está disponible temporalmente. Inténtalo de nuevo en unos momentos.",
+    "GAME_CONNECTION_LOST": "Se perdió la conexión con el servidor de juego. Reconectando…",
     "DEFAULT_ERROR": "Ha ocurrido un error inesperado.",
     "LOGIN_REQUIRED": "Debes iniciar sesión para acceder a una sala de juego activa.",
     "MATCH_FINISHED": "Esta partida ya ha terminado.",
