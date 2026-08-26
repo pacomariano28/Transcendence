@@ -14,8 +14,7 @@ export type GenrePlaylistDef = {
 
 /**
  * Curated public playlists for the main genres.
- * Track lists require a player with Spotify linked (OAuth user token).
- * Client Credentials cannot read /playlists/{id}/tracks (Spotify returns 403).
+ * Tracks are fetched via content-service (Client Credentials); OAuth is a fallback.
  */
 export const GENRE_PLAYLISTS: GenrePlaylistDef[] = [
   {
