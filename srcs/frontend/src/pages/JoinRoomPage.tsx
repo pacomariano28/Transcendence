@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
@@ -18,6 +18,8 @@ export default function JoinRoomPage() {
   const [code, setCode] = useState("");
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const joiningRef = useRef(false);
 
   const normalized = useMemo(() => normalizeCode(code), [code]);
   const isValid = normalized.length === 6;
@@ -29,6 +31,32 @@ export default function JoinRoomPage() {
     return "";
   }, [user]);
 
+  const nav = useNavigate();
+
+  async function onJoin(matchCode = normalized) {
+    setTouched(true);
+    if (matchCode.length !== 6 || disabledReason || joiningRef.current) return;
+
+    joiningRef.current = true;
+    setJoining(true);
+    setError(null);
+
+    try {
+      const match: MatchStatePayload = await getMatchState({
+        matchId: matchCode,
+      });
+
+      if (match.phase === "finished") throw new Error("MATCH_FINISHED");
+      nav(`/room/${matchCode}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      setError(message);
+    } finally {
+      joiningRef.current = false;
+      setJoining(false);
+    }
+  }
+
   async function pasteFromClipboard() {
     try {
       const text = await navigator.clipboard.readText();
@@ -39,26 +67,11 @@ export default function JoinRoomPage() {
     }
   }
 
-  const nav = useNavigate();
-
-  async function onJoin() {
-    setTouched(true);
-    if (!isValid || disabledReason) return;
-
-    try {
-      const match: MatchStatePayload = await getMatchState({
-        matchId: normalized,
-      });
-
-      console.log(JSON.stringify(match));
-
-      if (match.phase === "finished") throw new Error("MATCH_FINISHED");
-      nav(`/room/${normalized}`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "";
-      setError(message);
+  useEffect(() => {
+    if (normalized.length === 6 && !disabledReason) {
+      void onJoin(normalized);
     }
-  }
+  }, [normalized, disabledReason]);
 
   return (
     <div className="container-page py-10 mt-5">
@@ -144,8 +157,8 @@ export default function JoinRoomPage() {
               className="btn-glow flex-5 p-4 transition-all duration-500"
               style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
               type="button"
-              disabled={!isValid || !!disabledReason}
-              onClick={onJoin}
+              disabled={!isValid || !!disabledReason || joining}
+              onClick={() => onJoin()}
               title={
                 disabledReason ? translateError(disabledReason, t) : undefined
               }
