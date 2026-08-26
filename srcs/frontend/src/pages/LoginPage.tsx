@@ -7,12 +7,17 @@ import { loginSchema, registerSchema } from "../validation/authSchemas";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import SpotifyIcon from "../components/icons/SpotifyIcon";
 import TypingText from "../components/TypingText";
+import {
+  clearAuthReturnTo,
+  resolveReturnTo,
+  storeAuthReturnTo,
+} from "../auth/returnTo";
 
 export default function LoginPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { reload } = useAuth();
+  const { reload, user, loading } = useAuth();
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const title = useMemo(
@@ -31,14 +36,38 @@ export default function LoginPage() {
   >(null);
 
   useEffect(() => {
+    const fromUrl = searchParams.get("returnTo");
+    if (fromUrl) {
+      storeAuthReturnTo(fromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (searchParams.get("spotify") !== "cancelled") return;
 
     setSpotifyCancelledMessage(t("auth.errors.spotify_cancelled"));
-    setSearchParams({}, { replace: true });
+    const returnTo = searchParams.get("returnTo");
+    setSearchParams(returnTo ? { returnTo } : {}, { replace: true });
   }, [searchParams, setSearchParams, t]);
 
+  function redirectAfterAuth() {
+    const destination = resolveReturnTo(searchParams.get("returnTo"));
+    clearAuthReturnTo();
+    nav(destination, { replace: true });
+  }
+
+  useEffect(() => {
+    if (loading || !user || submitting) return;
+    redirectAfterAuth();
+  }, [loading, user, submitting]);
+
   function loginWithSpotify() {
-    window.location.href = "/api/auth/spotify/login";
+    const destination = resolveReturnTo(searchParams.get("returnTo"));
+    storeAuthReturnTo(destination);
+
+    const url = new URL("/api/auth/spotify/login", window.location.origin);
+    url.searchParams.set("returnTo", destination);
+    window.location.href = url.toString();
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -66,8 +95,8 @@ export default function LoginPage() {
         await login(email, password);
       }
 
-      await reload();
-      nav("/profile", { replace: true });
+      await reload({ forceFetch: true });
+      redirectAfterAuth();
     } catch (err: unknown) {
       const message: string =
         err instanceof Error ? err.message : "Unknown error";
