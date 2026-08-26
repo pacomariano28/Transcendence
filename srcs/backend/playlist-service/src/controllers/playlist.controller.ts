@@ -17,7 +17,7 @@ import {
 } from "../services/clipWorker.service.js";
 import { mediaFileExists } from "../lib/mediaFiles.js";
 
-export async function getAvailableSongCount(req: Request, res: Response) {
+export async function getAvailableSongCount(_req: Request, res: Response) {
   try {
     const count = await countAvailableSongs();
     return res.status(200).json({ ok: true, count });
@@ -54,7 +54,7 @@ export async function getRandomSongs(req: Request, res: Response) {
   }
 }
 
-export async function getPlaylist(req: Request, res: Response) {
+export async function getPlaylist(_req: Request, res: Response) {
   try {
     const playlist = await generateRandomPlaylist();
 
@@ -203,7 +203,7 @@ export async function orderPlaylistTracks(req: Request, res: Response) {
             typeof track.durationMs === "number" ? track.durationMs : null,
         }),
       )
-      .filter((track) => track.isrc.length > 0);
+      .filter((track: { isrc: string }) => track.isrc.length > 0);
 
     if (normalized.length === 0) {
       return res.status(400).json({ ok: false, error: "INVALID_TRACKS" });

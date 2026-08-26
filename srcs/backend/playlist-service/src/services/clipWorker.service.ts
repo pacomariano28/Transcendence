@@ -99,7 +99,13 @@ async function toolsAvailable(): Promise<boolean> {
 }
 
 async function allocateClipNumber(): Promise<number> {
-  const row = await prisma.clipCounter.create({ data: {} });
+  // Use SQL rather than the generated model accessor so a long-running dev
+  // container cannot crash after the schema gains ClipCounter but before its
+  // mounted node_modules volume has regenerated Prisma Client.
+  const [row] = await prisma.$queryRaw<Array<{ id: number }>>`
+    INSERT INTO "ClipCounter" DEFAULT VALUES RETURNING "id"
+  `;
+  if (!row) throw new Error("CLIP_COUNTER_ALLOCATION_FAILED");
   return row.id;
 }
 
