@@ -2,6 +2,8 @@
 
 # Songuess
 
+## Description
+
 Songuess is a real-time multiplayer music-trivia web application built around a
 "Stop & Solve" mechanic. A shared 15-second track preview plays for everyone in
 the room; the first player to lock stops the music for all participants and gets
@@ -13,7 +15,7 @@ complete browser game while retaining the subject's requirements for remote
 multiplayer gameplay, authentication, persistent data, security, and a modular
 web architecture.
 
-## Key features
+### Key features
 
 - Authenticated room creation and code-based joining for up to five players.
 - Server-authoritative lobby, round, timer, lock, scoring, and rematch state.
@@ -40,8 +42,8 @@ specialist roles.
 | --- | --- | --- |
 | [Francisco Mariano Ortiz (`frmarian`)](https://github.com/pacomariano28) | Product Owner, Lead Frontend/Game Developer | Defined and refined the player experience; led match UI/UX, scoring and guess flows, playlist selection, rematches, navigation, and cross-service gameplay integration; coordinated product decisions and final interface direction. |
 | [Seilán Moore Arnanz (`smoore-a`)](https://github.com/seilanmoore) | Tech Lead, Backend/Infrastructure Developer | Established the microservice architecture and development infrastructure; led the API gateway, authentication foundation, content and playlist services, WebSocket game engine, synchronization, Docker, Nginx/TLS, setup automation, and media preparation pipeline. |
-| [Julia Ortiz (`jortiz-m`)](https://github.com/jortiz-m) | Authentication Developer | Worked on session termination and refresh-token revocation, including the logout route, cookie cleanup, gateway exposure, and authentication documentation on the authentication feature branch. |
-| [Svetlana Titovskaia (`stitovsk`)](https://github.com/svetameanssun) | Project Coordinator, Frontend/Localization Developer | Led internationalization and translation integration; maintained locale resources, persistence migrations, profile/footer polish, and player controls such as leave-room and give-up behavior; helped reconcile integration changes across branches. |
+| [Julia Ortiz (`jortiz-m`)](https://github.com/jortiz-m) | Team Coordinator, Authentication Developer | Helped coordinate priorities, clarify assignments, and guide team decisions; worked on session termination and refresh-token revocation, including logout routing, cookie cleanup, gateway exposure, and authentication documentation. |
+| [Svetlana Titovskaia (`stitovsk`)](https://github.com/svetameanssun) | Project Manager (PM) / Scrum Master, Frontend/Localization Developer | Coordinated progress and integration across branches; led internationalization and translation integration; maintained locale resources, persistence migrations, profile/footer polish, and player controls such as leave-room and give-up behavior. |
 | [Rachid Jaada (`rjaada`)](https://github.com/rjaada) | QA/Security Lead, Full-stack Developer | Performed security and concurrency reviews; fixed authentication exposure and token-lifetime issues, real-time listener stability, synchronization timing, leave navigation, and lobby readiness races; added regression tests and improved setup documentation. |
 
 ## Project management
@@ -49,9 +51,10 @@ specialist roles.
 - **Organization:** work is divided by feature and service ownership. Large
   changes are decomposed into focused branches and reviewed before integration.
 - **Task distribution:** backend architecture and infrastructure were led by
-  Seilán; product and gameplay UI by Francisco; localization and supporting UX
-  by Svetlana; authentication flow by Julia; and security, reliability, testing,
-  and targeted full-stack fixes by Rachid. Ownership overlaps where a feature
+  Seilán; product and gameplay UI by Francisco; localization, supporting UX,
+  Scrum tracking, and integration coordination by Svetlana; team guidance and
+  authentication work by Julia; and security, reliability, testing, and
+  targeted full-stack fixes by Rachid. Ownership overlaps where a feature
   crosses service boundaries.
 - **Version-control workflow:** active development targets `develop`. Branches
   use `feature/`, `fix/`, `refactor/`, or `docs/` prefixes, and changes enter
@@ -230,18 +233,18 @@ erDiagram
 The implemented module plan totals **15 points**. Only implemented modules are
 counted here; advanced permissions are not claimed.
 
-| Module | Size | Points | Implementation | Contributors |
-| --- | --- | ---: | --- | --- |
-| Framework for frontend and backend | Major | 2 | React frontend with Express-based TypeScript services. | Seilán, Francisco, all service contributors |
-| Real-time features with WebSockets | Major | 2 | Socket.IO rooms, authoritative broadcasts, connection state, and synchronized match events. | Seilán, Francisco, Rachid |
-| ORM for the database | Minor | 1 | Prisma schemas and migrations for auth, playlist, and result data. | Seilán, Francisco, Svetlana |
-| Custom design system | Minor | 1 | More than ten reusable UI components plus shared palette, typography, form, card, button, and animation styles. | Francisco, Seilán, Svetlana, Rachid |
-| Remote authentication with OAuth 2.0 | Minor | 1 | Spotify OAuth authorization-code flow with state validation and encrypted tokens. | Seilán, Francisco, Rachid |
-| Complete web-based game | Major | 2 | Playable Stop & Solve matches with rules, rounds, scoring, win conditions, and final results. | Seilán, Francisco, Svetlana, Rachid |
-| Remote players | Major | 2 | Separate clients share one authoritative match with synchronization, disconnect handling, and rejoin state. | Seilán, Francisco, Rachid |
-| Multiplayer game for more than two players | Major | 2 | Rooms support up to five simultaneous players with shared timers, fair first-lock handling, and synchronized scoring. | Seilán, Francisco |
-| Backend as microservices | Major | 2 | Gateway, auth, content, playlist, and game services communicate through defined HTTP and Socket.IO interfaces. | Seilán, Francisco, Svetlana |
-| **Total** |  | **15** |  |  |
+| Module | Size | Points | Why selected / project value | Implementation | Contributors |
+| --- | --- | ---: | --- | --- | --- |
+| Framework for frontend and backend | Major | 2 | Gives the team typed, reusable foundations for a responsive UI and independently maintainable services. | React frontend with Express-based TypeScript services. | Seilán, Francisco, all service contributors |
+| Real-time features with WebSockets | Major | 2 | The first-to-buzz mechanic requires low-latency shared state rather than polling. | Socket.IO rooms, authoritative broadcasts, connection state, and synchronized match events. | Seilán, Francisco, Rachid |
+| ORM for the database | Minor | 1 | Type-safe migrations and queries reduce persistence errors across separate service databases. | Prisma schemas and migrations for auth, playlist, and result data. | Seilán, Francisco, Svetlana |
+| Custom design system | Minor | 1 | Shared visual primitives keep a multi-contributor interface consistent, responsive, and easier to refine. | More than ten reusable UI components plus shared palette, typography, form, card, button, and animation styles. | Francisco, Seilán, Svetlana, Rachid |
+| Remote authentication with OAuth 2.0 | Minor | 1 | Spotify identity and authorization unlock personal playlists without collecting Spotify passwords. | Spotify OAuth authorization-code flow with state validation and encrypted tokens. | Seilán, Francisco, Rachid |
+| Complete web-based game | Major | 2 | This is the project's central user value: a full playable alternative to the traditional Pong experience. | Playable Stop & Solve matches with rules, rounds, scoring, win conditions, and final results. | Seilán, Francisco, Svetlana, Rachid |
+| Remote players | Major | 2 | Friends must be able to join the same room from separate browsers and recover from brief connection loss. | Separate clients share one authoritative match with synchronization, disconnect handling, and rejoin state. | Seilán, Francisco, Rachid |
+| Multiplayer game for more than two players | Major | 2 | Supporting a group creates the social party-game experience Songuess is designed around. | Rooms support up to five simultaneous players with shared timers, fair first-lock handling, and synchronized scoring. | Seilán, Francisco |
+| Backend as microservices | Major | 2 | Service boundaries let the team develop, test, and scale authentication, content, playlists, and gameplay independently. | Gateway, auth, content, playlist, and game services communicate through defined HTTP and Socket.IO interfaces. | Seilán, Francisco, Svetlana |
+| **Total** |  | **15** |  |  |  |
 
 This table is the authoritative module claim for evaluation; aspirational or
 unimplemented modules are deliberately excluded from the total.
@@ -276,6 +279,8 @@ unimplemented modules are deliberately excluded from the total.
 
 ### Julia Ortiz (`jortiz-m`)
 
+- Helped lead team coordination by clarifying priorities, distributing guidance,
+  and keeping implementation discussions aligned with the project objective.
 - Developed the logout-flow foundation on the authentication feature branch:
   gateway routing, refresh-token revocation, cookie clearing, service routes,
   and endpoint documentation.
@@ -302,12 +307,17 @@ unimplemented modules are deliberately excluded from the total.
   listener registration against React re-renders.
 - Reproduced the lobby readiness race under concurrent events, implemented a
   single-owner transition guard, and added deterministic burst/failure tests.
+- Serialized random-song allocation to prevent concurrent playlist overlap,
+  repaired stale-socket reconnection handoff, and added runtime validation for
+  authoritative game-event payloads.
+- Restored clean backend/frontend builds, corrected Vite locale asset handling,
+  and cleared the frontend lint quality gate while preserving listener stability.
 - Fixed leave navigation, contributed landing/UI iterations, and documented the
   previously hidden local media setup requirement.
 - The central challenge was converting timing-sensitive or security findings
   into small, reviewable fixes with reproducible evidence.
 
-## Running the project
+## Instructions
 
 ### Prerequisites
 
@@ -403,7 +413,7 @@ required.
 | `5432` | PostgreSQL |
 | `16379` | Redis host mapping to container port `6379` |
 
-## Resources and AI usage
+## Resources
 
 ### Reference material
 
