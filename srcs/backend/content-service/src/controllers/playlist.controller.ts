@@ -36,7 +36,7 @@ export async function getPlaylistTracks(req: Request, res: Response) {
 
     const rawLimit = Number(req.query.limit);
     const limit = Number.isFinite(rawLimit)
-      ? Math.min(50, Math.max(1, Math.floor(rawLimit)))
+      ? Math.min(100, Math.max(1, Math.floor(rawLimit)))
       : 30;
 
     const tracks = await getPublicPlaylistTracks(playlistId, limit);

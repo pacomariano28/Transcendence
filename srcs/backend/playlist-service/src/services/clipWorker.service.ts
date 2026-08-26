@@ -21,6 +21,12 @@ export type EnsureTrackResult = {
   failReason: string | null;
 };
 
+export type SongSource = "seed" | "clip-worker";
+
+export type EnsureTracksOptions = {
+  source?: SongSource;
+};
+
 const MEDIA_DIR = process.env.MEDIA_DIR || "/media";
 const CLIP_DURATION_SECONDS = 20;
 const MAX_CONCURRENT_CLIPS = Number(process.env.MAX_CONCURRENT_CLIPS ?? 6);
@@ -439,7 +445,6 @@ async function generateClip(track: EnsureTrackInput): Promise<void> {
       status: "ready",
       fileName,
       failReason: null,
-      source: "clip-worker",
       title: track.title ?? undefined,
       artist: track.artist ?? undefined,
       spotifyTrackId: track.spotifyTrackId ?? undefined,
@@ -492,7 +497,9 @@ function enqueueClip(track: EnsureTrackInput): void {
  */
 export async function ensureTracks(
   tracks: EnsureTrackInput[],
+  options: EnsureTracksOptions = {},
 ): Promise<EnsureTrackResult[]> {
+  const source = options.source ?? "clip-worker";
   const results: EnsureTrackResult[] = [];
 
   for (const track of tracks) {
@@ -510,25 +517,24 @@ export async function ensureTracks(
           title: track.title ?? null,
           artist: track.artist ?? null,
           spotifyTrackId: track.spotifyTrackId ?? null,
-          source: "clip-worker",
+          source,
         },
       });
       enqueueClip({ ...track, isrc });
-    } else if (song.status === "pending") {
-      enqueueClip({
-        isrc,
-        title: track.title ?? song.title,
-        artist: track.artist ?? song.artist,
-        spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
-        durationMs: track.durationMs,
-      });
-    } else if (song.status === "ready" && song.fileName) {
-      const fileStillExists = await mediaFileExists(song.fileName);
-      if (!fileStillExists) {
-        await prisma.song.update({
+    } else {
+      if (source === "seed" && song.source !== "seed") {
+        song = await prisma.song.update({
           where: { isrc },
-          data: { status: "pending", fileName: null, failReason: null },
+          data: {
+            source: "seed",
+            title: track.title ?? song.title,
+            artist: track.artist ?? song.artist,
+            spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
+          },
         });
+      }
+
+      if (song.status === "pending") {
         enqueueClip({
           isrc,
           title: track.title ?? song.title,
@@ -536,21 +542,36 @@ export async function ensureTracks(
           spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
           durationMs: track.durationMs,
         });
-        song = { ...song, status: "pending", fileName: null };
+      } else if (song.status === "ready" && song.fileName) {
+        const fileStillExists = await mediaFileExists(song.fileName);
+        if (!fileStillExists) {
+          await prisma.song.update({
+            where: { isrc },
+            data: { status: "pending", fileName: null, failReason: null },
+          });
+          enqueueClip({
+            isrc,
+            title: track.title ?? song.title,
+            artist: track.artist ?? song.artist,
+            spotifyTrackId: track.spotifyTrackId ?? song.spotifyTrackId,
+            durationMs: track.durationMs,
+          });
+          song = { ...song, status: "pending", fileName: null };
+        }
+      } else if (song.status === "failed" && track.title) {
+        // Allow one retry when new metadata arrives.
+        await prisma.song.update({
+          where: { isrc },
+          data: {
+            status: "pending",
+            failReason: null,
+            title: track.title ?? song.title,
+            artist: track.artist ?? song.artist,
+          },
+        });
+        song = { ...song, status: "pending" };
+        enqueueClip({ ...track, isrc });
       }
-    } else if (song.status === "failed" && track.title) {
-      // Allow one retry when new metadata arrives.
-      await prisma.song.update({
-        where: { isrc },
-        data: {
-          status: "pending",
-          failReason: null,
-          title: track.title ?? song.title,
-          artist: track.artist ?? song.artist,
-        },
-      });
-      song = { ...song, status: "pending" };
-      enqueueClip({ ...track, isrc });
     }
 
     results.push({

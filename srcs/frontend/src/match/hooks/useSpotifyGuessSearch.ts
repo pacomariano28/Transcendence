@@ -48,10 +48,11 @@ export function useSpotifyGuessSearch({
 
     setSearching(true);
 
+    const abort = new AbortController();
     let cancelled = false;
 
     const timerId = window.setTimeout(() => {
-      searchSpotifyTracks(term)
+      searchSpotifyTracks(term, abort.signal)
         .then((tracks) => {
           if (cancelled) return;
           setSearchResults(tracks);
@@ -59,6 +60,7 @@ export function useSpotifyGuessSearch({
         })
         .catch((err: unknown) => {
           if (cancelled) return;
+          if (err instanceof DOMException && err.name === "AbortError") return;
           const message = err instanceof Error ? err.message : "SEARCH_FAILED";
           setSearchError(message);
           setSearchResults([]);
@@ -66,10 +68,11 @@ export function useSpotifyGuessSearch({
         .finally(() => {
           if (!cancelled) setSearching(false);
         });
-    }, 300);
+    }, 400);
 
     return () => {
       cancelled = true;
+      abort.abort();
       window.clearTimeout(timerId);
     };
   }, [canGuess, searchTerm, selectedTrack]);

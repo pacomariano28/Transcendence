@@ -193,7 +193,7 @@
     "playlistSearchFailed": "Could not search Spotify playlists.",
     "playlistSectionGenres": "Genres",
     "playlistSectionBuiltin": "Built-in",
-    "localPlaylistName": "Classic Mix",
+    "localPlaylistName": "Default Mix",
     "localPlaylistSubtitle": "No Spotify required",
     "playlistSectionPlayers": "From players",
     "playlistSectionSearch": "Spotify results",
@@ -303,7 +303,7 @@
     "close": "Close",
     "continue": "Got it, continue",
     "autoAppliedTitle": "Applied automatically",
-    "playWithoutSpotify": "You can play right now with the built-in Classic Mix playlist — no Spotify account required.",
+    "playWithoutSpotify": "You can play right now with the built-in Default Mix playlist — no Spotify account required.",
     "checksTitle": "Status",
     "checkServices": "Backend services",
     "checkSongLibrary": "Local song library",
@@ -332,8 +332,8 @@
         "body": "In the Spotify Developer Dashboard, add this exact redirect URI: {{redirectUri}}. It must match SPOTIFY_REDIRECT_URI in auth-service/.env."
       },
       "media_library": {
-        "title": "Add local preview files",
-        "body": "The built-in playlist needs MP3 previews in srcs/frontend/public/media/. Run: bash infra/scripts/downloader_home.sh <playlist.csv> then make playlist (or make up)."
+        "title": "Wait for the built-in playlist",
+        "body": "playlist-service downloads Default Mix in the background when the stack starts. Wait until setup shows enough ready songs, or check logs with: make playlist-logs"
       },
       "trust_certificate": {
         "title": "Trust the local HTTPS certificate",

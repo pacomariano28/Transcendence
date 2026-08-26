@@ -9,7 +9,10 @@ export type SpotifySearchTrack = {
 
 export async function searchSpotifyTracks(
   term: string,
+  signal?: AbortSignal,
 ): Promise<SpotifySearchTrack[]> {
   const query = new URLSearchParams({ term }).toString();
-  return apiJson<SpotifySearchTrack[]>(`/api/content/search?${query}`);
+  return apiJson<SpotifySearchTrack[]>(`/api/content/search?${query}`, {
+    signal,
+  });
 }

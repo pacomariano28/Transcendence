@@ -1,5 +1,10 @@
 import { prisma } from "../lib/prisma.js";
 import crypto from "crypto";
+import { filterSongsWithMedia } from "../lib/mediaFiles.js";
+import { orderTracksByPlaylistUsage } from "./playlistTrackUsage.service.js";
+
+/** Must match game-service LOCAL_SEED_PLAYLIST_ID. */
+const LOCAL_SEED_PLAYLIST_KEY = "__local_seed__";
 
 type SongRow = {
   isrc: string;
@@ -121,6 +126,8 @@ export type SeedSongRow = {
 
 /**
  * Returns ready seed-library songs (local media, no Spotify required).
+ * Unused Default Mix tracks are returned first so matches do not repeat
+ * until the pool has been exhausted.
  */
 export async function selectSeedSongs(count: number): Promise<SeedSongRow[]> {
   if (count <= 0) return [];
@@ -141,12 +148,15 @@ export async function selectSeedSongs(count: number): Promise<SeedSongRow[]> {
 
   if (songs.length === 0) return [];
 
-  const shuffled = fisherYatesShuffle(songs);
-  return shuffled
-    .slice(0, Math.min(count, shuffled.length))
-    .filter((song): song is typeof song & { fileName: string } =>
-      Boolean(song.fileName),
-    )
+  const withMedia = await filterSongsWithMedia(songs);
+  if (withMedia.length === 0) return [];
+
+  const ordered = await orderTracksByPlaylistUsage(
+    LOCAL_SEED_PLAYLIST_KEY,
+    withMedia,
+  );
+  return ordered
+    .slice(0, Math.min(count, ordered.length))
     .map(({ isrc, fileName, title, artist }) => ({
       isrc,
       fileName,
