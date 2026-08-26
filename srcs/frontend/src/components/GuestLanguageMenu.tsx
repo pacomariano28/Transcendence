@@ -1,8 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { UserAvatar } from "./UserAvatar";
 import { LanguagePickerGrid } from "./LanguagePickerGrid";
 
 const MENU_EXIT_MS = 220;
@@ -11,62 +9,28 @@ const MENU_PANEL_Z = 60;
 
 type MenuState = "closed" | "open" | "closing";
 
-type UserAvatarMenuProps = {
-  username?: string | null;
-  email?: string | null;
-  imageUrl?: string | null;
-  displayName?: string | null;
-  onLogout: () => void | Promise<void>;
-};
-
 type MenuPosition = {
   top: number;
   right: number;
 };
 
-function ProfileIcon() {
+function TranslateIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
-      className="h-4 w-4 shrink-0"
+      className="h-[18px] w-[18px]"
     >
       <path
-        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.418 0-8 2.015-8 4.5V20h16v-1.5c0-2.485-3.582-4.5-8-4.5Z"
+        d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"
         fill="currentColor"
       />
     </svg>
   );
 }
 
-function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-4 w-4">
-      <path
-        d="M10 17l1.5-1.5L8 12h9v-2H8l3.5-3.5L10 5l-6 7 6 7z"
-        fill="currentColor"
-      />
-      <path d="M20 5h-2v14h2V5z" fill="currentColor" opacity="0.75" />
-    </svg>
-  );
-}
-
-function menuItemClassName(extra = "") {
-  return [
-    "flex w-full items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-all duration-200",
-    "hover:border-white/10 hover:bg-white/10 active:scale-[0.98]",
-    extra,
-  ].join(" ");
-}
-
-export default function UserAvatarMenu({
-  username,
-  email,
-  imageUrl,
-  displayName,
-  onLogout,
-}: UserAvatarMenuProps) {
+export default function GuestLanguageMenu() {
   const { t } = useTranslation();
   const [menuState, setMenuState] = useState<MenuState>("closed");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,7 +101,7 @@ export default function UserAvatarMenu({
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Element;
       if (containerRef.current?.contains(target)) return;
-      if (target.closest?.("[data-user-menu-panel]")) return;
+      if (target.closest?.("[data-guest-lang-menu-panel]")) return;
       closeMenu();
     }
 
@@ -156,16 +120,11 @@ export default function UserAvatarMenu({
     };
   }, [isOpen]);
 
-  async function handleLogout() {
-    closeMenu();
-    await onLogout();
-  }
-
   const menuPanel =
     isVisible && menuPosition
       ? createPortal(
           <div
-            data-user-menu-panel
+            data-guest-lang-menu-panel
             role="menu"
             className={[
               "fixed w-60 origin-top-right overflow-hidden rounded-2xl border border-white/10 bg-[#141416] p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]",
@@ -179,33 +138,7 @@ export default function UserAvatarMenu({
               zIndex: MENU_PANEL_Z,
             }}
           >
-            <NavLink
-              to="/profile"
-              role="menuitem"
-              className={menuItemClassName("text-zinc-100")}
-              onClick={closeMenu}
-            >
-              <ProfileIcon />
-              <span>{t("header.nav_profile")}</span>
-            </NavLink>
-
-            <div className="my-2 border-t border-white/10" />
-
             <LanguagePickerGrid />
-
-            <div className="my-2 border-t border-white/10" />
-
-            <button
-              type="button"
-              role="menuitem"
-              className={menuItemClassName(
-                "text-rose-300 hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-200",
-              )}
-              onClick={handleLogout}
-            >
-              <LogoutIcon />
-              <span>{t("header.logout")}</span>
-            </button>
           </div>,
           document.body,
         )
@@ -217,7 +150,7 @@ export default function UserAvatarMenu({
         ? createPortal(
             <div
               role="presentation"
-              data-user-menu-backdrop
+              data-guest-lang-menu-backdrop
               className={[
                 "focus-backdrop fixed inset-0 bg-zinc-950/30 backdrop-blur-[2px]",
                 menuState === "closing"
@@ -235,7 +168,7 @@ export default function UserAvatarMenu({
 
       <div
         ref={containerRef}
-        className="group relative"
+        className="relative"
         style={{ zIndex: isVisible ? MENU_PANEL_Z : undefined }}
         onBlur={(event) => {
           if (!containerRef.current?.contains(event.relatedTarget as Node)) {
@@ -246,33 +179,18 @@ export default function UserAvatarMenu({
         <button
           ref={buttonRef}
           type="button"
-          className="shrink-0 cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d046]/50"
+          className={[
+            "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center transition-colors duration-200",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d046]/50 focus-visible:rounded-full",
+            isOpen ? "text-[#f7d046]" : "text-zinc-200 hover:text-[#f7d046]",
+          ].join(" ")}
           onClick={toggleMenu}
           aria-expanded={isOpen}
           aria-haspopup="menu"
-          aria-label={t("header.user_menu")}
+          aria-label={t("header.change_lang")}
         >
-          <UserAvatar
-            username={username}
-            email={email}
-            imageUrl={imageUrl}
-            active={isOpen}
-          />
+          <TranslateIcon />
         </button>
-
-        {displayName && !isVisible ? (
-          <div
-            className="user-avatar-tooltip pointer-events-none absolute right-0 top-[calc(100%+0.5rem)] z-50 w-max max-w-[14rem] translate-y-1 rounded-xl border border-white/10 bg-[#141416]/95 px-3 py-2 opacity-0 shadow-[0_12px_32px_rgba(0,0,0,0.4)] group-hover:translate-y-0 group-hover:opacity-100"
-            aria-hidden="true"
-          >
-            <span className="block text-[10px] font-medium uppercase tracking-[0.24em] text-zinc-500">
-              {t("header.signed_in_as")}
-            </span>
-            <span className="mt-1 block truncate text-sm font-medium text-zinc-100">
-              {displayName}
-            </span>
-          </div>
-        ) : null}
       </div>
     </>
   );
