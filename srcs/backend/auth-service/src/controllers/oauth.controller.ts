@@ -8,6 +8,7 @@ import {
 } from "../services/sessionCookies.service.js";
 import {
   consumeOAuthState,
+  getSafeOAuthReturnTo,
   storeOAuthState,
 } from "../lib/oauthStateStore.js";
 import { logError } from "../lib/logger.js";
@@ -50,7 +51,7 @@ function base64Url(buf: Buffer) {
  * // Browser navigation
  * // GET /api/auth/spotify/login
  */
-export async function spotifyLogin(_req: Request, res: Response) {
+export async function spotifyLogin(req: Request, res: Response) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
 
@@ -59,8 +60,11 @@ export async function spotifyLogin(_req: Request, res: Response) {
   }
 
   const state = base64Url(crypto.randomBytes(16));
+  const returnTo = getSafeOAuthReturnTo(
+    typeof req.query.returnTo === "string" ? req.query.returnTo : null,
+  );
 
-  storeOAuthState(state);
+  storeOAuthState(state, { returnTo });
   // Keep cookie for backwards compatibility; validation uses server-side store.
   setSpotifyStateCookie(res, state);
 
@@ -117,9 +121,18 @@ export async function spotifyCallback(req: Request, res: Response) {
     typeof req.query.error === "string" ? req.query.error : null;
 
   if (oauthError === "access_denied") {
-    if (returnedState) consumeOAuthState(returnedState);
+    const cancelledReturnTo = returnedState
+      ? consumeOAuthState(returnedState).returnTo
+      : undefined;
     clearSpotifyStateCookie(res);
-    return res.redirect(`${frontendUrl}/login?spotify=cancelled`);
+
+    const loginUrl = new URL(`${frontendUrl}/login`);
+    loginUrl.searchParams.set("spotify", "cancelled");
+    if (cancelledReturnTo) {
+      loginUrl.searchParams.set("returnTo", cancelledReturnTo);
+    }
+
+    return res.redirect(loginUrl.toString());
   }
 
   if (!code) return res.status(400).json({ error: "MISSING_CODE" });
@@ -143,7 +156,12 @@ export async function spotifyCallback(req: Request, res: Response) {
     });
     clearSpotifyStateCookie(res);
 
-    return res.redirect(`${frontendUrl}/auth/spotify/success`);
+    const successUrl = new URL(`${frontendUrl}/auth/spotify/success`);
+    if (result.returnTo) {
+      successUrl.searchParams.set("returnTo", result.returnTo);
+    }
+
+    return res.redirect(successUrl.toString());
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
     const details =

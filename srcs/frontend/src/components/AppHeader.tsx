@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
 import { useActiveMatch } from "../context/active.match.context";
-import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { socket } from "../api/socket";
 import GuestLanguageMenu from "./GuestLanguageMenu";
 import UserAvatarMenu from "./UserAvatarMenu";
@@ -65,19 +64,7 @@ export default function AppHeader() {
               onLogout={onLogout}
             />
           ) : (
-            <>
-              <GuestLanguageMenu />
-              <Link to="/login">
-                <button
-                  className="btn-glow btn-glow-no-bold w-full"
-                  style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
-                  onMouseMove={handleMouseMoveToSetFillOrigin}
-                  type="button"
-                >
-                  <span>{t("auth.login")}</span>
-                </button>
-              </Link>
-            </>
+            <GuestLanguageMenu />
           )}
         </div>
       </div>

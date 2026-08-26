@@ -25,6 +25,7 @@ export type SpotifyCallbackInput = {
 export type SpotifyCallbackResult = {
   accessToken: string;
   refreshToken: string;
+  returnTo?: string;
   user: {
     id: string;
     email: string;
@@ -57,7 +58,8 @@ function buildTopGenres(
 export async function handleSpotifyCallback(
   input: SpotifyCallbackInput,
 ): Promise<SpotifyCallbackResult> {
-  if (!consumeOAuthState(input.returnedState)) {
+  const stateResult = consumeOAuthState(input.returnedState);
+  if (!stateResult.valid) {
     throw new Error("INVALID_STATE");
   }
 
@@ -179,6 +181,7 @@ export async function handleSpotifyCallback(
   return {
     accessToken,
     refreshToken: issued.refreshToken,
+    returnTo: stateResult.returnTo,
     user,
   };
 }

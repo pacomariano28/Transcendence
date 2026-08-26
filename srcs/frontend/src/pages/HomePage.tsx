@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
 import CreditsCarousel from "../components/CreditsCarousel";
-import { socket } from "../api/socket";
 import { getState } from "../api/state";
 import {
   ensureEnoughSongsForMatch,
@@ -14,32 +13,8 @@ import {
 } from "../api/playlist";
 import { translateError } from "../i18n/translateError";
 import i18n from "../i18n/i18n";
-
-async function ensureSocketConnected() {
-  if (!socket.connected) {
-    await new Promise<void>((resolve, reject) => {
-      const handleConnect = () => {
-        cleanup();
-        resolve();
-      };
-
-      const handleConnectError = (err: unknown) => {
-        cleanup();
-        console.error("Failed to connect socket:", err);
-        reject(err);
-      };
-
-      const cleanup = () => {
-        socket.off("connect", handleConnect);
-        socket.off("connect_error", handleConnectError);
-      };
-
-      socket.once("connect", handleConnect);
-      socket.once("connect_error", handleConnectError);
-      socket.connect();
-    });
-  }
-}
+import { redirectToLogin } from "../auth/returnTo";
+import { createMatchRoom } from "../match/createRoom";
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -76,62 +51,27 @@ export default function HomePage() {
   }, []);
 
   const disabledReason = useMemo(() => {
-    if (!user) return t("home.disabled_login_required");
     if (isCreating) return t("home.disabled_creating");
     if (songsAvailable !== null && !hasEnoughSongs) {
       return t("errors.NOT_ENOUGH_SONGS_MESSAGE");
     }
     return "";
-  }, [user, isCreating, songsAvailable, hasEnoughSongs, t]);
+  }, [isCreating, songsAvailable, hasEnoughSongs, t]);
 
-  async function createRoom() {
-    if (!user || isCreating || !hasEnoughSongs) return;
+  const createRoom = useCallback(async () => {
+    if (!user) {
+      redirectToLogin("/create", navigate);
+      return;
+    }
+    if (isCreating || !hasEnoughSongs) return;
 
     setIsCreating(true);
     setError("");
 
     try {
-      const res = await getState();
-
-      if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
-
-      await ensureEnoughSongsForMatch();
-      await ensureSocketConnected();
-
-      let matchId = "";
       const playerName =
         user.username ?? user.email ?? i18n.t("match.user.guest");
-
-      await new Promise<void>((resolve, reject) => {
-        const handleCreated = (payload: { matchId: string }) => {
-          console.log("Event received: match:created", payload);
-          if (payload.matchId) {
-            matchId = payload.matchId;
-            cleanup();
-            resolve();
-          }
-        };
-
-        const handleError = (payload: { message?: string }) => {
-          console.error("Event received: match:error", payload);
-          cleanup();
-          reject(new Error(payload.message || "MATCH_CREATE_FAILED"));
-        };
-
-        const cleanup = () => {
-          socket.off("match:created", handleCreated);
-          socket.off("match:error", handleError);
-        };
-
-        socket.on("match:created", handleCreated);
-        socket.on("match:error", handleError);
-
-        socket.emit("match:create", {
-          displayName: playerName,
-          roundsTotal: 3,
-        });
-      });
-
+      const matchId = await createMatchRoom(playerName);
       navigate(`/room/${matchId}`);
     } catch (err) {
       console.error("Error creating room:", err);
@@ -139,10 +79,14 @@ export default function HomePage() {
     } finally {
       setIsCreating(false);
     }
-  }
+  }, [user, isCreating, hasEnoughSongs, navigate]);
 
   async function joinRoom() {
-    if (!user || isCreating || !hasEnoughSongs) return;
+    if (!user) {
+      redirectToLogin("/join", navigate);
+      return;
+    }
+    if (isCreating || !hasEnoughSongs) return;
 
     setIsCreating(true);
     setError("");
@@ -154,7 +98,7 @@ export default function HomePage() {
 
       await ensureEnoughSongsForMatch();
 
-      navigate(`/join`);
+      navigate("/join");
     } catch (err) {
       console.error("Error joining room:", err);
       setError(err instanceof Error ? err.message : String(err));
@@ -182,7 +126,7 @@ export default function HomePage() {
                 style={{ "--btn-color": "#f7d046" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 onClick={createRoom}
-                disabled={!user || isCreating || !hasEnoughSongs}
+                disabled={isCreating || !hasEnoughSongs}
                 title={disabledReason}
               >
                 <span>
@@ -196,7 +140,7 @@ export default function HomePage() {
                 style={{ "--btn-color": "#ede9db" } as React.CSSProperties}
                 onMouseMove={handleMouseMoveToSetFillOrigin}
                 onClick={joinRoom}
-                disabled={!user || isCreating || !hasEnoughSongs}
+                disabled={isCreating || !hasEnoughSongs}
                 title={disabledReason}
               >
                 <span>{t("home.join_room")}</span>

@@ -10,6 +10,7 @@ import SpotifySuccessPage from "./pages/SpotifySuccessPage";
 import RouteTransition from "./components/RouteTransition";
 import ProfilePage from "./pages/ProfilePage";
 import JoinRoomPage from "./pages/JoinRoomPage";
+import CreateRoomPage from "./pages/CreateRoomPage";
 import RoomLobbyPage from "./pages/RoomLobbyPage";
 import MatchPage from "./pages/MatchPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -50,6 +51,7 @@ function AppShell() {
 
             <Route element={<RequireAuth />}>
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/create" element={<CreateRoomPage />} />
               <Route path="/join" element={<JoinRoomPage />} />
               <Route path="/room/:code" element={<RoomLobbyPage />} />
               {/* Note: if your game route uses /match/ instead of /room/, make sure it matches the Header Link */}{" "}
