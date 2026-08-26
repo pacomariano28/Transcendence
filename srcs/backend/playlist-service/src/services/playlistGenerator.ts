@@ -46,29 +46,16 @@ export async function selectRandomSongs(
     return [];
   }
 
-  const excludeFilter =
-    excludeIsrcs.length > 0 ? { isrc: { notIn: excludeIsrcs } } : {};
+  return prisma.$transaction(async (tx) => {
+    // Selection is a read-modify-write operation. Serialize it so concurrent
+    // playlist requests cannot read the same unused pool before either marks
+    // its songs as used. The lock is released automatically with the transaction.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(734674837)`;
 
-  let availableSongs: SongRow[] = await prisma.song.findMany({
-    where: {
-      used: false,
-      status: "ready",
-      fileName: { not: null },
-      ...excludeFilter,
-    },
-  });
+    const excludeFilter =
+      excludeIsrcs.length > 0 ? { isrc: { notIn: excludeIsrcs } } : {};
 
-  if (availableSongs.length < count) {
-    await prisma.song.updateMany({
-      where: {
-        status: "ready",
-        fileName: { not: null },
-        ...excludeFilter,
-      },
-      data: { used: false },
-    });
-
-    availableSongs = await prisma.song.findMany({
+    let availableSongs: SongRow[] = await tx.song.findMany({
       where: {
         used: false,
         status: "ready",
@@ -76,29 +63,49 @@ export async function selectRandomSongs(
         ...excludeFilter,
       },
     });
-  }
 
-  if (availableSongs.length === 0) {
-    return [];
-  }
+    if (availableSongs.length < count) {
+      await tx.song.updateMany({
+        where: {
+          status: "ready",
+          fileName: { not: null },
+          ...excludeFilter,
+        },
+        data: { used: false },
+      });
 
-  const shuffled = fisherYatesShuffle(availableSongs);
-  const selectedSongs = shuffled.slice(0, Math.min(count, shuffled.length));
-  const songIsrcs = selectedSongs.map((song) => song.isrc);
+      availableSongs = await tx.song.findMany({
+        where: {
+          used: false,
+          status: "ready",
+          fileName: { not: null },
+          ...excludeFilter,
+        },
+      });
+    }
 
-  await prisma.song.updateMany({
-    where: { isrc: { in: songIsrcs } },
-    data: { used: true },
+    if (availableSongs.length === 0) {
+      return [];
+    }
+
+    const shuffled = fisherYatesShuffle(availableSongs);
+    const selectedSongs = shuffled.slice(0, Math.min(count, shuffled.length));
+    const songIsrcs = selectedSongs.map((song) => song.isrc);
+
+    await tx.song.updateMany({
+      where: { isrc: { in: songIsrcs } },
+      data: { used: true },
+    });
+
+    return selectedSongs
+      .filter((song): song is SongRow & { fileName: string } =>
+        Boolean(song.fileName),
+      )
+      .map(({ isrc, fileName }) => ({
+        isrc,
+        fileName,
+      }));
   });
-
-  return selectedSongs
-    .filter((song): song is SongRow & { fileName: string } =>
-      Boolean(song.fileName),
-    )
-    .map(({ isrc, fileName }) => ({
-      isrc,
-      fileName,
-    }));
 }
 
 export async function generateRandomPlaylist() {
