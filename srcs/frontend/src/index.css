@@ -20,6 +20,7 @@
 @import "./styles/components/buttons.css";
 @import "./styles/components/links.css";
 @import "./styles/components/credits-carousel.css";
+@import "./styles/components/lobby-playlist-card.css";
 
 /* Animations */
 @import "./styles/animations/keyframes-global.css";

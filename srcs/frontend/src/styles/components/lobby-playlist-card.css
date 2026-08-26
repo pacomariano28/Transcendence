@@ -1,0 +1,43 @@
+.lobby-playlist-card-interactive {
+  cursor: pointer;
+  transition:
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+}
+
+.lobby-playlist-card-interactive:hover {
+  border-color: rgba(247, 208, 70, 0.22);
+  background-color: #0f0f10;
+}
+
+.lobby-playlist-card-interactive:focus-visible {
+  outline: none;
+  border-color: rgba(247, 208, 70, 0.35);
+  box-shadow: 0 0 0 2px rgba(247, 208, 70, 0.18);
+}
+
+.lobby-playlist-cover-shell {
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.lobby-playlist-cover-shell img {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lobby-playlist-card-interactive:hover .lobby-playlist-cover-shell img {
+  transform: scale(1.03);
+}
+
+.lobby-playlist-cover-hint {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.lobby-playlist-card-interactive:hover .lobby-playlist-cover-hint {
+  opacity: 1;
+}
+
+.lobby-playlist-card-interactive:hover .lobby-playlist-cover-shell > div {
+  border-color: transparent;
+}
