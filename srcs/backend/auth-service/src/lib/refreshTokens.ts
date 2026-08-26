@@ -45,9 +45,13 @@ function hashToken(token: string) {
  * console.log("Issued Refresh Token:", refreshToken);
  * console.log("Expires At:", new Date(expiresAt).toISOString());
  */
+<<<<<<< HEAD
 export async function issueRefreshToken(
   userId: string,
 ): Promise<IssuedRefreshToken> {
+=======
+export async function issueRefreshToken(userId: string): Promise<IssuedRefreshToken> {
+>>>>>>> main
   const refreshToken = crypto.randomBytes(48).toString("hex");
   const expiresAt = Date.now() + REFRESH_TTL_MS;
 
@@ -78,6 +82,7 @@ export async function issueRefreshToken(
  *   console.error("Error consuming refresh token:", error.message);
  * }
  */
+<<<<<<< HEAD
 export async function consumeRefreshToken(
   refreshToken: string,
 ): Promise<{ userId: string }> {
@@ -152,4 +157,33 @@ export async function revokeRefreshToken(
   });
 
   return result.count > 0;
+=======
+export async function consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
+  const rec = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashToken(refreshToken) },
+    select: { id: true, userId: true, expiresAt: true, revokedAt: true },
+  });
+
+  if (!rec || rec?.revokedAt) {
+    throw new Error("INVALID_REFRESH_TOKEN");
+  }
+
+  // its expired? Set revokedAt to now and throw error
+  if (Date.now() > rec.expiresAt.getTime()) {
+    await prisma.refreshToken.update({
+      where: { id: rec.id },
+      data: { revokedAt: new Date() },
+    });
+
+    throw new Error("EXPIRED_REFRESH_TOKEN");
+  }
+
+  // Consume the token by setting revokedAt to now
+  await prisma.refreshToken.update({
+    where: { id: rec.id },
+    data: { revokedAt: new Date() },
+  });
+
+  return { userId: rec.userId };
+>>>>>>> main
 }

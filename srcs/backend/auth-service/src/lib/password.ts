@@ -35,9 +35,13 @@ export async function hashPassword(plain: string): Promise<string> {
  * const isMatch = await verifyPassword(plainPassword, hashedPassword);
  * console.log("Password matches:", isMatch);
  */
+<<<<<<< HEAD
 export async function verifyPassword(
   plain: string,
   hash: string,
 ): Promise<boolean> {
+=======
+export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+>>>>>>> main
   return bcrypt.compare(plain, hash);
 }

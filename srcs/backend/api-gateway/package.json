@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+<<<<<<< HEAD
     "cookie": "0.7.2",
     "cookie-parser": "1.4.7",
     "cors": "2.8.6",
@@ -28,5 +29,20 @@
     "@types/node": "20.19.41",
     "tsx": "4.22.0",
     "typescript": "5.9.3"
+=======
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.3.1",
+    "http-proxy-middleware": "^3.0.5",
+    "jsonwebtoken": "^9.0.3",
+    "node-cache": "^5.1.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/http-proxy-middleware": "^0.19.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.x",
+    "tsx": "^4.x",
+    "typescript": "^5.x"
+>>>>>>> main
   }
 }

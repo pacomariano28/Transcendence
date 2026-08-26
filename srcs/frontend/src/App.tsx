@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { useAuth } from "./auth/auth-context";
@@ -37,6 +38,48 @@ function AppShell() {
     <div className="app-shell">
       <div className="app-bg" />
       <AppHeader />
+=======
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "./assets/vite.svg";
+import heroImg from "./assets/hero.png";
+import "./App.css";
+
+import { HealthCheckButton } from "./HealthCheckButton";
+import { RegisterForm } from "./RegisterForm";
+import SearchBar from "./SearchTrackBar";
+
+function App() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <>
+      <section id="center">
+        <div className="hero">
+          <img src={heroImg} className="base" width="170" height="179" alt="" />
+          <img src={reactLogo} className="framework" alt="React logo" />
+          <img src={viteLogo} className="vite" alt="Vite logo" />
+        </div>
+        <div>
+          <h1>Get started</h1>
+          <div className="App">
+            <h1>Songuess Dev Testing</h1>
+            <HealthCheckButton />
+            <SearchBar />
+            <RegisterForm />
+          </div>
+          <p>
+            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+          </p>
+        </div>
+        <button
+          className="counter"
+          onClick={() => setCount((count) => count + 1)}
+        >
+          Count is {count}
+        </button>
+      </section>
+>>>>>>> main
 
       <main className="flex-1">
         <RouteTransition>
@@ -60,6 +103,7 @@ function AppShell() {
               <Route path="/match/:code" element={<MatchPage />} />
             </Route>
 
+<<<<<<< HEAD
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </RouteTransition>
@@ -89,3 +133,12 @@ export default function App() {
     </BrowserRouter>
   );
 }
+=======
+      <div className="ticks"></div>
+      <section id="spacer"></section>
+    </>
+  );
+}
+
+export default App;
+>>>>>>> main

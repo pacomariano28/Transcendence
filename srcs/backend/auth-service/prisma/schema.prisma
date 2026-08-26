@@ -7,6 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+<<<<<<< HEAD
 generator zod {
   provider         = "zod-prisma-types"
   output           = "../src/schemas/generated" // path raletd to the prisma/ folder
@@ -14,11 +15,14 @@ generator zod {
   createInputTypes = true
 }
 
+=======
+>>>>>>> main
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
 }
 
+<<<<<<< HEAD
 model User {
   id            String          @id @default(uuid())
   email         String          @unique
@@ -70,4 +74,30 @@ model SpotifyProfile {
   syncedAt        DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+=======
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String
+
+  refreshTokens RefreshToken[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+>>>>>>> main
 }

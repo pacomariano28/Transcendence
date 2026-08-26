@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
+<<<<<<< HEAD
 type JwtPayload = {
   sub: string;
   email: string;
@@ -42,11 +43,14 @@ const JWT_SECRET: string = (() => {
  * // Using cookie-based auth
  * fetch("/api/auth/me", { credentials: "include" });
  */
+=======
+>>>>>>> main
 export const requireAuth = (
   req: Request,
   res: Response,
   next: NextFunction,
 ): void => {
+<<<<<<< HEAD
   if (req.method === "OPTIONS") {
     next();
     return;
@@ -79,6 +83,28 @@ export const requireAuth = (
 
     next();
   } catch {
+=======
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res
+      .status(401)
+      .json({ ok: false, error: "Missing or invalid authorization header" });
+    return;
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const secret = process.env.JWT_SECRET || "jwt_secret";
+    const decoded = jwt.verify(token, secret) as any;
+
+    req.headers["x-user-id"] = decoded.sub;
+    req.headers["x-user-email"] = decoded.email;
+
+    next();
+  } catch (error) {
+>>>>>>> main
     res.status(401).json({ ok: false, error: "Invalid or expired token" });
   }
 };

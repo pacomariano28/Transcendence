@@ -37,7 +37,11 @@ const JWT_SECRET: string = (() => {
 export type AccessTokenPayload = {
   sub: string; // user id
 
+<<<<<<< HEAD
   // these two might be removed so we fetch them directly from the DB :MOD
+=======
+  // estas dos es posible que las quitemos y las recojamos directamente de la DB :MOD
+>>>>>>> main
   email: string;
   username: string;
 };
@@ -80,21 +84,37 @@ export function signAccessToken(payload: AccessTokenPayload): string {
 export function verifyAccessToken(token: string): AccessTokenPayload {
   const decoded = jwt.verify(token, JWT_SECRET);
 
+<<<<<<< HEAD
   // validate that it is intact according to our token and that it is not a string (since the payload should be an object with claims, not a string)
+=======
+  // validamos que está intacto según nuestro token y que no es un string (porque el payload debería ser un objeto con claims, no un string)
+>>>>>>> main
   if (typeof decoded === "string") {
     throw new Error("Invalid token payload");
   }
 
+<<<<<<< HEAD
   // cast the received payload (which may contain additional fields) to only keep what we defined in our structure
   const p = decoded as JwtPayload;
 
   // minimal validation of expected fields
   // we only check that they have values right now :MOD
+=======
+  // casteamos el payload que hemos recibido que puede tener muchas mas cosas para solo guardar lo que hemos definido en nuestra estructura
+  const p = decoded as JwtPayload;
+
+  // validación mínima de campos esperados
+  // solo validamos que tengan valor ahora mismo :MOD
+>>>>>>> main
   if (!p.sub || !p.email || !p.username) {
     throw new Error("Invalid token payload");
   }
 
+<<<<<<< HEAD
   // if everything went fine, return the AccessTokenPayload
+=======
+  // si todo ha ido guay, devolvemos el AccesTokenPayload
+>>>>>>> main
   return {
     sub: String(p.sub),
     email: String(p.email),

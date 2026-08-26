@@ -4,15 +4,20 @@ import express, {
   Request,
   Response,
 } from "express";
+<<<<<<< HEAD
 import { createServer } from "node:http";
 import type { Socket as NetSocket } from "node:net";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
+=======
+import { randomUUID } from "node:crypto";
+>>>>>>> main
 import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+<<<<<<< HEAD
 import gameRoutes, { socketProxy } from "./routes/game.routes.js";
 import playlistRoutes from "./routes/playlist.routes.js";
 import setupRoutes from "./routes/setup.routes.js";
@@ -22,21 +27,29 @@ import cors from "cors";
 
 const app = express();
 const server = createServer(app);
+=======
+
+const app = express();
+>>>>>>> main
 
 const PORT = Number(process.env.PORT || 3000);
 const isProd = process.env.NODE_ENV === "production";
 
+<<<<<<< HEAD
 type JwtPayload = {
   sub: string;
   email: string;
   username?: string;
 };
 
+=======
+>>>>>>> main
 // Trust first proxy hop (Nginx) for real client IP
 app.set("trust proxy", 1);
 
 if (isProd) app.use(globalLimiter);
 
+<<<<<<< HEAD
 app.use(
   cors({
     origin: true,
@@ -48,6 +61,9 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+=======
+app.use(express.json());
+>>>>>>> main
 
 // Request id middleware for correlation across logs
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -59,6 +75,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes registration
 app.use("/api/auth", authRoutes);
+<<<<<<< HEAD
 app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/playlist", playlistRoutes);
@@ -118,6 +135,9 @@ server.on("upgrade", (req, socket, head) => {
     }
   }
 });
+=======
+app.use("/api/content", contentRoutes);
+>>>>>>> main
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {
@@ -130,19 +150,33 @@ app.use((_req: Request, res: Response) => {
 
 // Centralized error logger + response
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+<<<<<<< HEAD
   void _next;
   const requestId = res.locals.requestId ?? null;
   const statusCode = Number(err?.statusCode || 500);
   const message = err?.message || "Internal server error";
+=======
+  const requestId = res.locals.requestId ?? null;
+  const statusCode = Number(
+    (err as any)?.statusCode || (err as any)?.status || 500,
+  );
+  const message = (err as any)?.message || "Internal server error";
+>>>>>>> main
 
   logError({
     requestId,
     method: req.method,
     path: req.originalUrl,
     statusCode,
+<<<<<<< HEAD
     errorName: err?.name || "Error",
     errorMessage: message,
     stack: err?.stack,
+=======
+    errorName: (err as any)?.name || "Error",
+    errorMessage: message,
+    stack: (err as any)?.stack,
+>>>>>>> main
   });
 
   res.status(statusCode).json({
@@ -154,7 +188,11 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
 app.use(globalErrorHandler);
 
+<<<<<<< HEAD
 server.listen(PORT, () => {
+=======
+app.listen(PORT, () => {
+>>>>>>> main
   logInfo(`Listening on port ${PORT}`);
 });
 

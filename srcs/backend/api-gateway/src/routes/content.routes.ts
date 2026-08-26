@@ -22,6 +22,7 @@ const proxyOptions = createProxyMiddleware({
 // It will be required authentication to use this endpoint
 // router.get("/search", requireAuth, searchLimiter, proxyOptions);
 router.get("/search", searchLimiter, proxyOptions);
+<<<<<<< HEAD
 router.get("/search/playlists", searchLimiter, proxyOptions);
 router.get("/search/albums", searchLimiter, proxyOptions);
 router.get("/search/catalog", searchLimiter, proxyOptions);
@@ -29,5 +30,7 @@ router.get("/albums/:albumId", searchLimiter, proxyOptions);
 router.get("/albums/:albumId/tracks", searchLimiter, proxyOptions);
 router.get("/playlists/:playlistId", searchLimiter, proxyOptions);
 router.get("/playlists/:playlistId/tracks", searchLimiter, proxyOptions);
+=======
+>>>>>>> main
 
 export default router;

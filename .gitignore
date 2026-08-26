@@ -150,6 +150,7 @@ vite.config.ts.timestamp-*
 *~
 *.swp
 *.un~
+<<<<<<< HEAD
 
 # Authority
 authority
@@ -162,3 +163,5 @@ clip_*.*
 
 media
 
+=======
+>>>>>>> main

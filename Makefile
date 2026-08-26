@@ -4,10 +4,14 @@ COMPOSE_FILE= ./srcs/compose.dev.yaml
 all: up
 
 up:
+<<<<<<< HEAD
 	./infra/scripts/certs.sh && \
 	./infra/scripts/env.sh && \
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d && \
 	./infra/scripts/open.sh
+=======
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d
+>>>>>>> main
 
 down: 
 	$(COMPOSE) -f $(COMPOSE_FILE) down
@@ -49,11 +53,14 @@ game:
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache game-service
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V game-service
 
+<<<<<<< HEAD
 playlist:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fsv playlist-service
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache playlist-service
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate -V playlist-service
 
+=======
+>>>>>>> main
 postgres:
 	$(COMPOSE) -f $(COMPOSE_FILE) rm -fs postgres
 	docker volume rm songuess_postgres_data
@@ -79,9 +86,12 @@ auth-logs:
 content-logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f content-service
 
+<<<<<<< HEAD
 playlist-logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f playlist-service
 
+=======
+>>>>>>> main
 game-logs:
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f game-service
 

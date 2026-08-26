@@ -14,24 +14,35 @@ services:
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ../infra/nginx/conf.d:/etc/nginx/conf.d
+<<<<<<< HEAD
       - ../infra/nginx/html:/etc/nginx/html:ro
       - ../infra/certs:/etc/nginx/certs
 
   frontend:
+=======
+      - ../infra/certs:/etc/nginx/certs
+
+  frontend:
+    user: node
+>>>>>>> main
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
     environment:
       NODE_ENV: development
+<<<<<<< HEAD
     env_file:
       - ./frontend/.env
+=======
+>>>>>>> main
     container_name: songuess-frontend
     restart: unless-stopped
     depends_on:
       - api-gateway
     ports:
       - "5173:5173"
+<<<<<<< HEAD
     networks:
       - songuess-net
     volumes:
@@ -110,12 +121,75 @@ services:
     networks:
       - songuess-net
     volumes:
+=======
+    networks:
+      - songuess-net
+    volumes:
+      # - ./frontend/src:/app/src
+      # - ./frontend/public:/app/public
+      - ./frontend:/app
+      - /app/node_modules
+
+  api-gateway:
+    user: node
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+    env_file:
+      - ./backend/api-gateway/.env
+    container_name: songuess-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - content-service
+      # - game-service
+    ports:
+      - "4000:4000"
+    networks:
+      - songuess-net
+    volumes:
+      # - ./backend/services/api-gateway/src:/app/src
+      # - ./backend/services/api-gateway/tsconfig.json:/app/tsconfig.json
+      - ./backend/api-gateway:/app
+      - /app/node_modules
+
+  auth-service:
+    user: node
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      SERVICE_NAME: auth-service
+      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
+      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+    env_file:
+      - ./backend/auth-service/.env
+    container_name: songuess-auth-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "4002:4002"
+    networks:
+      - songuess-net
+    volumes:
+>>>>>>> main
       # - ./backend/services/auth-service/src:/app/src
       # - ./backend/services/auth-service/tsconfig.json:/app/tsconfig.json
       - ./backend/auth-service:/app
       - /app/node_modules
 
   content-service:
+<<<<<<< HEAD
+=======
+    user: node
+>>>>>>> main
     build:
       context: ./backend/content-service
       dockerfile: Dockerfile
@@ -138,6 +212,7 @@ services:
       - ./backend/content-service:/app
       - /app/node_modules
 
+<<<<<<< HEAD
   playlist-service:
     build:
       context: ./backend/playlist-service
@@ -169,6 +244,8 @@ services:
       - /app/node_modules
       - ./frontend/public/media:/media
 
+=======
+>>>>>>> main
   # nginx-reload:
   #   image: alpine:latest
   #   volumes:
@@ -177,7 +254,11 @@ services:
   #   command: |
   #     sh -c "apk add --no-cache inotify-tools docker-cli && \
   #     inotifywait -r -m -e modify /nginx | while read -r path action file; do \
+<<<<<<< HEAD
   #       echo 'Reloading nginx...'; \
+=======
+  #       echo 'Recargando nginx...'; \
+>>>>>>> main
   #       docker exec songuess-nginx nginx -s reload; \
   #     done"
   #   depends_on:
@@ -190,8 +271,12 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+<<<<<<< HEAD
       POSTGRES_DB: ${POSTGRES_DB:-postgres_root_db} # serves at the root database
       POSTGRES_MULTIPLE_DATABASES: auth_db,playlist_db # database list to create databases
+=======
+      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+>>>>>>> main
     container_name: songuess-postgres
     restart: unless-stopped
     ports:
@@ -200,6 +285,7 @@ services:
       - songuess-net
     volumes:
       - postgres_data:/var/lib/postgresql/data
+<<<<<<< HEAD
       - ../infra/postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
     healthcheck:
       test:
@@ -210,6 +296,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 15
+=======
+>>>>>>> main
 
   redis:
     image: redis:8.4.2-alpine3.22
