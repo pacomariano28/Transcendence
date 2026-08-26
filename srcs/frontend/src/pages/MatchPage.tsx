@@ -360,6 +360,7 @@ export default function MatchPage() {
           roundLabel={roundLabel}
           roundIndex={roundInfo?.roundIndex}
           isMatchFinished={isMatchFinished}
+          onLeaveMatch={leaveMatch}
         />
 
         {error && (
@@ -432,13 +433,6 @@ export default function MatchPage() {
             skipUserIds={skipUserIds}
           />
         </div>
-        {!isMatchFinished && (
-          <div className="flex w-full justify-end">
-            <button className="btn-ghost" type="button" onClick={leaveMatch}>
-              {t("lobby.leaveRoom")}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
