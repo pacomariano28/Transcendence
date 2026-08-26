@@ -34,7 +34,10 @@ import {
   generateMatchCode as generateMatchCodeAction,
   joinMatch as joinMatchAction,
 } from "./match/match.lifecycle.js";
-import { markReady as markReadyAction } from "./match/match.lobby.js";
+import {
+  markReady as markReadyAction,
+  type MatchLobbyContext,
+} from "./match/match.lobby.js";
 import {
   clearPlaylistsForUser,
   selectPlaylist as selectPlaylistAction,
@@ -61,6 +64,7 @@ export class MatchService {
   private readonly guessTimers = new Map<string, NodeJS.Timeout>();
   private readonly resumeTimers = new Map<string, NodeJS.Timeout>();
   private readonly syncTimers = new Map<string, NodeJS.Timeout>();
+  private readonly startingMatchIds = new Set<string>();
 
   private get registry(): MatchRegistry {
     return {
@@ -77,6 +81,10 @@ export class MatchService {
       resumeTimers: this.resumeTimers,
       syncTimers: this.syncTimers,
     };
+  }
+
+  private get lobbyContext(): MatchLobbyContext {
+    return { ...this.registry, startingMatchIds: this.startingMatchIds };
   }
 
   private get connectionContext() {
@@ -100,7 +108,7 @@ export class MatchService {
   }
 
   markReady(socketId: string, emit: EmitMatchEvent): Promise<ReadyResult> {
-    return markReadyAction(this.registry, socketId, emit);
+    return markReadyAction(this.lobbyContext, socketId, emit);
   }
 
   sharePlaylists(

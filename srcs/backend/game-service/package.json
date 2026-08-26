@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "test": "tsx --test src/services/match/*.test.ts",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts"
   },
