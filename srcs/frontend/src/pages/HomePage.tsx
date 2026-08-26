@@ -108,7 +108,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container-page grid min-h-[calc(100dvh-9rem)] w-full grid-rows-[1fr_auto_1fr]">
+    <div className="container-page grid min-h-[calc(100dvh-9rem)] min-w-0 w-full grid-cols-[minmax(0,1fr)] grid-rows-[1fr_auto_1fr]">
       <div className="flex flex-col justify-end pb-6 sm:pb-8">
         <div className="mx-auto w-full max-w-2xl space-y-4">
           <h1 className="page-title">{t("home.title")}</h1>
@@ -160,7 +160,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center">
+      <div className="flex min-w-0 w-full flex-col items-center">
         <CreditsCarousel />
       </div>
     </div>
