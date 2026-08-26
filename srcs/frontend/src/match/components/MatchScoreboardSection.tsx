@@ -1,8 +1,13 @@
 /** Live scoreboard during play; animated final results when the match ends. */
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ScoreEntry } from "../../types/socket.payloads";
 import { handleMouseMoveToSetFillOrigin } from "../../utils/buttonHover";
+import { useFlipListAnimation } from "../hooks/useFlipListAnimation";
 import type { ScoreboardEntry } from "../types";
+import {
+  computeCompetitionRanks,
+} from "../utils/scoreboardRanks";
 
 type MatchScoreboardSectionProps = {
   isMatchFinished: boolean;
@@ -30,6 +35,17 @@ export default function MatchScoreboardSection({
   skipUserIds,
 }: MatchScoreboardSectionProps) {
   const { t } = useTranslation();
+  const scoreboardRanks = useMemo(
+    () => computeCompetitionRanks(scoreboard),
+    [scoreboard],
+  );
+  const resultsRanks = useMemo(
+    () => computeCompetitionRanks(resultsData),
+    [resultsData],
+  );
+  const scoreboardListRef = useFlipListAnimation(
+    scoreboard.map((entry) => entry.userId),
+  );
 
   return (
     <section
@@ -52,7 +68,8 @@ export default function MatchScoreboardSection({
 
           <div className="mt-6 grid gap-3">
             {resultsData.map((entry, index) => {
-              const isWinner = index === 0;
+              const rank = resultsRanks[index];
+              const isWinner = rank === 1;
 
               return (
                 <div
@@ -72,7 +89,7 @@ export default function MatchScoreboardSection({
                           : "bg-white/10 text-zinc-400"
                       }`}
                     >
-                      {index + 1}
+                      {rank}
                     </span>
                     <span className="truncate">{entry.displayName}</span>
                     {entry.userId === myUserId ? (
@@ -128,8 +145,12 @@ export default function MatchScoreboardSection({
               {t("match.scoreboard.waitingForPlayers")}
             </div>
           ) : (
-            <div className="mt-4 grid gap-2.5 lg:min-h-0 lg:flex-1 lg:grid-rows-5 lg:gap-2">
-              {scoreboard.map((entry) => {
+            <div
+              ref={scoreboardListRef}
+              className="relative mt-4 flex flex-col gap-2.5 lg:min-h-0 lg:flex-1"
+            >
+              {scoreboard.map((entry, index) => {
+                const rank = scoreboardRanks[index];
                 const isCurrentLockOwner = entry.userId === lockOwnerId;
                 const isWinRow =
                   roundPhase === "resolution-win" && isCurrentLockOwner;
@@ -142,7 +163,8 @@ export default function MatchScoreboardSection({
                 return (
                   <div
                     key={entry.userId}
-                    className={`flex min-h-[3.25rem] items-center justify-between rounded-2xl border px-4 py-3.5 lg:min-h-0 lg:py-0 transition-all duration-500 ease-in-out
+                    data-flip-id={entry.userId}
+                    className={`flex min-h-[3.25rem] items-center justify-between rounded-2xl border px-4 py-3.5 lg:min-h-0 lg:py-3 transition-[border-color,background-color,box-shadow,transform] duration-500 ease-in-out
                       ${
                         isWinRow
                           ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.01]"
@@ -155,42 +177,47 @@ export default function MatchScoreboardSection({
                                 : "border-white/10 bg-black/20"
                       }`}
                   >
-                    <div className="relative h-5 min-w-0 flex-1 overflow-hidden">
-                      <div
-                        className={`absolute inset-0 flex min-w-0 items-center gap-2 text-sm font-medium transition-colors duration-500
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-zinc-400">
+                        {rank}
+                      </span>
+                      <div className="relative h-5 min-w-0 flex-1 overflow-hidden">
+                        <div
+                          className={`absolute inset-0 flex min-w-0 items-center gap-2 text-sm font-medium transition-colors duration-500
                           ${
                             hasSkippedRow
                               ? "animate-skip-name-return text-zinc-500"
                               : "text-zinc-100"
                           }`}
-                      >
-                        <span className="truncate">{entry.displayName}</span>
-                        {entry.userId === myUserId ? (
-                          <span
-                            className={`shrink-0 font-normal ${
-                              hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
-                            }`}
-                          >
-                            {t("match.scoreboard.you")}
-                          </span>
-                        ) : null}
-                        {!entry.connected ? (
-                          <span
-                            className={`shrink-0 text-xs font-normal ${
-                              hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
-                            }`}
-                          >
-                            {t("match.scoreboard.offline")}
-                          </span>
+                        >
+                          <span className="truncate">{entry.displayName}</span>
+                          {entry.userId === myUserId ? (
+                            <span
+                              className={`shrink-0 font-normal ${
+                                hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
+                              }`}
+                            >
+                              {t("match.scoreboard.you")}
+                            </span>
+                          ) : null}
+                          {!entry.connected ? (
+                            <span
+                              className={`shrink-0 text-xs font-normal ${
+                                hasSkippedRow ? "text-zinc-600" : "text-zinc-500"
+                              }`}
+                            >
+                              {t("match.scoreboard.offline")}
+                            </span>
+                          ) : null}
+                        </div>
+                        {hasSkippedRow ? (
+                          <div className="animate-skip-label-exit pointer-events-none absolute inset-0 flex items-center">
+                            <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f7d046]">
+                              {t("match.scoreboard.skipLabel")}
+                            </span>
+                          </div>
                         ) : null}
                       </div>
-                      {hasSkippedRow ? (
-                        <div className="animate-skip-label-exit pointer-events-none absolute inset-0 flex items-center">
-                          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f7d046]">
-                            {t("match.scoreboard.skipLabel")}
-                          </span>
-                        </div>
-                      ) : null}
                     </div>
 
                     <div

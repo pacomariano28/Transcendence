@@ -21,21 +21,28 @@ export function buildScoreboard(
   scores: Record<string, number>,
 ): ScoreboardEntry[] {
   if (!matchState) return [];
-  return matchState.players.map((player: MatchStatePayload["players"][number]) => {
-    const backupScore =
-      (player as { score?: number; totalScore?: number; points?: number }).score ??
-      (player as { totalScore?: number }).totalScore ??
-      (player as { points?: number }).points ??
-      0;
-    const liveScore = scores[player.userId];
 
-    return {
-      userId: player.userId,
-      displayName: player.displayName,
-      score: liveScore || backupScore || 0,
-      connected: player.connected,
-    };
-  });
+  return matchState.players
+    .map((player: MatchStatePayload["players"][number]) => {
+      const backupScore =
+        (player as { score?: number; totalScore?: number; points?: number })
+          .score ??
+        (player as { totalScore?: number }).totalScore ??
+        (player as { points?: number }).points ??
+        0;
+      const liveScore = scores[player.userId];
+
+      return {
+        userId: player.userId,
+        displayName: player.displayName,
+        score: liveScore ?? backupScore ?? 0,
+        connected: player.connected,
+      };
+    })
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return left.displayName.localeCompare(right.displayName);
+    });
 }
 
 export function buildResultsData(
@@ -53,8 +60,8 @@ export function buildResultsData(
           (player as { displayName?: string }).displayName ||
           playerFallback,
         score:
-          scores[player.userId] ||
-          (player as { score?: number }).score ||
+          scores[player.userId] ??
+          (player as { score?: number }).score ??
           0,
       }));
 
