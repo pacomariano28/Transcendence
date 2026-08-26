@@ -90,13 +90,12 @@ export function joinMatch(
   );
 
   if (existingPlayer) {
-    if (
-      existingPlayer.connected &&
-      existingPlayer.socketId !== input.socketId
-    ) {
-      throw new Error(
-        "You cannot join to a game because you are already in-game",
-      );
+    const previousSocketId = existingPlayer.socketId;
+    if (previousSocketId && previousSocketId !== input.socketId) {
+      // A replacement connection may arrive before Socket.IO reports the old
+      // transport as disconnected. Transfer authority to the newest socket;
+      // a later disconnect from the stale socket then becomes a no-op.
+      registry.socketToMatch.delete(previousSocketId);
     }
     existingPlayer.socketId = input.socketId;
     existingPlayer.displayName = input.displayName;
