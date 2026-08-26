@@ -269,7 +269,7 @@ export default function RoomLobbyPage() {
 
   function leave() {
     leaveLobby();
-    nav("/play", { replace: true });
+    nav("/", { replace: true });
   }
 
   function onSelectPlaylist(option: LobbyPlaylistOption) {

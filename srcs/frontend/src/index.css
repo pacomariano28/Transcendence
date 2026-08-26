@@ -19,6 +19,7 @@
 @import "./styles/components/forms.css";
 @import "./styles/components/buttons.css";
 @import "./styles/components/links.css";
+@import "./styles/components/credits-carousel.css";
 
 /* Animations */
 @import "./styles/animations/keyframes-global.css";
@@ -27,6 +28,3 @@
 
 /* Match */
 @import "./styles/match/animations.css";
-
-/* Public landing route — compact introduction aligned to the app UI */
-@import "./styles/compact-landing.css";

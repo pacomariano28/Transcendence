@@ -1,0 +1,57 @@
+@keyframes creditsMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.credits-marquee {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 12%,
+    black 88%,
+    transparent
+  );
+}
+
+.credits-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: creditsMarquee 36s linear infinite;
+}
+
+.credits-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.credits-marquee-item {
+  flex-shrink: 0;
+  padding: 0 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: rgb(113 113 122 / 0.55);
+  transition: color 150ms ease;
+}
+
+.credits-marquee-item:hover {
+  color: rgb(161 161 170 / 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credits-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 0.25rem 0;
+  }
+}

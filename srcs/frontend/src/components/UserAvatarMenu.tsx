@@ -191,14 +191,14 @@ export default function UserAvatarMenu({
             <NavLink
               to="/profile"
               role="menuitem"
-              className={`${menuItemClassName("text-zinc-100")} md:hidden`}
+              className={menuItemClassName("text-zinc-100")}
               onClick={closeMenu}
             >
               <ProfileIcon />
               <span>{t("header.nav_profile")}</span>
             </NavLink>
 
-            <div className="my-2 border-t border-white/10 md:hidden" />
+            <div className="my-2 border-t border-white/10" />
 
             <div className="px-1">
               <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.24em] text-zinc-500">

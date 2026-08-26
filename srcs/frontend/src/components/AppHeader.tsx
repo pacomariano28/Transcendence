@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/auth-context";
@@ -6,23 +6,6 @@ import { useActiveMatch } from "../context/active.match.context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import { socket } from "../api/socket";
 import UserAvatarMenu from "./UserAvatarMenu";
-
-function NavItem({ to, label }: { to: string; label: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        [
-          "rounded-xl px-3 py-2 text-sm font-medium transition duration-150",
-          "hover:bg-white/10 hover:text-white",
-          isActive ? "bg-white/10 text-white" : "text-zinc-300",
-        ].join(" ")
-      }
-    >
-      {label}
-    </NavLink>
-  );
-}
 
 export default function AppHeader() {
   const { t } = useTranslation();
@@ -60,19 +43,12 @@ export default function AppHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/60 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="rounded-xl px-3 py-2 text-sm font-semibold tracking-wide text-white/90 transition duration-150 hover:bg-white/10 hover:text-white"
-          >
-            Songuess
-          </Link>
-
-          <nav className="hidden items-center gap-1 sm:flex">
-            <NavItem to="/play" label={t("header.nav_home")} />
-            <NavItem to="/profile" label={t("header.nav_profile")} />
-          </nav>
-        </div>
+        <Link
+          to="/"
+          className="rounded-xl px-3 py-2 text-sm font-semibold tracking-wide text-white/90 transition duration-150 hover:bg-white/10 hover:text-white"
+        >
+          Songuess
+        </Link>
 
         <div className="flex items-center gap-3">
           {loading ? (
