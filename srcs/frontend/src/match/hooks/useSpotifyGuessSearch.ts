@@ -100,16 +100,20 @@ export function useSpotifyGuessSearch({
     [selectedTrack],
   );
 
-  const submitGuess = useCallback(() => {
-    if (!canGuess || !selectedTrack) return;
-    socket.emit("round:guess_submit", {
-      matchId: matchCode,
-      isrc: selectedTrack.isrc,
-      track: selectedTrack.track,
-      artist: selectedTrack.artist,
-    });
-    clearGuessSelector();
-  }, [canGuess, matchCode, selectedTrack, clearGuessSelector]);
+  const submitGuess = useCallback(
+    (trackOverride?: SpotifySearchTrack) => {
+      const track = trackOverride ?? selectedTrack;
+      if (!canGuess || !track) return;
+      socket.emit("round:guess_submit", {
+        matchId: matchCode,
+        isrc: track.isrc,
+        track: track.track,
+        artist: track.artist,
+      });
+      clearGuessSelector();
+    },
+    [canGuess, matchCode, selectedTrack, clearGuessSelector],
+  );
 
   return {
     searchTerm,

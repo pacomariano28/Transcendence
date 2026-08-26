@@ -1,9 +1,21 @@
 /** Lock status label, guesser search form, and live typing preview for spectators. */
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { SpotifySearchTrack } from "../../api/spotify";
 import { translateError } from "../../i18n/translateError";
 import GuessTypingDisplay from "./GuessTypingDisplay";
+
+const SEARCH_SELECTION_SLIDE_MS = 400;
+
+type SearchSelectionSlide = {
+  from: string;
+  to: string;
+  track: SpotifySearchTrack;
+};
+
+function formatTrackLabel(track: SpotifySearchTrack) {
+  return `${track.track} - ${track.artist}`;
+}
 
 type MatchGuessSectionProps = {
   isMatchFinished: boolean;
@@ -18,7 +30,7 @@ type MatchGuessSectionProps = {
   searching: boolean;
   searchError: string | null;
   onSelectTrack: (track: SpotifySearchTrack) => void;
-  onSubmitGuess: () => void;
+  onSubmitGuess: (track?: SpotifySearchTrack) => void;
   guessTypingText: string;
   canSkip: boolean;
   hasSkipped: boolean;
@@ -61,6 +73,17 @@ export default function MatchGuessSection({
 }: MatchGuessSectionProps) {
   const { t } = useTranslation();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const resultButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const submitQueuedRef = useRef(false);
+  const onSubmitGuessRef = useRef(onSubmitGuess);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [selectionSlide, setSelectionSlide] = useState<SearchSelectionSlide | null>(
+    null,
+  );
+
+  useEffect(() => {
+    onSubmitGuessRef.current = onSubmitGuess;
+  }, [onSubmitGuess]);
 
   useEffect(() => {
     if (!canGuess) return;
@@ -69,6 +92,10 @@ export default function MatchGuessSection({
     }, 50);
     return () => window.clearTimeout(timerId);
   }, [canGuess]);
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [searchResults]);
 
   const showSkipButton = roundPhase !== "guessing" && !isMatchFinished;
 
@@ -80,6 +107,103 @@ export default function MatchGuessSection({
     searchError,
     searchResults,
   });
+
+  const canNavigateResults =
+    showSearchDropdown &&
+    dropdownState === "results" &&
+    searchResults.length > 0 &&
+    !selectionSlide;
+
+  useEffect(() => {
+    if (!canNavigateResults) return;
+    resultButtonRefs.current[highlightedIndex]?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [canNavigateResults, highlightedIndex]);
+
+  useEffect(() => {
+    if (!selectionSlide) return;
+
+    const track = selectionSlide.track;
+    const shouldSubmit = submitQueuedRef.current;
+    submitQueuedRef.current = false;
+
+    const timerId = window.setTimeout(() => {
+      setSelectionSlide(null);
+      searchInputRef.current?.focus();
+
+      if (shouldSubmit) {
+        onSubmitGuessRef.current(track);
+      }
+    }, SEARCH_SELECTION_SLIDE_MS);
+
+    return () => window.clearTimeout(timerId);
+  }, [selectionSlide]);
+
+  const confirmHighlightedTrack = useCallback(() => {
+    const track = searchResults[highlightedIndex];
+    if (!track) return;
+
+    const previousTerm = searchTerm;
+    onSelectTrack(track);
+    setSelectionSlide({
+      from: previousTerm,
+      to: formatTrackLabel(track),
+      track,
+    });
+  }, [highlightedIndex, onSelectTrack, searchResults, searchTerm]);
+
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (selectionSlide) {
+        event.preventDefault();
+        if (event.key === "Enter") {
+          submitQueuedRef.current = true;
+        }
+        return;
+      }
+
+      if (canNavigateResults) {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setHighlightedIndex(
+            (current) => (current + 1) % searchResults.length,
+          );
+          return;
+        }
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setHighlightedIndex(
+            (current) =>
+              (current - 1 + searchResults.length) % searchResults.length,
+          );
+          return;
+        }
+      }
+
+      if (event.key !== "Enter") return;
+
+      event.preventDefault();
+
+      if (canNavigateResults) {
+        confirmHighlightedTrack();
+        return;
+      }
+
+      if (selectedTrack) {
+        onSubmitGuess();
+      }
+    },
+    [
+      canNavigateResults,
+      confirmHighlightedTrack,
+      onSubmitGuess,
+      searchResults.length,
+      selectedTrack,
+      selectionSlide,
+    ],
+  );
 
   return (
     <section
@@ -155,31 +279,54 @@ export default function MatchGuessSection({
             <div className="mt-2">
               <div className="relative">
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    ref={searchInputRef}
-                    className={`lock-input input flex-1 text-center ${
-                      selectedTrack ? "normal-case" : "lowercase"
-                    }`}
-                    placeholder={t("match.guessingPanel.searchPlaceholder")}
-                    value={searchTerm}
-                    onChange={(event) => {
-                      onSearchTermChange(event.target.value);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      onSubmitGuess();
-                    }}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    disabled={!canGuess}
-                  />
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      ref={searchInputRef}
+                      className={`lock-input input w-full text-center ${
+                        selectedTrack ? "normal-case" : "lowercase"
+                      } ${selectionSlide ? "text-transparent caret-transparent" : ""}`}
+                      placeholder={t("match.guessingPanel.searchPlaceholder")}
+                      value={searchTerm}
+                      onChange={(event) => {
+                        onSearchTermChange(event.target.value);
+                      }}
+                      onKeyDown={handleSearchKeyDown}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      readOnly={Boolean(selectionSlide)}
+                      disabled={!canGuess}
+                      aria-activedescendant={
+                        canNavigateResults
+                          ? `guess-search-option-${searchResults[highlightedIndex]?.id}`
+                          : undefined
+                      }
+                      aria-expanded={showSearchDropdown}
+                      aria-controls="guess-search-listbox"
+                      role="combobox"
+                      aria-autocomplete="list"
+                    />
+                    {selectionSlide ? (
+                      <div
+                        className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
+                        aria-hidden="true"
+                      >
+                        <div className="flex h-full items-center justify-center px-3 text-center normal-case tracking-[0.1em] text-zinc-100">
+                          <span className="animate-search-value-exit absolute inset-x-3 truncate">
+                            {selectionSlide.from}
+                          </span>
+                          <span className="animate-search-value-enter absolute inset-x-3 truncate">
+                            {selectionSlide.to}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                   <button
                     className={`btn-glow submit-guess w-full sm:w-44 transition-all duration-300 ${!canGuess || !selectedTrack ? "opacity-50" : "animate-bounce scale-95"}`}
                     style={{ "--btn-color": "#4ade80" } as React.CSSProperties}
                     type="button"
-                    onClick={onSubmitGuess}
+                    onClick={() => onSubmitGuess()}
                     disabled={!canGuess || !selectedTrack}
                   >
                     <span>{t("match.guessingPanel.submitButton")}</span>
@@ -190,24 +337,41 @@ export default function MatchGuessSection({
                   <div className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-2xl border border-white/10 bg-[#141416] shadow-[0_-8px_30px_rgba(0,0,0,0.45)] backdrop-blur">
                     {dropdownState === "results" ? (
                       <div
+                        id="guess-search-listbox"
+                        role="listbox"
                         key="results"
                         className="select-text scrollbar-hidden animate-guess-dropdown-enter grid max-h-40 origin-bottom gap-2 overflow-y-auto overscroll-contain p-2 sm:max-h-48 lg:max-h-60"
                       >
-                        {searchResults.map((track) => (
-                          <button
-                            key={track.id}
-                            className="select-text rounded-xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-black/40"
-                            type="button"
-                            onClick={() => onSelectTrack(track)}
-                          >
-                            <div className="text-sm font-bold text-white">
-                              {track.track}
-                            </div>
-                            <div className="text-sm font-light text-white">
-                              {track.artist}
-                            </div>
-                          </button>
-                        ))}
+                        {searchResults.map((track, index) => {
+                          const isHighlighted = index === highlightedIndex;
+
+                          return (
+                            <button
+                              key={track.id}
+                              id={`guess-search-option-${track.id}`}
+                              ref={(element) => {
+                                resultButtonRefs.current[index] = element;
+                              }}
+                              role="option"
+                              aria-selected={isHighlighted}
+                              className={`select-text rounded-xl border p-3 text-left transition ${
+                                isHighlighted
+                                  ? "border-[#f7d046]/50 bg-black/50 ring-1 ring-[#f7d046]/30"
+                                  : "border-white/10 bg-black/30 hover:border-white/20 hover:bg-black/40"
+                              }`}
+                              type="button"
+                              onMouseEnter={() => setHighlightedIndex(index)}
+                              onClick={() => onSelectTrack(track)}
+                            >
+                              <div className="text-sm font-bold text-white">
+                                {track.track}
+                              </div>
+                              <div className="text-sm font-light text-white">
+                                {track.artist}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div

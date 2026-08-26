@@ -215,6 +215,28 @@
   }
 }
 
+@keyframes searchValueSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes searchValueSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-guess-typing-char-enter {
   animation: guessTypingCharEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -303,6 +325,14 @@
 
 .animate-song-reveal-artist {
   animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.42s both;
+}
+
+.animate-search-value-exit {
+  animation: searchValueSlideOut 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-search-value-enter {
+  animation: searchValueSlideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 .focus-backdrop {
