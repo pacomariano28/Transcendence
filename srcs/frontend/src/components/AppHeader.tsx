@@ -104,21 +104,24 @@ export default function AppHeader() {
                     type="button"
                     onClick={leaveMatch}
                     aria-label={t("lobby.leaveRoom")}
-                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors duration-150 hover:bg-zinc-950/20"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-950/15 text-red-600 transition-colors duration-150 hover:bg-zinc-950/30 hover:text-red-500"
                   >
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
+                      aria-hidden="true"
+                      className="h-5 w-5"
                       stroke="currentColor"
-                      strokeWidth={3}
+                      strokeWidth={2.5}
                       strokeLinecap="round"
-                      className="h-3.5 w-3.5"
+                      strokeLinejoin="round"
                     >
-                      <line x1="4" y1="4" x2="20" y2="20" />
-                      <line x1="20" y1="4" x2="4" y2="20" />
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                      <polyline points="10 17 15 12 10 7" />
+                      <line x1="15" y1="12" x2="3" y2="12" />
                     </svg>
                   </button>
-                  <span className="pointer-events-none absolute -top-8 right-[-12px] whitespace-nowrap rounded-md bg-zinc-950 px-2 py-1 font-mono text-[9px] sm:text-[10px] font-black tracking-widest text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                  <span className="pointer-events-none absolute -top-8 right-[-12px] whitespace-nowrap rounded-md bg-zinc-950 px-2 py-1 font-mono text-[9px] sm:text-[10px] font-black tracking-widest text-red-500 opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
                     {t("lobby.leaveRoom")}
                   </span>
                 </div>
