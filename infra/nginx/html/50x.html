@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Songuess — Service Unavailable</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0b0c;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --accent: #f7d046;
+        --panel: rgba(255, 255, 255, 0.04);
+        --border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background:
+          radial-gradient(
+            ellipse 80% 50% at 50% -20%,
+            rgba(247, 208, 70, 0.08),
+            transparent 55%
+          ),
+          var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      main {
+        width: min(100%, 28rem);
+        padding: 2rem 1.75rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        background: var(--panel);
+        text-align: center;
+      }
+
+      .brand {
+        margin: 0 0 1.25rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.75rem;
+        letter-spacing: 0.35em;
+        color: var(--accent);
+        text-shadow: 0 0 14px rgba(247, 208, 70, 0.16);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0.75rem 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .code {
+        display: inline-block;
+        margin-top: 1.25rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.75rem;
+        letter-spacing: 0.04em;
+      }
+
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1.75rem;
+        min-width: 9rem;
+        padding: 0.7rem 1.25rem;
+        border: 1px solid rgba(247, 208, 70, 0.35);
+        border-radius: 999px;
+        background: rgba(247, 208, 70, 0.12);
+        color: var(--accent);
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition:
+          background 160ms ease,
+          border-color 160ms ease;
+      }
+
+      a.button:hover {
+        background: rgba(247, 208, 70, 0.2);
+        border-color: rgba(247, 208, 70, 0.55);
+      }
+
+      a.button:focus-visible {
+        outline: 2px solid rgba(247, 208, 70, 0.5);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">SONGUESS</p>
+      <h1>Service temporarily unavailable</h1>
+      <p>
+        The backend is not responding right now. Please try again in a moment.
+      </p>
+      <span class="code">502 / 503 / 504</span>
+      <div>
+        <a class="button" href="/">Try again</a>
+      </div>
+    </main>
+  </body>
+</html>

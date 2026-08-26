@@ -116,7 +116,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl pb-6 sm:pb-8">
         <div className="w-full">
           <div className="section-stack">
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -160,7 +160,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center pt-5">
+      <div className="flex flex-col items-center">
         <CreditsCarousel />
       </div>
     </div>
