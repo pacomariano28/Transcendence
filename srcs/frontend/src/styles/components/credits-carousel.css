@@ -10,7 +10,8 @@
 .credits-marquee {
   position: relative;
   width: 100%;
-  max-width: 28rem;
+  min-width: 0;
+  max-width: min(28rem, 100%);
   overflow: hidden;
   mask-image: linear-gradient(
     to right,
