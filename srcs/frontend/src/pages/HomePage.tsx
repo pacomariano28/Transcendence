@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/auth-context";
 import { handleMouseMoveToSetFillOrigin } from "../utils/buttonHover";
 import TypingText from "../components/TypingText";
-import LinkIcon from "../components/icons/LinkIcon";
+import CreditsCarousel from "../components/CreditsCarousel";
 import { socket } from "../api/socket";
 import { getState } from "../api/state";
 import {
@@ -164,15 +164,17 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container-page py-8 sm:py-10 lg:py-12">
-      <div className="mx-auto max-w-4xl flex flex-col gap-14">
-        <div className="page-card">
-          <div className="section-stack">
-            <div className="space-y-3">
-              <h1 className="page-title">{t("home.title")}</h1>
+    <div className="container-page grid min-h-[calc(100dvh-9rem)] w-full grid-rows-[1fr_auto_1fr]">
+      <div className="flex flex-col justify-end pb-6 sm:pb-8">
+        <div className="mx-auto w-full max-w-2xl space-y-4">
+          <h1 className="page-title">{t("home.title")}</h1>
+          <TypingText text="SONGUESS" size="md" className="mx-auto ms-1" />
+        </div>
+      </div>
 
-              <TypingText text="SONGUESS" size="md" className="ms-1" />
-            </div>
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="w-full">
+          <div className="section-stack">
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -210,96 +212,12 @@ export default function HomePage() {
                 </strong>
               </div>
             )}
-
-            {/* <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5">
-              {loading ? (
-                <span className="animate-pulse text-zinc-400">
-                  {t("home.checking_session")}
-                </span>
-              ) : user ? (
-                <span>
-                  {t("home.signed_in_prefix")}
-                  <span className="text-zinc-100">
-                    {user.username ?? user.email}
-                  </span>
-                  {t("home.signed_in_suffix")}
-                  <Link className="link" to="/profile">
-                    {t("home.profile_link")}
-                  </Link>
-                  .
-                </span>
-              ) : (
-                <span>
-                  {t("home.not_signed_in")}
-                  <Link className="link" to="/login">
-                    {t("home.login_link")}
-                  </Link>{" "}
-                  {t("home.login_prompt_suffix")}
-                </span>
-              )}
-            </div> */}
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-col gap-4">
-          <TypingText text={t("home.made_by")} size="md" className="ms-1" />
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
-            <a
-              href="https://github.com/pacomariano28"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>frmarian</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/seilanmoore"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>smoore-a</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/jortiz-m/jortiz-m"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>jortiz-m</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/svetameanssun"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>stitovsk</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-
-            <a
-              href="https://github.com/rjaada"
-              target="blank"
-              className="flex w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.625rem)] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/15 hover:bg-white/5 group"
-            >
-              <span>rjaada</span>
-              <span className="transform transition-transform duration-200 ease-out group-hover:scale-125 motion-reduce:transform-none">
-                <LinkIcon />
-              </span>
-            </a>
-          </div>
-        </div>
+      <div className="flex flex-col items-center pt-5">
+        <CreditsCarousel />
       </div>
     </div>
   );
