@@ -64,8 +64,11 @@ export function useLockControls({
       )
         return;
 
-      if (showAudioRestoreNotice && roundPhase === "playing") {
-        event.preventDefault();
+      if (roundPhase !== "playing") return;
+
+      event.preventDefault();
+
+      if (showAudioRestoreNotice) {
         void resumeAudioFromUserGesture().then(() => {
           if (canLock && !lockRequested) {
             requestLock();
@@ -74,9 +77,9 @@ export function useLockControls({
         return;
       }
 
-      if (!canLock) return;
-      event.preventDefault();
-      requestLock();
+      if (canLock) {
+        requestLock();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
