@@ -59,7 +59,6 @@ export default function GuestLanguageMenu() {
 
   useLayoutEffect(() => {
     if (!isVisible || !buttonRef.current) {
-      setMenuPosition(null);
       return;
     }
 

@@ -95,7 +95,6 @@ export default function UserAvatarMenu({
 
   useLayoutEffect(() => {
     if (!isVisible || !buttonRef.current) {
-      setMenuPosition(null);
       return;
     }
 

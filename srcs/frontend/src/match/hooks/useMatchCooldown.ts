@@ -13,14 +13,15 @@ export function useMatchCooldown(code: string, initialCode: string) {
   const [cooldownEndsAt, setCooldownEndsAt] = useState<number | null>(() =>
     readStoredCooldownEnd(initialCode),
   );
-  const [cooldownUiTick, setCooldownUiTick] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!code) {
-      setCooldownEndsAt(null);
-      return;
-    }
-    setCooldownEndsAt(readStoredCooldownEnd(code));
+    const storedEnd = code ? readStoredCooldownEnd(code) : null;
+    const timerId = window.setTimeout(() => {
+      setCooldownEndsAt(storedEnd);
+      setNowMs(Date.now());
+    }, 0);
+    return () => window.clearTimeout(timerId);
   }, [code]);
 
   useEffect(() => {
@@ -33,13 +34,13 @@ export function useMatchCooldown(code: string, initialCode: string) {
         setCooldownEndsAt(null);
         return;
       }
-      setCooldownUiTick((value) => value + 1);
+      setNowMs(now);
     };
 
     if (Date.now() >= cooldownEndsAt) {
       clearStoredCooldown(code);
-      setCooldownEndsAt(null);
-      return undefined;
+      const expiryTimer = window.setTimeout(() => setCooldownEndsAt(null), 0);
+      return () => window.clearTimeout(expiryTimer);
     }
 
     tick();
@@ -48,14 +49,14 @@ export function useMatchCooldown(code: string, initialCode: string) {
   }, [code, cooldownEndsAt]);
 
   const { isCooldownActive, cooldownSeconds } = useMemo(() => {
-    const active = cooldownEndsAt !== null && cooldownEndsAt > Date.now();
+    const active = cooldownEndsAt !== null && cooldownEndsAt > nowMs;
     return {
       isCooldownActive: active,
       cooldownSeconds: active
-        ? Math.ceil((cooldownEndsAt - Date.now()) / SECOND_MS)
+        ? Math.ceil((cooldownEndsAt - nowMs) / SECOND_MS)
         : 0,
     };
-  }, [cooldownEndsAt, cooldownUiTick]);
+  }, [cooldownEndsAt, nowMs]);
 
   return {
     cooldownEndsAt,

@@ -29,26 +29,34 @@ export default function RouteTransition({ children }: RouteTransitionProps) {
   useEffect(() => {
     if (location.pathname === displayLocation.pathname) {
       if (location.key !== displayLocation.key) {
-        setDisplayLocation(location);
-        setStage("enter");
+        const timer = window.setTimeout(() => {
+          setDisplayLocation(location);
+          setStage("enter");
+        }, 0);
+        return () => window.clearTimeout(timer);
       }
       return;
     }
 
     if (shouldSkipRouteExit(location)) {
-      setDisplayLocation(location);
-      setStage("enter");
-      return;
+      const timer = window.setTimeout(() => {
+        setDisplayLocation(location);
+        setStage("enter");
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
-    setStage("exit");
+    const exitTimer = window.setTimeout(() => setStage("exit"), 0);
 
     const timer = window.setTimeout(() => {
       setDisplayLocation(location);
       setStage("enter");
     }, PAGE_EXIT_MS);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(timer);
+    };
   }, [location, displayLocation.pathname, displayLocation.key]);
 
   const content =
