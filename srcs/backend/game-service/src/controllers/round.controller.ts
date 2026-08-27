@@ -1,12 +1,5 @@
 import type { Server, Socket } from "socket.io";
 import { matchService } from "../services/match.service.js";
-import type {
-  RoundLockPayload,
-  RoundGuessPayload,
-  RoundGuessTypingPayload,
-  RoundPreviewEndedPayload,
-  RoundSkipPayload,
-} from "../types/socket.payloads.js";
 import {
   emitMatchError,
   emitMatchState,
@@ -14,8 +7,22 @@ import {
   toGuessTypingPayload,
 } from "./socket.helpers.js";
 import { ROUND_COUNTDOWN_SECONDS } from "../utils/constants.js";
+import {
+  validateRoundGuessPayload,
+  validateRoundGuessTypingPayload,
+  validateRoundLockPayload,
+  validateRoundPreviewEndedPayload,
+  validateRoundSkipPayload,
+} from "./socket.validation.js";
 
 export function registerRoundHandlers(io: Server, socket: Socket): void {
+  const assertCurrentMatch = (payloadMatchId: string): void => {
+    const match = matchService.getMatchBySocket(socket.id);
+    if (!match || match.matchId !== payloadMatchId) {
+      throw new Error("INVALID_MATCH");
+    }
+  };
+
   socket.on("round:ready", () => {
     try {
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
@@ -41,8 +48,10 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("round:lock_request", (payload: RoundLockPayload) => {
+  socket.on("round:lock_request", (rawPayload: unknown) => {
     try {
+      const payload = validateRoundLockPayload(rawPayload);
+      assertCurrentMatch(payload.matchId);
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
         io.to(matchId).emit(event, data);
       };
@@ -57,8 +66,10 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("round:guess_submit", (payload: RoundGuessPayload) => {
+  socket.on("round:guess_submit", (rawPayload: unknown) => {
     try {
+      const payload = validateRoundGuessPayload(rawPayload);
+      assertCurrentMatch(payload.matchId);
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
         io.to(matchId).emit(event, data);
       };
@@ -75,20 +86,28 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("round:guess_typing", (payload?: RoundGuessTypingPayload) => {
-    const result = matchService.updateGuessTyping(socket.id, payload?.text);
-    if (!result) {
-      return;
-    }
+  socket.on("round:guess_typing", (rawPayload: unknown) => {
+    try {
+      const payload = validateRoundGuessTypingPayload(rawPayload);
+      if (payload.matchId) assertCurrentMatch(payload.matchId);
+      const result = matchService.updateGuessTyping(socket.id, payload.text);
+      if (!result) return;
 
-    socket.to(result.match.matchId).emit(
-      "round:guess_typing",
-      toGuessTypingPayload(result.match, result.text),
-    );
+      socket
+        .to(result.match.matchId)
+        .emit(
+          "round:guess_typing",
+          toGuessTypingPayload(result.match, result.text),
+        );
+    } catch (error) {
+      emitMatchError(socket, error);
+    }
   });
 
-  socket.on("round:preview_ended", (payload: RoundPreviewEndedPayload) => {
+  socket.on("round:preview_ended", (rawPayload: unknown) => {
     try {
+      const payload = validateRoundPreviewEndedPayload(rawPayload);
+      assertCurrentMatch(payload.matchId);
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
         io.to(matchId).emit(event, data);
       };
@@ -103,8 +122,10 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("round:skip_request", (_payload: RoundSkipPayload) => {
+  socket.on("round:skip_request", (rawPayload: unknown) => {
     try {
+      const payload = validateRoundSkipPayload(rawPayload);
+      assertCurrentMatch(payload.matchId);
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
         io.to(matchId).emit(event, data);
       };
