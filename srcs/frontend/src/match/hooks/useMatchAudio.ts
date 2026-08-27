@@ -42,9 +42,6 @@ export function useMatchAudio({
 
   useEffect(() => {
     showAudioRestoreNoticeRef.current = showAudioRestoreNotice;
-    if (showAudioRestoreNotice) {
-      setSongRemainingSeconds(null);
-    }
   }, [showAudioRestoreNotice]);
 
   const updateTrackTimerDisplay = useCallback((offsetSec: number) => {
@@ -244,7 +241,9 @@ export function useMatchAudio({
     showVisualizer,
     setShowVisualizer,
     showAudioRestoreNotice,
-    songRemainingSeconds,
+    songRemainingSeconds: showAudioRestoreNotice
+      ? null
+      : songRemainingSeconds,
     setSongRemainingSeconds,
     tryPlayAudio,
     resumeAudioFromUserGesture,

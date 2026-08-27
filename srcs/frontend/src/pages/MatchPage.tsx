@@ -312,16 +312,15 @@ export default function MatchPage() {
     [matchState, scores],
   );
 
-  const playersList = matchState?.players || [];
   const resultsData = useMemo(
     () =>
       buildResultsData(
         finalScores,
-        playersList,
+        matchState?.players ?? [],
         scores,
         t("match.user.playerFallback"),
       ),
-    [finalScores, playersList, scores, t],
+    [finalScores, matchState?.players, scores, t],
   );
 
   // Derive which overlays are visible in the audio stage (mutually exclusive layers)

@@ -134,30 +134,34 @@ export default function RoomLobbyPage() {
     matchState?.playlistPrepStatus === "ready" && Boolean(selectedPlaylist);
 
   useEffect(() => {
-    setNotFound(false);
+    let cancelled = false;
+    const resetTimer = window.setTimeout(() => setNotFound(!code), 0);
 
-    if (!code) {
-      setNotFound(true);
-      return;
+    if (!code) return () => window.clearTimeout(resetTimer);
+
+    if (createdMatch?.matchId === code) {
+      return () => window.clearTimeout(resetTimer);
     }
-
-    if (createdMatch?.matchId === code) return;
 
     async function validateRoom() {
       try {
         const match = await getMatchState({ matchId: code });
-        if (match.phase === "finished") {
+        if (!cancelled && match.phase === "finished") {
           setNotFound(true);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
-        if (isMatchNotFoundError(message)) {
+        if (!cancelled && isMatchNotFoundError(message)) {
           setNotFound(true);
         }
       }
     }
 
-    validateRoom();
+    void validateRoom();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(resetTimer);
+    };
   }, [code, createdMatch]);
 
   useEffect(() => {
@@ -271,7 +275,7 @@ export default function RoomLobbyPage() {
     }
 
     share();
-  }, [user, matchState?.matchId, matchState?.phase]);
+  }, [user, matchState]);
 
   function toggleReady() {
     if (!playlistReady) {
