@@ -1,12 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import { logInfo } from "../lib/logger.js";
 import { matchService } from "../services/match.service.js";
-import type {
-  CreateMatchPayload,
-  JoinMatchPayload,
-  SelectPlaylistPayload,
-  SharePlaylistsPayload,
-} from "../types/socket.payloads.js";
 import {
   toPayload,
   readHeader,
@@ -21,15 +15,22 @@ import {
   ROUND_NUMBER,
   SYSTEM_PLAYLIST_OWNER_ID,
 } from "../utils/constants.js";
+import {
+  validateCreateMatchPayload,
+  validateJoinMatchPayload,
+  validateSelectPlaylistPayload,
+  validateSharePlaylistsPayload,
+} from "./socket.validation.js";
 
 export function registerMatchHandlers(io: Server, socket: Socket): void {
   const emitToMatch = (matchId: string, event: string, data: unknown) => {
     io.to(matchId).emit(event, data);
   };
 
-  socket.on("match:create", async (payload: CreateMatchPayload) => {
-    console.log("Event received: match:create", payload);
+  socket.on("match:create", async (rawPayload: unknown) => {
+    console.log("Event received: match:create", rawPayload);
     try {
+      const payload = validateCreateMatchPayload(rawPayload);
       const userId = readHeader(socket.handshake.headers, "x-user-id");
       if (!userId) {
         throw new Error("UNAUTHORIZED");
@@ -70,8 +71,9 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("match:join", (payload: JoinMatchPayload) => {
+  socket.on("match:join", (rawPayload: unknown) => {
     try {
+      const payload = validateJoinMatchPayload(rawPayload);
       const userId = readHeader(socket.handshake.headers, "x-user-id");
       if (!userId) {
         throw new Error("UNAUTHORIZED");
@@ -104,23 +106,19 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  socket.on("match:share_playlists", (payload: SharePlaylistsPayload) => {
+  socket.on("match:share_playlists", (rawPayload: unknown) => {
     try {
-      const match = matchService.sharePlaylists(
-        socket.id,
-        payload?.playlists ?? [],
-      );
+      const payload = validateSharePlaylistsPayload(rawPayload);
+      const match = matchService.sharePlaylists(socket.id, payload.playlists);
       emitMatchState(socket, match);
     } catch (error) {
       emitMatchError(socket, error);
     }
   });
 
-  socket.on("match:select_playlist", async (payload: SelectPlaylistPayload) => {
+  socket.on("match:select_playlist", async (rawPayload: unknown) => {
     try {
-      if (!payload?.playlistId || !payload?.ownerUserId) {
-        throw new Error("INVALID_PAYLOAD");
-      }
+      const payload = validateSelectPlaylistPayload(rawPayload);
       const match = await matchService.selectPlaylist(
         socket.id,
         {
