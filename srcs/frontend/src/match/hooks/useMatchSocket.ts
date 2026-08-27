@@ -10,6 +10,7 @@
  *   match:state / match:phase — lobby & lifecycle
  *   round:sync — new round, resets client state, sets audio URL
  *   round:countdown — timestamp-based countdown before playback
+ *   round:playing — server confirms play-start timeline (startedAt)
  *   round:lock_confirmed — pause audio, open guess window
  *   round:guess_typing — live guesser input text for spectators (text only)
  *   round:guess_result — resolution overlay, score update, cooldown penalty flag
@@ -44,6 +45,7 @@ import type {
   RoundGuessResultPayload,
   RoundGuessTypingPayload,
   RoundLockPayload,
+  RoundPlayingPayload,
   RoundResumePayload,
   RoundSkipCompletePayload,
   RoundSkipUpdatePayload,
@@ -51,6 +53,12 @@ import type {
 } from "../types";
 import { isMatchNotFoundError, normalizeCode } from "../utils";
 import { mergeScoresFromPayload } from "../utils/scoreUtils";
+import {
+  noteServerNow,
+  startClockSync,
+  stopClockSync,
+  syncedNow,
+} from "../utils/serverClock";
 import i18n from "../../i18n/i18n";
 import { toGameServiceErrorCode } from "../gameServiceErrors";
 
@@ -71,6 +79,7 @@ type UseMatchSocketOptions = {
   lockOwnerId: string | null;
   tryPlayAudio: (resumeTime: number | null) => void;
   updateTrackTimerDisplay: (offsetSec: number) => void;
+  setPlayingStartedAt: (startedAt: number | null) => void;
   setMatchState: Dispatch<SetStateAction<MatchStatePayload | null>>;
   setNotFound: (value: boolean) => void;
   setError: Dispatch<SetStateAction<string | null>>;
@@ -110,6 +119,7 @@ export function useMatchSocket({
   lockOwnerId,
   tryPlayAudio,
   updateTrackTimerDisplay,
+  setPlayingStartedAt,
   setMatchState,
   setNotFound,
   setError,
@@ -150,6 +160,7 @@ export function useMatchSocket({
   // these (they're not guaranteed stable unless memoized upstream).
   const tryPlayAudioRef = useRef(tryPlayAudio);
   const updateTrackTimerDisplayRef = useRef(updateTrackTimerDisplay);
+  const setPlayingStartedAtRef = useRef(setPlayingStartedAt);
   const setActiveMatchRef = useRef(setActiveMatch);
   const onRematchReceivedRef = useRef(onRematchReceived);
   const fadeOutAudioRef = useRef(fadeOutAudio);
@@ -165,6 +176,7 @@ export function useMatchSocket({
   useEffect(() => {
     tryPlayAudioRef.current = tryPlayAudio;
     updateTrackTimerDisplayRef.current = updateTrackTimerDisplay;
+    setPlayingStartedAtRef.current = setPlayingStartedAt;
     setActiveMatchRef.current = setActiveMatch;
     onRematchReceivedRef.current = onRematchReceived;
     fadeOutAudioRef.current = fadeOutAudio;
@@ -177,8 +189,11 @@ export function useMatchSocket({
       socket.connect();
     }
 
+    startClockSync(socket);
+
     const joinMatch = () => {
       setError(null);
+      startClockSync(socket);
       socket.emit("match:join", {
         matchId: code,
         displayName:
@@ -264,6 +279,7 @@ export function useMatchSocket({
       setLockRequested(false);
       setSkipUserIds([]);
       setSkipRequested(false);
+      setPlayingStartedAtRef.current(null);
       readyRoundRef.current = null;
       setAudioReady(false);
       setError(payload.playlistError ?? null);
@@ -304,14 +320,16 @@ export function useMatchSocket({
     function startCountdown(_initialSeconds: number, endsAt: number) {
       clearCountdownTimer();
       setRoundPhase("countdown");
+      // endsAt is the absolute server play-start; keep it as the timeline anchor.
+      setPlayingStartedAtRef.current(endsAt);
 
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
       }
 
-      // Uses absolute `endsAt` timestamp so countdown stays accurate after tab throttling
+      // Uses absolute `endsAt` + syncedNow so countdown survives clock skew / tab throttling
       const updateCountdown = () => {
-        const now = Date.now();
+        const now = syncedNow();
         const remainingMs = endsAt - now;
 
         if (remainingMs <= 0) {
@@ -319,7 +337,7 @@ export function useMatchSocket({
           setShowVisualizer(true);
           setTimeout(() => setCountdownSeconds(null), 400);
           setRoundPhase("playing");
-          const delaySeconds = Math.abs(remainingMs) / 1000;
+          const delaySeconds = Math.abs(remainingMs) / SECOND_MS;
           tryPlayAudioRef.current(delaySeconds);
           return;
         }
@@ -333,11 +351,32 @@ export function useMatchSocket({
 
     socket.on("round:countdown", (payload: RoundCountdownPayload) => {
       if (payload.matchId !== code) return;
+      noteServerNow(payload.serverNow);
       startCountdown(payload.seconds, payload.endsAt);
+    });
+
+    socket.on("round:playing", (payload: RoundPlayingPayload) => {
+      if (payload.matchId !== code) return;
+      noteServerNow(payload.serverNow);
+      setPlayingStartedAtRef.current(payload.startedAt);
+      if (roundIndexRef.current !== payload.roundIndex) {
+        roundIndexRef.current = payload.roundIndex;
+      }
+      // Clients usually already transitioned via local countdown; reinforce phase/audio.
+      if (audioRef.current?.paused) {
+        const delaySeconds = Math.max(
+          0,
+          (syncedNow() - payload.startedAt) / SECOND_MS,
+        );
+        setRoundPhase("playing");
+        setShowVisualizer(true);
+        tryPlayAudioRef.current(delaySeconds);
+      }
     });
 
     socket.on("round:lock_confirmed", (payload: RoundLockPayload) => {
       if (payload.matchId !== code) return;
+      noteServerNow(payload.serverNow);
       clearGuessPanelClearTimer();
       setRoundPhase("guessing");
       isGuessingRef.current = true;
@@ -434,6 +473,7 @@ export function useMatchSocket({
 
     socket.on("round:resume", (payload: RoundResumePayload) => {
       if (normalizeCode(payload.matchId) !== code) return;
+      noteServerNow(payload.serverNow);
 
       let endTime: number | null = null;
       if (String(lockOwnerIdRef.current) === String(myUserIdRef.current)) {
@@ -451,6 +491,13 @@ export function useMatchSocket({
       clearGuessTyping();
 
       setShowVisualizer(true);
+
+      if (
+        typeof payload.startedAt === "number" &&
+        Number.isFinite(payload.startedAt)
+      ) {
+        setPlayingStartedAtRef.current(payload.startedAt);
+      }
 
       tryPlayAudioRef.current(payload.resumeTime);
     });
@@ -494,6 +541,7 @@ export function useMatchSocket({
       socket.off("match:phase");
       socket.off("round:sync");
       socket.off("round:countdown");
+      socket.off("round:playing");
       socket.off("round:lock_confirmed");
       socket.off("round:skip_update");
       socket.off("round:skip_complete");
@@ -505,6 +553,7 @@ export function useMatchSocket({
       socket.off("match:error");
       clearCountdownTimer();
       clearGuessPanelClearTimer();
+      stopClockSync();
     };
     // tryPlayAudio, updateTrackTimerDisplay, setActiveMatch, and
     // onRematchReceived are intentionally excluded — read via refs above so

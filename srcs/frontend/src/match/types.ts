@@ -24,6 +24,14 @@ export type RoundCountdownPayload = {
   roundIndex: number;
   seconds: number;
   endsAt: number;
+  serverNow?: number;
+};
+
+export type RoundPlayingPayload = {
+  matchId: string;
+  roundIndex: number;
+  startedAt: number;
+  serverNow?: number;
 };
 
 export type RoundLockPayload = {
@@ -32,6 +40,7 @@ export type RoundLockPayload = {
   lockOwnerId: string;
   lockAt: number | null;
   guessEndsAt: number | null;
+  serverNow?: number;
 };
 
 export type RoundGuessTypingPayload = {
@@ -64,6 +73,8 @@ export type RoundResumePayload = {
   matchId: string;
   roundIndex: number;
   resumeTime: number | null;
+  startedAt?: number;
+  serverNow?: number;
 };
 
 export type RoundSkipUpdatePayload = {

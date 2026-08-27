@@ -12,7 +12,7 @@ import {
   ROUND_COUNTDOWN_SECONDS,
   SECOND_MS,
 } from "../../utils/constants.js";
-import { startRoundCountdown, toRoundSyncPayload } from "../round.js";
+import { startRoundCountdown } from "../round.js";
 import {
   getMatchBySocketOrThrow,
   type MatchRegistry,
@@ -59,7 +59,7 @@ export function markRoundReady(
     match.round.phase = "countdown";
     match.round.countdownEndsAt =
       Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
-    startRoundCountdown(match, timers.roundCountdownTimers);
+    startRoundCountdown(match, timers.roundCountdownTimers, emit);
   } else if (!timers.syncTimers.has(match.matchId)) {
     const timer = global.setTimeout(() => {
       timers.syncTimers.delete(match.matchId);
@@ -76,9 +76,15 @@ export function markRoundReady(
         match.round.phase = "countdown";
         match.round.countdownEndsAt =
           Date.now() + ROUND_COUNTDOWN_SECONDS * SECOND_MS;
-        startRoundCountdown(match, timers.roundCountdownTimers);
+        startRoundCountdown(match, timers.roundCountdownTimers, emit);
 
-        emit(match.matchId, "round:sync", toRoundSyncPayload(match));
+        emit(match.matchId, "round:countdown", {
+          matchId: match.matchId,
+          roundIndex: match.round.roundIndex,
+          seconds: ROUND_COUNTDOWN_SECONDS,
+          endsAt: match.round.countdownEndsAt,
+          serverNow: Date.now(),
+        });
       }
     }, FORCE_COUNTDOWN_MS);
 

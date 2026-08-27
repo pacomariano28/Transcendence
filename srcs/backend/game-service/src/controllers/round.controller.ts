@@ -23,6 +23,27 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
     }
   };
 
+  socket.on("time:ping", (rawPayload: unknown) => {
+    const serverRecvAt = Date.now();
+    const payload =
+      rawPayload && typeof rawPayload === "object" && !Array.isArray(rawPayload)
+        ? (rawPayload as Record<string, unknown>)
+        : null;
+    const clientSentAt =
+      payload &&
+      typeof payload.clientSentAt === "number" &&
+      Number.isFinite(payload.clientSentAt)
+        ? payload.clientSentAt
+        : null;
+    if (clientSentAt === null) return;
+
+    socket.emit("time:pong", {
+      clientSentAt,
+      serverRecvAt,
+      serverSentAt: Date.now(),
+    });
+  });
+
   socket.on("round:ready", () => {
     try {
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
@@ -32,11 +53,13 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
       emitMatchState(socket, result.match);
 
       if (result.countdownStarted && result.match.round?.countdownEndsAt) {
+        const serverNow = Date.now();
         io.to(result.match.matchId).emit("round:countdown", {
           matchId: result.match.matchId,
           roundIndex: result.match.round.roundIndex,
           seconds: ROUND_COUNTDOWN_SECONDS,
           endsAt: result.match.round.countdownEndsAt,
+          serverNow,
         });
       }
 
@@ -55,11 +78,7 @@ export function registerRoundHandlers(io: Server, socket: Socket): void {
       const emitToMatch = (matchId: string, event: string, data: unknown) => {
         io.to(matchId).emit(event, data);
       };
-      const match = matchService.requestLock(
-        socket.id,
-        payload.time,
-        emitToMatch,
-      );
+      const match = matchService.requestLock(socket.id, emitToMatch);
       emitMatchState(socket, match);
     } catch (error) {
       emitMatchError(socket, error);

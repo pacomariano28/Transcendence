@@ -71,27 +71,33 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
     return;
   }
 
+  const serverNow = Date.now();
+
   if (round.phase === "countdown") {
     const remainingSecs = Math.ceil(
-      Math.max(0, round.countdownEndsAt! - Date.now()) / 1000,
+      Math.max(0, round.countdownEndsAt! - serverNow) / 1000,
     );
     socket.emit("round:countdown", {
       matchId: match.matchId,
       roundIndex: round.roundIndex,
       seconds: remainingSecs,
       endsAt: round.countdownEndsAt,
+      serverNow,
     });
     return;
   }
 
   if (round.phase === "playing") {
-    const resumeTime = round.countdownEndsAt
-      ? Math.max(0, (Date.now() - round.countdownEndsAt) / 1000)
+    const startedAt = round.countdownEndsAt;
+    const resumeTime = startedAt
+      ? Math.max(0, (serverNow - startedAt) / 1000)
       : 0;
     socket.emit("round:resume", {
       matchId: match.matchId,
       roundIndex: round.roundIndex,
       resumeTime,
+      startedAt: startedAt ?? serverNow,
+      serverNow,
     });
     if (round.skipUserIds.length > 0) {
       socket.emit("round:skip_update", {
@@ -110,6 +116,7 @@ export function emitRoundCatchUp(socket: Socket, match: MatchState): void {
       lockOwnerId: round.lockOwnerId,
       lockAt: round.lockAt,
       guessEndsAt: round.guessEndsAt,
+      serverNow,
     });
     if (round.guessTypingText) {
       emitGuessTyping(socket, match);

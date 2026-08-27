@@ -143,10 +143,12 @@ export default function MatchPage() {
     resumeAudioFromUserGesture,
     fadeOutAudio,
     updateTrackTimerDisplay,
+    setPlayingStartedAt,
   } = useMatchAudio({
     audioUrl,
     roundInfo,
     code,
+    roundPhase,
     onAudioError: handleAudioError,
   });
 
@@ -214,6 +216,7 @@ export default function MatchPage() {
     lockOwnerId,
     tryPlayAudio,
     updateTrackTimerDisplay,
+    setPlayingStartedAt,
     setMatchState,
     setNotFound,
     setError,

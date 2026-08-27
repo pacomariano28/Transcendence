@@ -1,6 +1,7 @@
 /**
  * Lock request via button or Space key. If audio was blocked by the browser,
- * resumes playback first and then emits `round:lock_request` with current time.
+ * resumes playback first and then emits `round:lock_request`.
+ * Lock position is computed on the server from the playback timeline.
  */
 import { useCallback, useEffect, type RefObject } from "react";
 import { socket } from "../../api/socket";
@@ -30,11 +31,10 @@ export function useLockControls({
     if (!audioRef.current || !canLock || lockRequested) return;
 
     const emitLock = () => {
-      if (!audioRef.current || lockRequested) return;
+      if (lockRequested) return;
       setLockRequested(true);
       socket.emit("round:lock_request", {
         matchId: matchCode,
-        time: audioRef.current.currentTime,
       });
     };
 

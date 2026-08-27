@@ -2,6 +2,9 @@
  * Manages preview audio lifecycle: element creation, Web Audio analyser hookup,
  * server sync (round:ready / preview_ended), and playback position recovery.
  *
+ * Playback position is anchored to the server timeline via `playingStartedAt`
+ * and `syncedNow()`. Drift beyond the tolerance seeks the element back in sync.
+ *
  * Browser autoplay policies may block `play()` after reload — in that case
  * `showAudioRestoreNotice` prompts a user gesture via resumeAudioFromUserGesture.
  */
@@ -9,11 +12,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { socket } from "../../api/socket";
 import { SECOND_MS, SKIP_FADE_MS } from "../constants";
 import type { RoundSyncPayload } from "../types";
+import {
+  getAudioSyncToleranceMs,
+  syncedNow,
+} from "../utils/serverClock";
 
 type UseMatchAudioOptions = {
   audioUrl: string | null;
   roundInfo: RoundSyncPayload | null;
   code: string;
+  roundPhase: string;
   onAudioError: (message: string) => void;
 };
 
@@ -21,6 +29,7 @@ export function useMatchAudio({
   audioUrl,
   roundInfo,
   code,
+  roundPhase,
   onAudioError,
 }: UseMatchAudioOptions) {
   const [audioReady, setAudioReady] = useState(false);
@@ -35,18 +44,24 @@ export function useMatchAudio({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const playbackSyncRef = useRef<{ anchorAt: number; offsetSec: number } | null>(
-    null,
-  );
+  const playingStartedAtRef = useRef<number | null>(null);
   const showAudioRestoreNoticeRef = useRef(false);
 
   useEffect(() => {
     showAudioRestoreNoticeRef.current = showAudioRestoreNotice;
   }, [showAudioRestoreNotice]);
 
+  const setPlayingStartedAt = useCallback((startedAt: number | null) => {
+    playingStartedAtRef.current = startedAt;
+  }, []);
+
+  const expectedPlaybackSec = useCallback((): number | null => {
+    const startedAt = playingStartedAtRef.current;
+    if (startedAt === null) return null;
+    return Math.max(0, (syncedNow() - startedAt) / SECOND_MS);
+  }, []);
+
   const updateTrackTimerDisplay = useCallback((offsetSec: number) => {
-    // Anchor + offset lets us re-sync after lock/resume without drift
-    playbackSyncRef.current = { anchorAt: Date.now(), offsetSec };
     const duration = audioRef.current?.duration;
     if (!duration || isNaN(duration)) return;
     setSongRemainingSeconds(Math.max(0, Math.ceil(duration - offsetSec)));
@@ -56,9 +71,8 @@ export function useMatchAudio({
     const audio = audioRef.current;
     if (!audio) return;
 
-    const sync = playbackSyncRef.current;
-    const elapsed = sync ? (Date.now() - sync.anchorAt) / SECOND_MS : 0;
-    const position = sync ? sync.offsetSec + elapsed : audio.currentTime;
+    const expected = expectedPlaybackSec();
+    const position = expected ?? audio.currentTime;
     const duration = audio.duration;
     const playbackTime =
       duration && !isNaN(duration)
@@ -67,20 +81,26 @@ export function useMatchAudio({
 
     audio.currentTime = playbackTime;
     updateTrackTimerDisplay(playbackTime);
-  }, [updateTrackTimerDisplay]);
+  }, [expectedPlaybackSec, updateTrackTimerDisplay]);
 
   const tryPlayAudio = useCallback(
     (resumeTime: number | null) => {
       const audio = audioRef.current;
 
       if (resumeTime !== null) {
-        playbackSyncRef.current = { anchorAt: Date.now(), offsetSec: resumeTime };
+        // Prefer an existing server timeline anchor (countdown endsAt / startedAt).
+        if (playingStartedAtRef.current === null) {
+          playingStartedAtRef.current = syncedNow() - resumeTime * SECOND_MS;
+        }
         if (audio) {
-          audio.currentTime = resumeTime;
+          const expected = expectedPlaybackSec() ?? resumeTime;
+          audio.currentTime = expected;
         }
       }
 
       if (!audio) return;
+
+      applySyncedPlaybackPosition();
 
       audio
         .play()
@@ -90,7 +110,7 @@ export function useMatchAudio({
         })
         .catch(() => setShowAudioRestoreNotice(true));
     },
-    [applySyncedPlaybackPosition],
+    [applySyncedPlaybackPosition, expectedPlaybackSec],
   );
 
   const resumeAudioFromUserGesture = useCallback(async () => {
@@ -144,6 +164,37 @@ export function useMatchAudio({
     },
     [],
   );
+
+  // Corrective seek while playing against the server timeline.
+  useEffect(() => {
+    if (roundPhase !== "playing") return undefined;
+
+    const toleranceSec = getAudioSyncToleranceMs() / SECOND_MS;
+
+    const tick = () => {
+      const audio = audioRef.current;
+      if (!audio || showAudioRestoreNoticeRef.current) return;
+      if (audio.paused) return;
+
+      const expected = expectedPlaybackSec();
+      if (expected === null) return;
+
+      const duration = audio.duration;
+      const clamped =
+        duration && !isNaN(duration)
+          ? Math.min(expected, duration)
+          : expected;
+
+      if (Math.abs(audio.currentTime - clamped) > toleranceSec) {
+        audio.currentTime = clamped;
+      }
+      updateTrackTimerDisplay(clamped);
+    };
+
+    tick();
+    const timerId = window.setInterval(tick, getAudioSyncToleranceMs());
+    return () => window.clearInterval(timerId);
+  }, [roundPhase, expectedPlaybackSec, updateTrackTimerDisplay]);
 
   useEffect(() => {
     if (!audioUrl) {
@@ -249,5 +300,6 @@ export function useMatchAudio({
     resumeAudioFromUserGesture,
     fadeOutAudio,
     updateTrackTimerDisplay,
+    setPlayingStartedAt,
   };
 }

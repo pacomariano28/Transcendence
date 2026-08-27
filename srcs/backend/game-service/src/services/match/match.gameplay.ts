@@ -30,7 +30,6 @@ export function requestLock(
   timers: MatchTimerContext,
   connectionCtx: MatchConnectionContext,
   socketId: string,
-  time: number,
   emit: EmitMatchEvent,
 ): MatchState {
   const match = getMatchBySocketOrThrow(registry, socketId);
@@ -52,9 +51,13 @@ export function requestLock(
   }
 
   const now = Date.now();
+  const startedAt = match.round.countdownEndsAt;
+  const lockAt =
+    startedAt != null ? Math.max(0, (now - startedAt) / SECOND_MS) : 0;
+
   match.round.phase = "guessing";
   match.round.lockOwnerId = player.userId;
-  match.round.lockAt = time;
+  match.round.lockAt = lockAt;
   match.round.guessEndsAt = now + GUESS_WINDOW_SECONDS * SECOND_MS;
   match.round.guessTypingText = "";
 
@@ -64,6 +67,7 @@ export function requestLock(
     lockOwnerId: match.round.lockOwnerId,
     lockAt: match.round.lockAt,
     guessEndsAt: match.round.guessEndsAt,
+    serverNow: now,
   });
 
   replaceTimer(

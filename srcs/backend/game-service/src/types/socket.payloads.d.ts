@@ -54,7 +54,18 @@ export type AudioTogglePayload = {
 
 export type RoundLockPayload = {
   matchId: string;
-  time: number;
+  /** @deprecated Ignored; server computes lockAt from playback timeline. */
+  time?: number;
+};
+
+export type TimePingPayload = {
+  clientSentAt: number;
+};
+
+export type TimePongPayload = {
+  clientSentAt: number;
+  serverRecvAt: number;
+  serverSentAt: number;
 };
 
 export type RoundGuessPayload = {

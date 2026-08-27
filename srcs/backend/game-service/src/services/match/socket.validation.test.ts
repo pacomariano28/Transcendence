@@ -9,7 +9,16 @@ import {
   validateSharePlaylistsPayload,
 } from "../../controllers/socket.validation.js";
 
-test("lock timestamps reject negative, non-finite, and out-of-range values", () => {
+test("lock payload requires matchId; time is optional and validated when present", () => {
+  assert.deepEqual(validateRoundLockPayload({ matchId: "ROOM01" }), {
+    matchId: "ROOM01",
+  });
+
+  assert.deepEqual(
+    validateRoundLockPayload({ matchId: "ROOM01", time: 12.5 }),
+    { matchId: "ROOM01", time: 12.5 },
+  );
+
   const invalidTimes = [-99_999.5, Number.NaN, Number.POSITIVE_INFINITY, 31];
   for (const time of invalidTimes) {
     assert.throws(
@@ -17,11 +26,6 @@ test("lock timestamps reject negative, non-finite, and out-of-range values", () 
       /INVALID_PAYLOAD/,
     );
   }
-
-  assert.deepEqual(
-    validateRoundLockPayload({ matchId: "ROOM01", time: 12.5 }),
-    { matchId: "ROOM01", time: 12.5 },
-  );
 });
 
 test("malformed match, guess, preview, audio, and playlist payloads fail", () => {

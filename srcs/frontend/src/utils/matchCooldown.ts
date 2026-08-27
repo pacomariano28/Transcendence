@@ -1,4 +1,5 @@
 import { socket } from "../api/socket";
+import { syncedNow } from "../match/utils/serverClock";
 
 export const COOLDOWN_DURATION = 5;
 const SECOND_MS = 1000;
@@ -63,7 +64,7 @@ export function readStoredCooldown(matchCode: string): StoredCooldown | null {
     const raw = localStorage.getItem(cooldownStorageKey(matchCode));
     if (!raw) return null;
     const stored = parseStoredCooldown(raw);
-    if (!stored || stored.endTime <= Date.now()) {
+    if (!stored || stored.endTime <= syncedNow()) {
       localStorage.removeItem(cooldownStorageKey(matchCode));
       return null;
     }
@@ -133,7 +134,7 @@ export function activateCooldownOnResume(
 ): number | null {
   const pendingRound = readPendingCooldown(matchCode);
   if (pendingRound === roundIndex) {
-    const endTime = Date.now() + COOLDOWN_DURATION * SECOND_MS;
+    const endTime = syncedNow() + COOLDOWN_DURATION * SECOND_MS;
     writeStoredCooldownEnd(matchCode, endTime, roundIndex);
     clearPendingCooldown(matchCode);
     return endTime;
@@ -145,7 +146,7 @@ export function startCooldownPenalty(
   matchCode: string,
   roundIndex: number,
 ): number {
-  const endTime = Date.now() + COOLDOWN_DURATION * SECOND_MS;
+  const endTime = syncedNow() + COOLDOWN_DURATION * SECOND_MS;
   writeStoredCooldownEnd(matchCode, endTime, roundIndex);
   clearPendingCooldown(matchCode);
   return endTime;

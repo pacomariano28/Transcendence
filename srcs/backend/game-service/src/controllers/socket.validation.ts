@@ -144,9 +144,15 @@ export function validateAudioTogglePayload(value: unknown): AudioTogglePayload {
 
 export function validateRoundLockPayload(value: unknown): RoundLockPayload {
   const input = record(value);
+  // `time` is optional and ignored — lock position is computed from the
+  // server playback timeline. Accept legacy clients that still send it.
+  const time =
+    input.time === undefined
+      ? undefined
+      : finiteNumber(input.time, 0, MAX_PREVIEW_TIME_SECONDS);
   return {
     matchId: matchId(input.matchId),
-    time: finiteNumber(input.time, 0, MAX_PREVIEW_TIME_SECONDS),
+    ...(time !== undefined ? { time } : {}),
   };
 }
 

@@ -149,17 +149,12 @@ export class MatchService {
     return markRoundReadyAction(this.registry, this.timers, socketId, emit);
   }
 
-  requestLock(
-    socketId: string,
-    time: number,
-    emit: EmitMatchEvent,
-  ): MatchState {
+  requestLock(socketId: string, emit: EmitMatchEvent): MatchState {
     return requestLockAction(
       this.registry,
       this.timers,
       this.connectionContext,
       socketId,
-      time,
       emit,
     );
   }

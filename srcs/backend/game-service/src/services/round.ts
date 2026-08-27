@@ -116,6 +116,7 @@ export function startRound(match: MatchState): void {
 export function startRoundCountdown(
   match: MatchState,
   roundCountdownTimers: MatchTimerMap,
+  emit: EmitMatchEvent,
 ): void {
   replaceTimer(
     roundCountdownTimers,
@@ -126,9 +127,17 @@ export function startRoundCountdown(
         return;
       }
 
+      // Keep countdownEndsAt as the absolute play-start anchor (do not rewrite).
       match.round.phase = "playing";
+      const startedAt = match.round.countdownEndsAt ?? Date.now();
+      const serverNow = Date.now();
 
-      match.round.countdownEndsAt = Date.now();
+      emit(match.matchId, "round:playing", {
+        matchId: match.matchId,
+        roundIndex: match.round.roundIndex,
+        startedAt,
+        serverNow,
+      });
     },
   );
 }
@@ -231,16 +240,19 @@ export function resolveGuess({
       match.round.guessEndsAt = null;
       match.round.guessTypingText = "";
 
+      const serverNow = Date.now();
       if (resumeTime !== null) {
-        match.round.countdownEndsAt = Date.now() - resumeTime * 1000;
+        match.round.countdownEndsAt = serverNow - resumeTime * SECOND_MS;
       } else {
-        match.round.countdownEndsAt = Date.now();
+        match.round.countdownEndsAt = serverNow;
       }
 
       emit(match.matchId, "round:resume", {
         matchId: match.matchId,
         roundIndex: match.round.roundIndex,
         resumeTime,
+        startedAt: match.round.countdownEndsAt,
+        serverNow,
       });
     },
   );
