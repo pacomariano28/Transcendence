@@ -74,9 +74,9 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
 
 type TrackCandidate = {
   isrc: string;
-  title?: string;
-  artist?: string;
-  spotifyTrackId?: string;
+  title?: string | null;
+  artist?: string | null;
+  spotifyTrackId?: string | null;
   durationMs?: number | null;
 };
 
