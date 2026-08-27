@@ -45,7 +45,9 @@ function hashToken(token: string) {
  * console.log("Issued Refresh Token:", refreshToken);
  * console.log("Expires At:", new Date(expiresAt).toISOString());
  */
-export async function issueRefreshToken(userId: string): Promise<IssuedRefreshToken> {
+export async function issueRefreshToken(
+  userId: string,
+): Promise<IssuedRefreshToken> {
   const refreshToken = crypto.randomBytes(48).toString("hex");
   const expiresAt = Date.now() + REFRESH_TTL_MS;
 
@@ -76,31 +78,78 @@ export async function issueRefreshToken(userId: string): Promise<IssuedRefreshTo
  *   console.error("Error consuming refresh token:", error.message);
  * }
  */
-export async function consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
-  const rec = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
-    select: { id: true, userId: true, expiresAt: true, revokedAt: true },
+export async function consumeRefreshToken(
+  refreshToken: string,
+): Promise<{ userId: string }> {
+  const tokenHash = hashToken(refreshToken);
+  const now = new Date();
+
+  // Atomic consume (prevents race conditions):
+  // only one request can flip revokedAt from null -> now for a non-expired token.
+  const consumed = await prisma.refreshToken.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null,
+      expiresAt: { gt: now },
+    },
+    data: { revokedAt: now },
   });
 
-  if (!rec || rec?.revokedAt) {
+  if (consumed.count !== 1) {
+    // Distinguish between invalid and expired for better UX/debugging.
+    const rec = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      select: { expiresAt: true, revokedAt: true },
+    });
+
+    if (!rec || rec.revokedAt) {
+      throw new Error("INVALID_REFRESH_TOKEN");
+    }
+
+    if (rec.expiresAt.getTime() <= now.getTime()) {
+      // Best-effort: ensure token is marked as revoked if it is expired but not yet revoked.
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: now },
+      });
+
+      throw new Error("EXPIRED_REFRESH_TOKEN");
+    }
+
+    // Fallback (should be rare): treat as invalid if we couldn't consume it.
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
-  // its expired? Set revokedAt to now and throw error
-  if (Date.now() > rec.expiresAt.getTime()) {
-    await prisma.refreshToken.update({
-      where: { id: rec.id },
-      data: { revokedAt: new Date() },
-    });
+  const rec = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    select: { userId: true },
+  });
 
-    throw new Error("EXPIRED_REFRESH_TOKEN");
+  if (!rec) {
+    // Extremely unlikely after a successful consume, but keep it safe.
+    throw new Error("INVALID_REFRESH_TOKEN");
   }
 
-  // Consume the token by setting revokedAt to now
-  await prisma.refreshToken.update({
-    where: { id: rec.id },
+  return { userId: rec.userId };
+}
+
+/**
+ * @brief Revokes a refresh token without rotating it.
+ * @param refreshToken Refresh token to invalidate.
+ * @returns `true` if a token row was marked as revoked, `false` if it was missing or already revoked.
+ */
+export async function revokeRefreshToken(
+  refreshToken: string,
+): Promise<boolean> {
+  const tokenHash = hashToken(refreshToken);
+
+  const result = await prisma.refreshToken.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null,
+    },
     data: { revokedAt: new Date() },
   });
 
-  return { userId: rec.userId };
+  return result.count > 0;
 }

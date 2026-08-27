@@ -150,3 +150,15 @@ vite.config.ts.timestamp-*
 *~
 *.swp
 *.un~
+
+# Authority
+authority
+
+.machine-state
+
+.cursor
+
+clip_*.*
+
+media
+

@@ -1,0 +1,9 @@
+@layer components {
+  .page-title {
+    @apply text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white;
+  }
+
+  .page-subtitle {
+    @apply mt-2 text-sm sm:text-base leading-relaxed text-zinc-400;
+  }
+}

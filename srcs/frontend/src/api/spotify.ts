@@ -1,0 +1,18 @@
+import { apiJson } from "./http";
+
+export type SpotifySearchTrack = {
+  id: string;
+  isrc: string;
+  track: string;
+  artist: string;
+};
+
+export async function searchSpotifyTracks(
+  term: string,
+  signal?: AbortSignal,
+): Promise<SpotifySearchTrack[]> {
+  const query = new URLSearchParams({ term }).toString();
+  return apiJson<SpotifySearchTrack[]>(`/api/content/search?${query}`, {
+    signal,
+  });
+}

@@ -1,0 +1,29 @@
+@layer components {
+  .fade-in,
+  .page-enter {
+    animation: pageEnter var(--page-enter-ms, 320ms) ease-out both;
+  }
+
+  .page-exit {
+    animation: pageExit var(--page-exit-ms, 300ms) ease-in both;
+    pointer-events: none;
+  }
+
+  .page-content-dim {
+    opacity: 0.65;
+    transition: opacity var(--page-dim-ms, 220ms) ease-out;
+  }
+
+  .pop-in {
+    animation: popIn var(--page-enter-ms, 320ms) ease-out both;
+  }
+
+  .nudge {
+    animation: nudge 220ms ease-out both;
+  }
+
+  .code-flash {
+    animation: codeFlash 2.5s ease-out both;
+    animation-delay: 0.15s;
+  }
+}

@@ -1,0 +1,6 @@
+@layer components {
+  .link {
+    @apply text-[#f7d046] hover:text-[#ffe06b] underline-offset-4 hover:underline
+           transition duration-150;
+  }
+}

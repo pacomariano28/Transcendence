@@ -14,16 +14,18 @@ services:
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ../infra/nginx/conf.d:/etc/nginx/conf.d
+      - ../infra/nginx/html:/etc/nginx/html:ro
       - ../infra/certs:/etc/nginx/certs
 
   frontend:
-    user: node
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
     environment:
       NODE_ENV: development
+    env_file:
+      - ./frontend/.env
     container_name: songuess-frontend
     restart: unless-stopped
     depends_on:
@@ -39,7 +41,6 @@ services:
       - /app/node_modules
 
   api-gateway:
-    user: node
     build:
       context: ./backend/api-gateway
       dockerfile: Dockerfile
@@ -53,7 +54,7 @@ services:
     depends_on:
       - auth-service
       - content-service
-      # - game-service
+      - playlist-service
     ports:
       - "4000:4000"
     networks:
@@ -64,8 +65,28 @@ services:
       - ./backend/api-gateway:/app
       - /app/node_modules
 
+  game-service:
+    build:
+      context: ./backend/game-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+    env_file:
+      - ./backend/game-service/.env
+    container_name: songuess-game-service
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    networks:
+      - songuess-net
+    volumes:
+      # - ./backend/services/game-service/src:/app/src
+      # - ./backend/services/game-service/tsconfig.json:/app/tsconfig.json
+      - ./backend/game-service:/app
+      - /app/node_modules
+
   auth-service:
-    user: node
     build:
       context: ./backend/auth-service
       dockerfile: Dockerfile
@@ -74,14 +95,16 @@ services:
       NODE_ENV: development
       PORT: 4002
       SERVICE_NAME: auth-service
-      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
-      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+      # DATABASE_URL: postgresql://...  (we will add this when we connect the DB)
+      # JWT_SECRET: ...                (we will add this when we implement login)
     env_file:
       - ./backend/auth-service/.env
     container_name: songuess-auth-service
+    #entrypoint: "tail -f"
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "4002:4002"
     networks:
@@ -93,7 +116,6 @@ services:
       - /app/node_modules
 
   content-service:
-    user: node
     build:
       context: ./backend/content-service
       dockerfile: Dockerfile
@@ -116,6 +138,37 @@ services:
       - ./backend/content-service:/app
       - /app/node_modules
 
+  playlist-service:
+    build:
+      context: ./backend/playlist-service
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      SERVICE_NAME: playlist-service
+      MEDIA_DIR: /media
+      CONTENT_SERVICE_URL: http://content-service:4003
+      DEFAULT_SPOTIFY_PLAYLIST_ID: 4m6KPiWl16XF39K0q9qbGm
+    env_file:
+      - ./backend/playlist-service/.env
+    container_name: songuess-playlist-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      content-service:
+        condition: service_started
+    #command: sh -c "npx prisma migrate deploy && npm run dev"
+    ports:
+      - "4004:4004"
+    networks:
+      - songuess-net
+    volumes:
+      - ./backend/playlist-service:/app
+      - /app/node_modules
+      - ./frontend/public/media:/media
+
   # nginx-reload:
   #   image: alpine:latest
   #   volumes:
@@ -124,7 +177,7 @@ services:
   #   command: |
   #     sh -c "apk add --no-cache inotify-tools docker-cli && \
   #     inotifywait -r -m -e modify /nginx | while read -r path action file; do \
-  #       echo 'Recargando nginx...'; \
+  #       echo 'Reloading nginx...'; \
   #       docker exec songuess-nginx nginx -s reload; \
   #     done"
   #   depends_on:
@@ -137,7 +190,8 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
-      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres_root_db} # serves at the root database
+      POSTGRES_MULTIPLE_DATABASES: auth_db,playlist_db # database list to create databases
     container_name: songuess-postgres
     restart: unless-stopped
     ports:
@@ -146,6 +200,16 @@ services:
       - songuess-net
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../infra/postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres_user} -d ${POSTGRES_DB:-postgres_root_db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 15
 
   redis:
     image: redis:8.4.2-alpine3.22

@@ -1,19 +1,35 @@
 import { Router } from "express";
-import { requireAuth } from "../middlewares/requireAuth.js";
 import * as authController from "../controllers/auth.controller.js";
+import * as oauthController from "../controllers/oauth.controller.js";
+import * as spotifyPlaylistsController from "../controllers/spotifyPlaylists.controller.js";
 
 export const authRouter = Router();
 
+// Credentials auth
 authRouter.post("/register", authController.register);
 authRouter.post("/login", authController.login);
 authRouter.post("/refresh", authController.refresh);
-authRouter.get("/me", requireAuth, authController.me);
+authRouter.post("/refresh-cookie", authController.refreshCookie);
+authRouter.post("/logout", authController.logout);
+authRouter.get("/me", authController.me);
 
-/**
- * TESTING
- * 
- * curl -s -X POST http://localhost:4002/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"a@b.com","password":"123"}' | cat
+// Spotify Oauth
+authRouter.get("/spotify/login", oauthController.spotifyLogin);
+authRouter.get("/spotify/callback", oauthController.spotifyCallback);
 
- */
+// Spotify playlists (user token)
+authRouter.get("/spotify/playlists", spotifyPlaylistsController.getMyPlaylists);
+authRouter.get(
+  "/spotify/playlists/:playlistId/tracks",
+  spotifyPlaylistsController.getMyPlaylistTracks,
+);
+
+// Internal (docker network) — game-service materialization
+authRouter.get(
+  "/internal/users/:userId/spotify/playlists/:playlistId",
+  spotifyPlaylistsController.getUserPlaylistMetaInternal,
+);
+authRouter.get(
+  "/internal/users/:userId/spotify/playlists/:playlistId/tracks",
+  spotifyPlaylistsController.getUserPlaylistTracksInternal,
+);

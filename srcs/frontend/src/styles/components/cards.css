@@ -1,0 +1,16 @@
+@layer components {
+  .page-card {
+    @apply rounded-2xl border border-white/10 bg-[#141416] backdrop-blur
+           shadow-[0_10px_30px_rgba(0,0,0,0.35)]
+           p-4 sm:p-6 lg:p-8;
+  }
+
+  .card {
+    @apply rounded-2xl border border-white/10 bg-[#141416] backdrop-blur
+           shadow-[0_10px_30px_rgba(0,0,0,0.35)];
+  }
+
+  .card-hover {
+    @apply transition duration-200 ease-out hover:border-[#f7d046]/25 hover:bg-[#1a1a1d];
+  }
+}

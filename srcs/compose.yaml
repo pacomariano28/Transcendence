@@ -12,6 +12,7 @@ services:
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ../infra/nginx/html:/etc/nginx/html:ro
       - ../infra/certs:/etc/nginx/certs:ro
       - frontend_data:/usr/share/nginx/html:ro
 
@@ -61,8 +62,8 @@ services:
     environment:
       PORT: 4002
       SERVICE_NAME: auth-service
-      # DATABASE_URL: postgresql://...  (lo añadimos cuando conectemos DB)
-      # JWT_SECRET: ...                (lo añadimos cuando implementemos login)
+      # DATABASE_URL: postgresql://...  (we will add this when we connect the DB)
+      # JWT_SECRET: ...                (we will add this when we implement login)
     env_file:
       - ./.env
     container_name: songuess-auth-service

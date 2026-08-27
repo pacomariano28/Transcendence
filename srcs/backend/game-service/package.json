@@ -1,0 +1,26 @@
+{
+  "name": "game-service",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test src/services/match/*.test.ts",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.0",
+    "cors": "2.8.6",
+    "express": "5.2.1",
+    "socket.io": "4.8.3"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/morgan": "1.9.10",
+    "prisma": "6.19.3",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -4,23 +4,50 @@ import express, {
   Request,
   Response,
 } from "express";
+import { createServer } from "node:http";
+import type { Socket as NetSocket } from "node:net";
 import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
+import cookie from "cookie";
 import { logError, logInfo } from "./lib/logger.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import contentRoutes from "./routes/content.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import gameRoutes, { socketProxy } from "./routes/game.routes.js";
+import playlistRoutes from "./routes/playlist.routes.js";
+import setupRoutes from "./routes/setup.routes.js";
+import { getAggregatedSetupStatus } from "./controllers/setup.controller.js";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
 const app = express();
+const server = createServer(app);
 
 const PORT = Number(process.env.PORT || 3000);
 const isProd = process.env.NODE_ENV === "production";
+
+type JwtPayload = {
+  sub: string;
+  email: string;
+  username?: string;
+};
 
 // Trust first proxy hop (Nginx) for real client IP
 app.set("trust proxy", 1);
 
 if (isProd) app.use(globalLimiter);
 
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-request-id", "Accept"],
+  }),
+);
+
 app.use(express.json());
+app.use(cookieParser());
 
 // Request id middleware for correlation across logs
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -32,7 +59,65 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes registration
 app.use("/api/auth", authRoutes);
+app.use("/api/game", gameRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/playlist", playlistRoutes);
+app.use("/api/setup", setupRoutes);
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "api-gateway" });
+});
+
+app.get("/ready", (req, res) => {
+  void getAggregatedSetupStatus(req, res);
+});
+
+function extractToken(headers: Record<string, string | string[] | undefined>) {
+  const authHeader = headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice("Bearer ".length).trim();
+  }
+
+  const cookieHeader = headers.cookie;
+  if (typeof cookieHeader === "string") {
+    const cookies = cookie.parse(cookieHeader);
+    return cookies.access_token;
+  }
+
+  return undefined;
+}
+
+function sendUnauthorized(socket: NetSocket) {
+  socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+  socket.destroy();
+}
+
+server.on("upgrade", (req, socket, head) => {
+  console.log("Server on upgrade called");
+  if (req.url?.startsWith("/socket.io")) {
+    const token = extractToken(req.headers);
+    if (!token) {
+      sendUnauthorized(socket as NetSocket);
+      return;
+    }
+
+    try {
+      const secret = process.env.JWT_SECRET || "jwt_secret";
+      const decoded = jwt.verify(token, secret) as JwtPayload;
+
+      req.headers["x-user-id"] = decoded.sub;
+      req.headers["x-user-email"] = decoded.email;
+      if (decoded.username) {
+        req.headers["x-user-username"] = decoded.username;
+      }
+      req.headers["x-authenticated-by"] = "api-gateway";
+
+      socketProxy.upgrade(req, socket as NetSocket, head);
+    } catch {
+      sendUnauthorized(socket as NetSocket);
+    }
+  }
+});
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {
@@ -45,20 +130,19 @@ app.use((_req: Request, res: Response) => {
 
 // Centralized error logger + response
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  void _next;
   const requestId = res.locals.requestId ?? null;
-  const statusCode = Number(
-    (err as any)?.statusCode || (err as any)?.status || 500,
-  );
-  const message = (err as any)?.message || "Internal server error";
+  const statusCode = Number(err?.statusCode || 500);
+  const message = err?.message || "Internal server error";
 
   logError({
     requestId,
     method: req.method,
     path: req.originalUrl,
     statusCode,
-    errorName: (err as any)?.name || "Error",
+    errorName: err?.name || "Error",
     errorMessage: message,
-    stack: (err as any)?.stack,
+    stack: err?.stack,
   });
 
   res.status(statusCode).json({
@@ -70,7 +154,7 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
 app.use(globalErrorHandler);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   logInfo(`Listening on port ${PORT}`);
 });
 

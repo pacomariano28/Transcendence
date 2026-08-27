@@ -1,4 +1,4 @@
-FROM node:24-alpine3.22 AS builder
+FROM node:24.15.0-alpine3.22 AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
@@ -7,7 +7,7 @@ COPY --chown=node:node . .
 USER node
 RUN npm run build
 
-FROM node:24-alpine3.22 AS production
+FROM node:24.15.0-alpine3.22 AS production
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
@@ -18,12 +18,11 @@ EXPOSE 4002
 CMD ["node", "dist/index.js"]
 
 # development
-FROM node:24-alpine3.22 AS development
-USER node
+FROM node:24.15.0-alpine3.22 AS development
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci
 # COPY --chown=node:node . .
 EXPOSE 4002
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run dev"]

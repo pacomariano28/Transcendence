@@ -1,0 +1,371 @@
+@keyframes guessTypingCharEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.88);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes guessTypingCharExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.86);
+    filter: blur(2px);
+  }
+}
+
+@keyframes matchPlayExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+    max-height: 600px;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94) translateY(-12px);
+    filter: blur(6px);
+    max-height: 0;
+  }
+}
+
+@keyframes matchGuessExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+    max-height: 800px;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+    filter: blur(4px);
+    max-height: 0;
+  }
+}
+
+@keyframes matchResultsEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(24px);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-4px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes matchTitleReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+    letter-spacing: 0.1em;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: 0.24em;
+  }
+}
+
+@keyframes resultRowReveal {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.95);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes matchBackReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes winnerGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(247, 208, 70, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(247, 208, 70, 0.35);
+  }
+}
+
+@keyframes guessStatusEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.92);
+    letter-spacing: 0.1em;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    letter-spacing: 0.35em;
+  }
+}
+
+@keyframes skipLabelExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(1.25rem);
+  }
+}
+
+@keyframes skipNameReturn {
+  0%,
+  40% {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes guessDropdownEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes guessDropdownExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@keyframes songRevealCover {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-10deg);
+    filter: blur(10px);
+    box-shadow: 0 0 0 rgba(247, 208, 70, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.1) rotate(3deg);
+    filter: blur(0);
+    box-shadow: 0 0 28px rgba(247, 208, 70, 0.35);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: blur(0);
+    box-shadow: 0 0 18px rgba(247, 208, 70, 0.2);
+  }
+}
+
+@keyframes songRevealMeta {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes searchValueSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes searchValueSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-guess-typing-char-enter {
+  animation: guessTypingCharEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-guess-typing-char-exit {
+  animation: guessTypingCharExit 0.16s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-match-play-exit {
+  animation: matchPlayExit 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-match-guess-exit {
+  animation: matchGuessExit 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-match-results-enter {
+  animation: matchResultsEnter 0.85s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-match-title-reveal {
+  animation: matchTitleReveal 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-result-row-reveal {
+  animation: resultRowReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-match-back-reveal {
+  animation: matchBackReveal 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.5s both;
+}
+
+.animate-winner-glow {
+  animation: winnerGlow 2.5s ease-in-out infinite;
+}
+
+.animate-guess-dropdown-enter {
+  animation: guessDropdownEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top center;
+}
+
+.animate-guess-dropdown-exit {
+  animation: guessDropdownExit 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: top center;
+}
+
+.guess-search-dropdown-panel {
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.guess-search-dropdown-panel-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.guess-search-dropdown-panel-hidden {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  pointer-events: none;
+}
+
+.animate-guess-status-enter {
+  animation: guessStatusEnter 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.animate-skip-label-exit {
+  animation: skipLabelExit 0.85s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-skip-name-return {
+  animation: skipNameReturn 0.85s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-song-reveal-cover {
+  animation: songRevealCover 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.animate-song-reveal-title {
+  animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.28s both;
+}
+
+.animate-song-reveal-artist {
+  animation: songRevealMeta 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.42s both;
+}
+
+.animate-search-value-exit {
+  animation: searchValueSlideOut 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-search-value-enter {
+  animation: searchValueSlideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.focus-backdrop {
+  transition: opacity 300ms ease-out, backdrop-filter 300ms ease-out;
+}
+
+.focus-backdrop-enter {
+  opacity: 1;
+}
+
+.focus-backdrop-exit {
+  opacity: 0;
+}
+
+.playlist-picker-panel {
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 220ms ease-out,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.playlist-picker-panel-enter {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.playlist-picker-panel-exit {
+  opacity: 0;
+  transform: translate(-50%, -46%) scale(0.96);
+}
+
+.user-avatar-tooltip {
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
