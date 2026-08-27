@@ -1,6 +1,5 @@
 import { socket } from "../api/socket";
 import { getState } from "../api/state";
-import { ensureEnoughSongsForMatch } from "../api/playlist";
 import { toGameServiceErrorCode } from "./gameServiceErrors";
 
 async function ensureSocketConnected() {
@@ -38,7 +37,6 @@ export async function createMatchRoom(
 
     if (!res.ok) throw new Error("USER_ALREADY_IN_GAME");
 
-    await ensureEnoughSongsForMatch();
     await ensureSocketConnected();
   } catch (err) {
     throw new Error(toGameServiceErrorCode(err));
